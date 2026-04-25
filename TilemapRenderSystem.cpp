@@ -10,7 +10,7 @@
 #include "deki-rendering/DekiRenderer.h"
 #include "deki-rendering/DekiRenderPassRegistry.h"
 #include "deki-rendering/QuadBlit.h"
-#include "Sprite.h"
+#include "deki-2d/Sprite.h"
 #include "Tilemap.h"
 #include "TilemapComponent.h"
 #include "TilemapStreamer.h"

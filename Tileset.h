@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "Sprite.h"
+#include "deki-2d/Sprite.h"
 #include "assets/AssetRef.h"
 
 namespace DekiTilemap
