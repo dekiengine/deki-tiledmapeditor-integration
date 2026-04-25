@@ -1,0 +1,34 @@
+{
+  "id": "deki-tiledmap",
+  "displayName": "Tiled Map Editor Integration",
+  "buildDefine": "DEKI_MODULE_TILEDMAP",
+  "requires": ["deki-2d", "deki-rendering"],
+  "features": [
+    {
+      "id": "tilemap_render",
+      "displayName": "Tilemap Rendering",
+      "buildDefine": "DEKI_FEATURE_TILEMAP_RENDER",
+      "defaultEnabled": true,
+      "componentGuids": ["7c9a1d20-3e44-4b8a-9f12-6d2c5e3a8b71"]
+    },
+    {
+      "id": "tilemap_collision",
+      "displayName": "Tilemap Collision",
+      "buildDefine": "DEKI_FEATURE_TILEMAP_COLLISION",
+      "defaultEnabled": true,
+      "componentGuids": ["e2b8c4a1-9f30-4d65-8c11-7a4b3e2d1f88"]
+    },
+    {
+      "id": "tilemap_objects",
+      "displayName": "Object Layers",
+      "buildDefine": "DEKI_FEATURE_TILEMAP_OBJECTS",
+      "defaultEnabled": true,
+      "componentGuids": ["a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15"]
+    }
+  ],
+  "dependencies": {
+    "default": [
+      {"name": "miniz", "version": "3.0.2", "git": "https://github.com/richgel999/miniz.git"}
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+Deki Tiled Map Editor Integration
+Copyright (c) 2026 Deki Engine
+
+This module integrates with Tiled Map Editor (https://www.mapeditor.org),
+authored by Thorbjørn Lindeijer and contributors. Tiled is GPL-licensed but
+this module only consumes Tiled's exported file formats (.tmj/.tsj) and is
+not derived from Tiled source code.
+
+Editor-side decompression of base64+zlib chunk data uses miniz
+(https://github.com/richgel999/miniz), MIT licensed.
