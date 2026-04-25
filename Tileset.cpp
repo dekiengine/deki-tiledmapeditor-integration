@@ -109,6 +109,8 @@ const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) 
     return &m_animFrames[idx];
 }
 
-} // namespace DekiTilemap
+// REGISTER_ASSET_TYPE concatenates the type name into an identifier, so it
+// can't accept a qualified name. Call inside the namespace.
+REGISTER_ASSET_TYPE(Tileset, Tileset::Load)
 
-REGISTER_ASSET_TYPE(::DekiTilemap::Tileset, ::DekiTilemap::Tileset::Load)
+} // namespace DekiTilemap

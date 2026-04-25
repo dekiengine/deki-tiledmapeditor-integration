@@ -24,9 +24,12 @@ ESP32 SD cards and direct mmap-style reads on desktop.
 ## Source format
 
 Only **JSON** Tiled exports are accepted: `.tmj` for maps, `.tsj` for tilesets.
-Use Tiled's *Save As* to switch from the default `.tmx` format. Embedded
-tilesets and `gzip` / `zstd` chunk compression are rejected at bake-time
-with a clear error — no silent fallback.
+Use Tiled's *Save As* to switch from the default `.tmx` format.
+
+Layer data must be **uncompressed** (CSV or base64). In Tiled, set
+*Map Properties → Tile Layer Format* to `CSV` or `Base64 (uncompressed)`.
+Embedded tilesets and gzip/zlib/zstd chunk compression are rejected at bake
+time with a clear error — no silent fallback.
 
 ## File layout
 

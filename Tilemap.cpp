@@ -185,6 +185,6 @@ std::string Tilemap::GetString(uint32_t offset) const
     return std::string(p, n);
 }
 
-} // namespace DekiTilemap
+REGISTER_ASSET_TYPE(Tilemap, Tilemap::Load)
 
-REGISTER_ASSET_TYPE(::DekiTilemap::Tilemap, ::DekiTilemap::Tilemap::Load)
+} // namespace DekiTilemap

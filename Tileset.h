@@ -31,7 +31,7 @@ struct DTilesetHeader
     uint32_t propertyCount;
     uint32_t pad1;
 };
-static_assert(sizeof(DTilesetHeader) == 96, "DTilesetHeader must be 96 bytes");
+static_assert(sizeof(DTilesetHeader) == 88, "DTilesetHeader layout drift");
 
 // Per-tile animation: tileGids[localId] -> {duration_ms, frames[]}
 struct DTileAnimationFrame

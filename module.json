@@ -26,9 +26,5 @@
       "componentGuids": ["a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15"]
     }
   ],
-  "dependencies": {
-    "default": [
-      {"name": "miniz", "version": "3.0.2", "git": "https://github.com/richgel999/miniz.git"}
-    ]
-  }
+  "dependencies": {}
 }

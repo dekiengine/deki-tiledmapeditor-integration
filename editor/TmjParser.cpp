@@ -9,7 +9,6 @@
 #include <sstream>
 
 #include <nlohmann/json.hpp>
-#include <miniz.h>
 
 #include "DekiLogSystem.h"
 
@@ -77,18 +76,6 @@ bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
     return true;
 }
 
-// Inflate a zlib-compressed buffer using miniz.
-bool InflateZlib(const uint8_t* src, size_t srcLen, std::vector<uint8_t>& out, size_t expected)
-{
-    out.resize(expected);
-    mz_ulong dstLen = static_cast<mz_ulong>(expected);
-    int r = mz_uncompress(out.data(), &dstLen, src, static_cast<mz_ulong>(srcLen));
-    if (r != MZ_OK)
-        return false;
-    out.resize(dstLen);
-    return true;
-}
-
 uint32_t ParseTiledColor(const std::string& s)
 {
     // Tiled writes "#RRGGBB" or "#AARRGGBB". We store RGBA8.
@@ -151,10 +138,11 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer,
         err = "unsupported layer encoding: " + encoding;
         return false;
     }
-    if (!(comp.empty() || comp == "zlib"))
+    if (!comp.empty())
     {
         err = "unsupported layer compression: " + comp +
-              " (only uncompressed and zlib are supported)";
+              " (v1 supports uncompressed CSV / base64 only — re-export from "
+              "Tiled with 'Tile Layer Format: Base64 (uncompressed)' or CSV)";
         return false;
     }
     std::vector<uint8_t> decoded;
@@ -162,16 +150,6 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer,
     {
         err = "malformed base64 in layer data";
         return false;
-    }
-    if (comp == "zlib")
-    {
-        std::vector<uint8_t> inflated;
-        if (!InflateZlib(decoded.data(), decoded.size(), inflated, expectedTiles * 4))
-        {
-            err = "zlib inflate failed";
-            return false;
-        }
-        decoded = std::move(inflated);
     }
     if (decoded.size() != expectedTiles * 4)
     {

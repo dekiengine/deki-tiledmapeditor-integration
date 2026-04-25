@@ -35,12 +35,13 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
     Sprite* atlas = ts->Atlas();
     if (!atlas || !atlas->data) return false;
 
+    const uint32_t bpp   = Texture2D::GetBytesPerPixel(atlas->format);
     outSrc.pixels        = atlas->data;
     outSrc.width         = atlas->width;
     outSrc.height        = atlas->height;
-    outSrc.bytesPerPixel = static_cast<int32_t>(atlas->bytes_per_pixel);
+    outSrc.bytesPerPixel = static_cast<int32_t>(bpp);
     outSrc.hasAlpha      = atlas->has_alpha;
-    outSrc.alphaOffset   = atlas->has_alpha ? static_cast<uint8_t>(outSrc.bytesPerPixel - 1) : 0;
+    outSrc.alphaOffset   = atlas->has_alpha ? static_cast<uint8_t>(bpp - 1) : 0;
     outSrc.isRGB565      = (atlas->format == Texture2D::TextureFormat::RGB565 ||
                             atlas->format == Texture2D::TextureFormat::RGB565A8);
     outSrc.alphaRowSpans = nullptr;

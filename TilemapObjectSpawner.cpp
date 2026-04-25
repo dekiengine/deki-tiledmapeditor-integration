@@ -5,7 +5,7 @@
 #include "DekiLogSystem.h"
 #include "DekiObject.h"
 #include "Prefab.h"
-#include "PrefabSystem.h"
+#include "assets/AssetManager.h"
 
 namespace
 {
@@ -48,9 +48,16 @@ void TilemapObjectSpawner::Awake()
 
     DekiObject* owner = GetOwner();
     if (!owner) return;
+    Prefab* targetPrefab = owner->GetOwnerPrefab();
+    if (!targetPrefab)
+    {
+        DEKI_LOG_ERROR("TilemapObjectSpawner: spawner's owner has no prefab");
+        return;
+    }
 
     const float ppu = (pixels_per_unit > 0.0f) ? pixels_per_unit : 1.0f;
     const auto& objs = tm->Objects();
+    auto* mgr = Deki::AssetManager::Get();
 
     for (const auto& obj : objs)
     {
@@ -66,28 +73,28 @@ void TilemapObjectSpawner::Awake()
                 DEKI_LOG_ERROR("TilemapObjectSpawner: object %u has empty prefab_guid", obj.id);
                 continue;
             }
-            DekiObject* spawned = PrefabSystem::Instance().Instantiate(guid.c_str());
-            if (!spawned)
+            Prefab* prefab = mgr ? static_cast<Prefab*>(
+                mgr->LoadByGuidAndType(guid, Prefab::AssetTypeName)) : nullptr;
+            if (!prefab)
             {
                 DEKI_LOG_ERROR("TilemapObjectSpawner: prefab '%s' not found for object %u",
                                guid.c_str(), obj.id);
                 continue;
             }
-            spawned->x = wx;
-            spawned->y = wy;
-            spawned->rotation = obj.rotation;
+            DekiObject* spawned = prefab->Instantiate(targetPrefab, wx, wy);
+            if (!spawned) continue;
+            spawned->SetRotation(obj.rotation);
             owner->AddChild(spawned);
             m_spawned.push_back(spawned);
             continue;
         }
 
-        // No prefab_guid — create a bare DekiObject. v1 does not auto-create a
-        // SpriteComponent for tile objects; that's deferred to a follow-up
-        // (would require linking a SpriteComponent factory call here).
+        // No prefab_guid — bare DekiObject with transform only. SpriteComponent
+        // synthesis for tile objects is a follow-up.
         DekiObject* spawned = new DekiObject();
-        spawned->x = wx;
-        spawned->y = wy;
-        spawned->rotation = obj.rotation;
+        spawned->SetX(wx);
+        spawned->SetY(wy);
+        spawned->SetRotation(obj.rotation);
         if (obj.name[0]) spawned->SetName(obj.name);
         owner->AddChild(spawned);
         m_spawned.push_back(spawned);

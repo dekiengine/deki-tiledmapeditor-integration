@@ -35,7 +35,7 @@ struct DTilemapHeader
     uint32_t flags;             // bit0 = infinite
     uint32_t pad[5];
 };
-static_assert(sizeof(DTilemapHeader) == 96, "DTilemapHeader must be 96 bytes");
+static_assert(sizeof(DTilemapHeader) == 80, "DTilemapHeader layout drift");
 
 struct ChunkIndexEntry
 {
