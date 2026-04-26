@@ -9,6 +9,8 @@
 #include "TilemapComponent.h"
 #include "TilemapColliderComponent.h"
 #include "TilemapObjectSpawner.h"
+#include "TilemapRenderSystem.h"
+#include "deki-rendering/DekiRenderingInit.h"
 #include "reflection/ComponentRegistry.h"
 #include "reflection/ComponentFactory.h"
 
@@ -82,6 +84,11 @@ DEKI_PLUGIN_API int DekiPlugin_Init(void)
 
 DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
 {
+    // Tear down the render pass before this DLL unloads — the renderer holds
+    // a TilemapRenderPass instance whose vtable lives in our memory. Without
+    // this, alt-tab/hot-reload leaves Standard2DRenderer with a dangling pass
+    // and the next frame either renders garbage or crashes.
+    DekiRendering_DetachPass(DekiTilemap::TilemapRenderPass::RegistryName);
     s_Registered = false;
 }
 
