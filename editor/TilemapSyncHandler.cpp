@@ -126,11 +126,31 @@ void HandleTilemapSync(const std::string& absPath,
         fs::path tsjAbs = (tmjPath.parent_path() / tref.source).lexically_normal();
         fs::path tsjRel = fs::relative(tsjAbs, projectPath);
         std::string tsjRelStr = tsjRel.generic_string();
+
+        // .tsx (XML) tilesets aren't supported by this module — JSON only.
+        // Tiled defaults to .tsx even when maps are .tmj, so this is the most
+        // common bake failure. Give the user the exact fix.
+        std::string ext = tsjAbs.extension().string();
+        for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (ext == ".tsx")
+        {
+            DEKI_LOG_ERROR(
+                "TilemapSync: '%s' references XML tileset '%s'. The deki-tilemap module is "
+                "JSON-only. In Tiled: open the .tsx, File > Export As > Tiled JSON Tileset (.tsj), "
+                "then update the map's tileset reference to the .tsj file. To stop hitting this: "
+                "Edit > Preferences > General > Store tilesets as > JSON.",
+                absPath.c_str(), tref.source.c_str());
+            return;
+        }
+
         std::string tsGuid = GuidForRelativePath(pipeline, tsjRelStr);
         if (tsGuid.empty())
         {
-            DEKI_LOG_ERROR("TilemapSync: external tileset '%s' has no GUID — make sure the .tsj "
-                           "is in the project's assets directory", tsjRelStr.c_str());
+            DEKI_LOG_ERROR(
+                "TilemapSync: external tileset '%s' (referenced from '%s') has no GUID — "
+                "the .tsj file must live somewhere under the project's assets/ folder so the "
+                "editor can import it.",
+                tsjRelStr.c_str(), absPath.c_str());
             return;
         }
 
