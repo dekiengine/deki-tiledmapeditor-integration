@@ -26,12 +26,17 @@ namespace
 
 bool s_Registered = false;
 
-// Look up the GUID assigned to an arbitrary asset path. Returns empty if not
-// imported yet (caller should fail loudly).
+// Look up the GUID assigned to an arbitrary asset path. Returns empty if the
+// file does not exist on disk; otherwise reads/creates the .data sidecar so the
+// lookup does not depend on directory iteration order — m_Assets is only
+// populated as ProcessAsset visits each file, and a .tmj can be visited before
+// its referenced .tsj/.png.
 std::string GuidForRelativePath(DekiEditor::AssetPipeline* pipeline, const std::string& rel)
 {
-    const auto* info = pipeline->GetAssetInfo(rel);
-    return info ? info->guid : std::string();
+    fs::path abs = fs::path(pipeline->GetAbsolutePath(rel));
+    if (!fs::exists(abs))
+        return std::string();
+    return pipeline->GetOrCreateAssetGuid(rel);
 }
 
 DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheContext& ctx)
