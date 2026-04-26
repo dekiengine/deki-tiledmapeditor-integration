@@ -26,17 +26,6 @@ namespace
 
 bool s_Registered = false;
 
-std::string CacheDir(DekiEditor::AssetPipeline* pipeline)
-{
-    return (fs::path(pipeline->GetProjectPath()) / "cache").string();
-}
-
-// Compute a deterministic GUID for a sub-asset given a parent GUID + suffix.
-std::string SubGuid(const std::string& parentGuid, const std::string& suffix)
-{
-    return Deki::GenerateDeterministicGuid(parentGuid + ":" + suffix);
-}
-
 // Look up the GUID assigned to an arbitrary asset path. Returns empty if not
 // imported yet (caller should fail loudly).
 std::string GuidForRelativePath(DekiEditor::AssetPipeline* pipeline, const std::string& rel)
@@ -45,86 +34,64 @@ std::string GuidForRelativePath(DekiEditor::AssetPipeline* pipeline, const std::
     return info ? info->guid : std::string();
 }
 
-void HandleTilesetSync(const std::string& absPath,
-                       const std::string& guid,
-                       const std::string& projectPath)
+DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheContext& ctx)
 {
-    auto* pipeline = DekiEditor::AssetPipeline::Instance();
-    if (!pipeline)
-    {
-        DEKI_LOG_ERROR("TilesetSync: no active asset pipeline");
-        return;
-    }
-
     TmjTileset ts;
     std::string err;
-    if (!ParseTsjTileset(absPath, ts, err))
+    if (!ParseTsjTileset(ctx.absolutePath, ts, err))
     {
-        DEKI_LOG_ERROR("TilesetSync: parse failed for '%s': %s", absPath.c_str(), err.c_str());
-        return;
+        DEKI_LOG_ERROR("TilesetSync: parse failed for '%s': %s", ctx.absolutePath.c_str(), err.c_str());
+        return DekiEditor::AssetCacheResult::NotCached;
     }
 
     // Resolve the atlas image's GUID. The image is referenced relative to the .tsj
     // file location.
-    fs::path tsjPath = absPath;
+    fs::path tsjPath = ctx.absolutePath;
     fs::path imagePath = (tsjPath.parent_path() / ts.imageRelative).lexically_normal();
-    fs::path imageRel  = fs::relative(imagePath, projectPath);
-    std::string imageRelStr;
-    {
-        // Normalize to forward slashes — AssetPipeline keys are forward-slash.
-        imageRelStr = imageRel.generic_string();
-    }
-    std::string atlasGuid = GuidForRelativePath(pipeline, imageRelStr);
+    fs::path imageRel  = fs::relative(imagePath, ctx.projectPath);
+    std::string imageRelStr = imageRel.generic_string();
+
+    std::string atlasGuid = GuidForRelativePath(ctx.pipeline, imageRelStr);
     if (atlasGuid.empty())
     {
         DEKI_LOG_ERROR("TilesetSync: tileset image '%s' has not been imported by the editor yet "
-                       "(referenced from '%s')", imageRelStr.c_str(), absPath.c_str());
-        return;
+                       "(referenced from '%s')", imageRelStr.c_str(), ctx.absolutePath.c_str());
+        return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    // Cache output: cache/<guid>
-    fs::path outPath = fs::path(CacheDir(pipeline)) / guid;
-    if (!WriteDtileset(ts, atlasGuid, outPath.string()))
+    if (!WriteDtileset(ts, atlasGuid, ctx.cachePath))
     {
-        DEKI_LOG_ERROR("TilesetSync: bake failed for '%s'", absPath.c_str());
-        return;
+        DEKI_LOG_ERROR("TilesetSync: bake failed for '%s' (cache path '%s')",
+                       ctx.absolutePath.c_str(), ctx.cachePath.c_str());
+        return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    Deki::AssetManager::Get()->RegisterGuid(guid, guid);
     DEKI_LOG_EDITOR("TilesetSync: baked '%s' -> %s (atlas=%s)",
-                    absPath.c_str(), guid.c_str(), atlasGuid.c_str());
+                    ctx.absolutePath.c_str(), ctx.guid.c_str(), atlasGuid.c_str());
+    return DekiEditor::AssetCacheResult::Cached;
 }
 
-void HandleTilemapSync(const std::string& absPath,
-                       const std::string& guid,
-                       const std::string& projectPath)
+DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheContext& ctx)
 {
-    auto* pipeline = DekiEditor::AssetPipeline::Instance();
-    if (!pipeline)
-    {
-        DEKI_LOG_ERROR("TilemapSync: no active asset pipeline");
-        return;
-    }
-
     TmjMap map;
     std::string err;
-    if (!ParseTmjMap(absPath, map, err))
+    if (!ParseTmjMap(ctx.absolutePath, map, err))
     {
-        DEKI_LOG_ERROR("TilemapSync: parse failed for '%s': %s", absPath.c_str(), err.c_str());
-        return;
+        DEKI_LOG_ERROR("TilemapSync: parse failed for '%s': %s", ctx.absolutePath.c_str(), err.c_str());
+        return DekiEditor::AssetCacheResult::NotCached;
     }
 
     // For each external tileset reference, ensure the .tsj has been imported
     // and pull its GUID. Do NOT recursively sync — AssetPipeline schedules
     // .tsj handlers itself when those files exist in the project.
-    fs::path tmjPath = absPath;
+    fs::path tmjPath = ctx.absolutePath;
     std::vector<BakedTilesetRef> baked;
     std::vector<DekiEditor::SubAssetInfo> subs;
     int subIdx = 0;
     for (const auto& tref : map.tilesets)
     {
         fs::path tsjAbs = (tmjPath.parent_path() / tref.source).lexically_normal();
-        fs::path tsjRel = fs::relative(tsjAbs, projectPath);
+        fs::path tsjRel = fs::relative(tsjAbs, ctx.projectPath);
         std::string tsjRelStr = tsjRel.generic_string();
 
         // .tsx (XML) tilesets aren't supported by this module — JSON only.
@@ -139,19 +106,19 @@ void HandleTilemapSync(const std::string& absPath,
                 "JSON-only. In Tiled: open the .tsx, File > Export As > Tiled JSON Tileset (.tsj), "
                 "then update the map's tileset reference to the .tsj file. To stop hitting this: "
                 "Edit > Preferences > General > Store tilesets as > JSON.",
-                absPath.c_str(), tref.source.c_str());
-            return;
+                ctx.absolutePath.c_str(), tref.source.c_str());
+            return DekiEditor::AssetCacheResult::NotCached;
         }
 
-        std::string tsGuid = GuidForRelativePath(pipeline, tsjRelStr);
+        std::string tsGuid = GuidForRelativePath(ctx.pipeline, tsjRelStr);
         if (tsGuid.empty())
         {
             DEKI_LOG_ERROR(
                 "TilemapSync: external tileset '%s' (referenced from '%s') has no GUID — "
                 "the .tsj file must live somewhere under the project's assets/ folder so the "
                 "editor can import it.",
-                tsjRelStr.c_str(), absPath.c_str());
-            return;
+                tsjRelStr.c_str(), ctx.absolutePath.c_str());
+            return DekiEditor::AssetCacheResult::NotCached;
         }
 
         baked.push_back({tref.firstGid, tsGuid});
@@ -160,7 +127,7 @@ void HandleTilemapSync(const std::string& absPath,
         // the map.
         DekiEditor::SubAssetInfo s;
         s.guid          = tsGuid;
-        s.parentGuid    = guid;
+        s.parentGuid    = ctx.guid;
         s.subAssetIndex = subIdx++;
         s.name          = tsjAbs.stem().string();
         s.depth         = 0;
@@ -168,18 +135,18 @@ void HandleTilemapSync(const std::string& absPath,
         subs.push_back(s);
     }
 
-    fs::path outPath = fs::path(CacheDir(pipeline)) / guid;
-    if (!WriteDtilemap(map, baked, outPath.string()))
+    if (!WriteDtilemap(map, baked, ctx.cachePath))
     {
-        DEKI_LOG_ERROR("TilemapSync: bake failed for '%s'", absPath.c_str());
-        return;
+        DEKI_LOG_ERROR("TilemapSync: bake failed for '%s' (cache path '%s')",
+                       ctx.absolutePath.c_str(), ctx.cachePath.c_str());
+        return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    pipeline->RegisterSubAssets(guid, subs);
+    ctx.pipeline->RegisterSubAssets(ctx.guid, subs);
 
     // Update .data sidecar to record the resolved tileset GUIDs (for tooling /
     // hot-reload diff).
-    fs::path dataPath = absPath + std::string(".data");
+    fs::path dataPath = ctx.absolutePath + std::string(".data");
     json sidecar;
     if (fs::exists(dataPath))
     {
@@ -196,10 +163,10 @@ void HandleTilemapSync(const std::string& absPath,
         out << sidecar.dump(2);
     }
 
-    Deki::AssetManager::Get()->RegisterGuid(guid, guid);
     DEKI_LOG_EDITOR("TilemapSync: baked '%s' -> %s (%zu tilesets, %zu layers)",
-                    absPath.c_str(), guid.c_str(),
+                    ctx.absolutePath.c_str(), ctx.guid.c_str(),
                     baked.size(), map.tileLayers.size());
+    return DekiEditor::AssetCacheResult::Cached;
 }
 
 } // namespace
@@ -210,18 +177,13 @@ void RegisterTilemapSyncHandlers()
     s_Registered = true;
 
     DekiEditor::AssetPipeline::OnStarted([](DekiEditor::AssetPipeline* p) {
-        // .tsj must be processed before .tmj — AssetPipeline doesn't guarantee
-        // ordering, so HandleTilemapSync just checks for the import and fails
-        // loudly if the .tsj hasn't been registered yet. The sidecar baked-flag
-        // mechanism re-runs on next scan once both are present.
-        //
-        // Always policy: HandleTilemapSync is the only place that populates
-        // m_SubAssets for a tilemap (its tileset list shows under the tilemap
-        // in the asset browser). Sub-asset state is not persisted, so it must
-        // be repopulated on every open. If we ever persist sub-assets, this
-        // can move to OnSourceChange.
-        p->RegisterSyncHandler(".tsj", HandleTilesetSync, DekiEditor::AssetPipeline::SyncHandlerPolicy::Always);
-        p->RegisterSyncHandler(".tmj", HandleTilemapSync, DekiEditor::AssetPipeline::SyncHandlerPolicy::Always);
+        // Cache handlers (not sync handlers): returning AssetCacheResult::Cached
+        // sets info.hasCachedVersion=true, which makes EditorProjectManager's
+        // post-import RegisterGuid loop see the asset and wire the GUID -> path
+        // entry that AssetRef::Get() needs at runtime. Sync handlers can't do
+        // this — they run after hasCachedVersion is already final.
+        p->RegisterCacheHandler(".tsj", HandleTilesetCache);
+        p->RegisterCacheHandler(".tmj", HandleTilemapCache);
     });
 }
 
