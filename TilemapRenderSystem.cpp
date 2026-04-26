@@ -63,16 +63,23 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     const int32_t screenW = ctx.width;
     const int32_t screenH = ctx.height;
 
-    // Camera visible rect in tile-pixels.
+    // The map's local origin is the owner's world transform — chunk (0,0)
+    // sits at the object's position, so the tilemap follows when the owner
+    // moves. Tile coordinates below are computed in this local space and
+    // shifted into world space at draw time.
+    const float originX = obj->GetWorldX();
+    const float originY = obj->GetWorldY();
+
+    // Camera visible rect in tile-pixels (tilemap-local: subtract origin).
     const float visW = ctx.camera->GetVisibleWidth(screenW);
     const float visH = ctx.camera->GetVisibleHeight(screenH);
     const float camX = ctx.camera->GetPositionX();
     const float camY = ctx.camera->GetPositionY();
 
-    const float worldMinX = camX - visW * 0.5f;
-    const float worldMinY = camY - visH * 0.5f;
-    const float worldMaxX = camX + visW * 0.5f;
-    const float worldMaxY = camY + visH * 0.5f;
+    const float worldMinX = (camX - originX) - visW * 0.5f;
+    const float worldMinY = (camY - originY) - visH * 0.5f;
+    const float worldMaxX = (camX - originX) + visW * 0.5f;
+    const float worldMaxY = (camY - originY) + visH * 0.5f;
 
     const int tw = tm->TileWidth();
     const int th = tm->TileHeight();
@@ -159,13 +166,12 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 int sx, sy, sw, sh;
                 ts->GetTileRect(localId, sx, sy, sw, sh);
 
-                // World-space tile rect.
-                const int wx = chunkOriginX + tx * tw;
-                const int wy = chunkOriginY + ty * th;
+                // World-space tile rect (tilemap-local + owner origin).
+                const float wx = originX + static_cast<float>(chunkOriginX + tx * tw);
+                const float wy = originY + static_cast<float>(chunkOriginY + ty * th);
 
                 int destSX, destSY;
-                ctx.camera->WorldToScreen(static_cast<float>(wx), static_cast<float>(wy),
-                                          screenW, screenH, destSX, destSY);
+                ctx.camera->WorldToScreen(wx, wy, screenW, screenH, destSX, destSY);
 
                 // Build a per-tile sub-source (the tileset atlas with srcRect baked in).
                 // QuadBlit::Source doesn't carry a srcRect, so we point at the
