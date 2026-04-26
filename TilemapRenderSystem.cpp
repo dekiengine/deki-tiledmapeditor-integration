@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "DekiObject.h"
@@ -27,6 +28,10 @@ namespace
 // Per-frame IO budget for chunk reads. 8 KiB/frame ≈ 8 chunks at the default
 // 16x16 chunk size. Conservative for ESP32 SD reads.
 constexpr size_t kIOByteBudgetPerFrame = 8 * 1024;
+
+// Reused scratch for tight per-tile copies (see comment at the blit site for
+// why this exists). Grows on demand to fit the largest tile encountered.
+thread_local std::vector<uint8_t> s_TileScratch;
 
 // Build a Tileset Source descriptor referencing the atlas's pixel buffer.
 // Returns false if the atlas isn't ready yet.
@@ -187,12 +192,27 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 int destSX, destSY;
                 ctx.camera->WorldToScreen(wx, wy, screenW, screenH, destSX, destSY);
 
-                // Build a per-tile sub-source (the tileset atlas with srcRect baked in).
-                // QuadBlit::Source doesn't carry a srcRect, so we point at the
-                // atlas row/col origin and trust BlitScaled to copy sw x sh px.
+                // Build a per-tile sub-source. QuadBlit::Source has no separate
+                // stride, so pointing it at the atlas slice would make BlitScaled
+                // read sw*bpp bytes per row from the atlas (which has a wider
+                // stride) — adjacent tile rows in atlas memory would bleed in,
+                // producing the horizontal-stripe artifact. Copy each tile into a
+                // tight scratch buffer first so width == stride.
+                const int      bpp         = atlasSrc[tsIdx].bytesPerPixel;
+                const int32_t  atlasStride = atlasSrc[tsIdx].width * bpp;
+                const int32_t  rowBytes    = sw * bpp;
+                const size_t   needed      = static_cast<size_t>(sh) * static_cast<size_t>(rowBytes);
+                if (s_TileScratch.size() < needed) s_TileScratch.resize(needed);
+                const uint8_t* atlasBase = atlasSrc[tsIdx].pixels;
+                for (int row = 0; row < sh; ++row)
+                {
+                    const uint8_t* srcRow = atlasBase + (sy + row) * atlasStride + sx * bpp;
+                    std::memcpy(s_TileScratch.data() + row * rowBytes, srcRow,
+                                static_cast<size_t>(rowBytes));
+                }
+
                 QuadBlit::Source sub = atlasSrc[tsIdx];
-                sub.pixels = atlasSrc[tsIdx].pixels +
-                             (sy * atlasSrc[tsIdx].width + sx) * atlasSrc[tsIdx].bytesPerPixel;
+                sub.pixels = s_TileScratch.data();
                 sub.width  = sw;
                 sub.height = sh;
 
