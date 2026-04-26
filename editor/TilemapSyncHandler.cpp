@@ -194,8 +194,14 @@ void RegisterTilemapSyncHandlers()
         // ordering, so HandleTilemapSync just checks for the import and fails
         // loudly if the .tsj hasn't been registered yet. The sidecar baked-flag
         // mechanism re-runs on next scan once both are present.
-        p->RegisterSyncHandler(".tsj", HandleTilesetSync);
-        p->RegisterSyncHandler(".tmj", HandleTilemapSync);
+        //
+        // Always policy: HandleTilemapSync is the only place that populates
+        // m_SubAssets for a tilemap (its tileset list shows under the tilemap
+        // in the asset browser). Sub-asset state is not persisted, so it must
+        // be repopulated on every open. If we ever persist sub-assets, this
+        // can move to OnSourceChange.
+        p->RegisterSyncHandler(".tsj", HandleTilesetSync, DekiEditor::AssetPipeline::SyncHandlerPolicy::Always);
+        p->RegisterSyncHandler(".tmj", HandleTilemapSync, DekiEditor::AssetPipeline::SyncHandlerPolicy::Always);
     });
 }
 

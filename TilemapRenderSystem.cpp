@@ -199,13 +199,18 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
 } // namespace DekiTilemap
 
-// Self-registration so the rendering pipeline can pick "tilemap" as a pass.
+// Self-registration with autoAttach=true so DekiRenderingInit attaches the
+// pass to the active Standard2DRenderer whenever the deki-tilemap module is
+// loaded. The project's .rpipeline doesn't need to know about "tilemap"; it
+// can still mention it explicitly to control ordering relative to other
+// passes (e.g. clip2d) if needed.
 namespace {
 struct TilemapRenderPassRegistrar {
     TilemapRenderPassRegistrar() {
-        DekiRenderPassRegistry::Register(
-            DekiTilemap::TilemapRenderPass::RegistryName,
-            RenderPassInfo{ []() -> RenderPass* { return new DekiTilemap::TilemapRenderPass(); } });
+        RenderPassInfo info;
+        info.factory    = []() -> RenderPass* { return new DekiTilemap::TilemapRenderPass(); };
+        info.autoAttach = true;
+        DekiRenderPassRegistry::Register(DekiTilemap::TilemapRenderPass::RegistryName, info);
     }
 };
 static TilemapRenderPassRegistrar s_tilemapPassRegistrar;

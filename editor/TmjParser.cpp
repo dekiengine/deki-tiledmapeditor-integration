@@ -194,8 +194,10 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
     outMap.tileWidth   = j.value("tilewidth",  0);
     outMap.tileHeight  = j.value("tileheight", 0);
     outMap.infinite    = j.value("infinite", false);
-    outMap.chunkWidth  = j.value("editorsettings", json{}).value("chunksize", json{}).value("width", 16);
-    outMap.chunkHeight = j.value("editorsettings", json{}).value("chunksize", json{}).value("height", 16);
+    // Use json::object() (not json{}) for intermediate defaults — a default-constructed
+    // json is null, and calling .value() on null throws type_error.302.
+    outMap.chunkWidth  = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("width", 16);
+    outMap.chunkHeight = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("height", 16);
 
     if (j.contains("backgroundcolor"))
         outMap.backgroundColor = ParseTiledColor(j["backgroundcolor"].get<std::string>());
