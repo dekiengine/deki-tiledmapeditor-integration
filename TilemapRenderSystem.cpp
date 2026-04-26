@@ -222,11 +222,18 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 const uint8_t tintB = tc->tint_color.b;
                 const uint8_t tintA = tc->tint_color.a;
 
-                // Flip flags decode to negative scale; for v1 we issue an
-                // unrotated BlitScaled (rotation/diagonal flips deferred).
-                int destW = sw * ctx.camera->GetZoom();
-                int destH = sh * ctx.camera->GetZoom();
-                if (GidFlipH(gid)) destW = -destW;   // BlitScaled treats negative size as flip
+                // Match SpriteComponent's convention: blit at native source
+                // pixel size (no GetZoom() multiplier). Camera zoom is already
+                // baked into screenX/screenY by WorldToScreen. Multiplying here
+                // too would render each tile at zoom*native pixels in the
+                // buffer, which the prefab view then stretches to fit the
+                // panel — a non-integer display ratio produces the
+                // uneven-pixel "blurry" look the user reported.
+                // Flip flags decode to negative size; BlitScaled treats those
+                // as a horizontal/vertical flip.
+                int destW = sw;
+                int destH = sh;
+                if (GidFlipH(gid)) destW = -destW;
                 if (GidFlipV(gid)) destH = -destH;
 
                 QuadBlit::BlitScaled(sub, ctx.buffer, screenW, screenH, ctx.format,
