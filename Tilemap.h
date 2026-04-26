@@ -125,6 +125,8 @@ public:
     ~Tilemap();
 
     bool     IsInfinite()  const { return (m_header.flags & 1u) != 0; }
+    uint32_t MapWidth()    const { return m_header.mapWidth; }   // tiles; 0xFFFFFFFF if infinite
+    uint32_t MapHeight()   const { return m_header.mapHeight; }
     uint16_t TileWidth()   const { return m_header.tileWidth; }
     uint16_t TileHeight()  const { return m_header.tileHeight; }
     uint16_t ChunkWidth()  const { return m_header.chunkWidth; }

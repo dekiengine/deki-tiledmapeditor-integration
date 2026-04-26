@@ -1,6 +1,7 @@
 #include "TilemapRenderSystem.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -63,36 +64,43 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     const int32_t screenW = ctx.width;
     const int32_t screenH = ctx.height;
 
-    // The map's local origin is the owner's world transform — chunk (0,0)
-    // sits at the object's position, so the tilemap follows when the owner
-    // moves. Tile coordinates below are computed in this local space and
-    // shifted into world space at draw time.
-    const float originX = obj->GetWorldX();
-    const float originY = obj->GetWorldY();
-
-    // Camera visible rect in tile-pixels (tilemap-local: subtract origin).
-    const float visW = ctx.camera->GetVisibleWidth(screenW);
-    const float visH = ctx.camera->GetVisibleHeight(screenH);
-    const float camX = ctx.camera->GetPositionX();
-    const float camY = ctx.camera->GetPositionY();
-
-    const float worldMinX = (camX - originX) - visW * 0.5f;
-    const float worldMinY = (camY - originY) - visH * 0.5f;
-    const float worldMaxX = (camX - originX) + visW * 0.5f;
-    const float worldMaxY = (camY - originY) + visH * 0.5f;
-
     const int tw = tm->TileWidth();
     const int th = tm->TileHeight();
     const int cw = tm->ChunkWidth();
     const int ch = tm->ChunkHeight();
     if (tw <= 0 || th <= 0 || cw <= 0 || ch <= 0) return;
 
+    // Sprite-style centering: the GameObject's transform is the *center* of the
+    // map for finite maps. For infinite maps we have no extents, so chunk (0,0)
+    // top-left sits at the object position — author negative chunks to shift.
+    // Y is also flipped here: Tiled stores rows top-to-bottom (Y+ = down) but
+    // the engine is Y-up, so Tiled row 0 ends up at engine Y = +mapH/2.
+    const float originX     = obj->GetWorldX();
+    const float originY     = obj->GetWorldY();
+    const float halfMapW    = tm->IsInfinite() ? 0.0f
+                              : 0.5f * static_cast<float>(tm->MapWidth())  * static_cast<float>(tw);
+    const float halfMapH    = tm->IsInfinite() ? 0.0f
+                              : 0.5f * static_cast<float>(tm->MapHeight()) * static_cast<float>(th);
+
+    // Camera visible rect, expressed in Tiled-data pixel coords (Y+ down).
+    const float visW = ctx.camera->GetVisibleWidth(screenW);
+    const float visH = ctx.camera->GetVisibleHeight(screenH);
+    const float camX = ctx.camera->GetPositionX();
+    const float camY = ctx.camera->GetPositionY();
+
+    const float tiledMinX = (camX - originX) + halfMapW - visW * 0.5f;
+    const float tiledMaxX = (camX - originX) + halfMapW + visW * 0.5f;
+    // Top of screen = highest engine Y = lowest Tiled Y. Engine-Y high corresponds
+    // to camY+visH/2, which maps to tiledY = halfMapH - (camY-originY+visH/2).
+    const float tiledMinY = halfMapH - ((camY - originY) + visH * 0.5f);
+    const float tiledMaxY = halfMapH - ((camY - originY) - visH * 0.5f);
+
     auto floorDiv = [](int a, int b) { return (a >= 0) ? (a / b) : -(((-a) + b - 1) / b); };
 
-    const int chunkMinX = floorDiv(static_cast<int>(worldMinX) / tw, cw) - tc->chunk_padding;
-    const int chunkMinY = floorDiv(static_cast<int>(worldMinY) / th, ch) - tc->chunk_padding;
-    const int chunkMaxX = floorDiv(static_cast<int>(worldMaxX) / tw, cw) + tc->chunk_padding;
-    const int chunkMaxY = floorDiv(static_cast<int>(worldMaxY) / th, ch) + tc->chunk_padding;
+    const int chunkMinX = floorDiv(static_cast<int>(std::floor(tiledMinX)) / tw, cw) - tc->chunk_padding;
+    const int chunkMinY = floorDiv(static_cast<int>(std::floor(tiledMinY)) / th, ch) - tc->chunk_padding;
+    const int chunkMaxX = floorDiv(static_cast<int>(std::floor(tiledMaxX)) / tw, cw) + tc->chunk_padding;
+    const int chunkMaxY = floorDiv(static_cast<int>(std::floor(tiledMaxY)) / th, ch) + tc->chunk_padding;
 
     auto* streamer = tm->Streamer();
     if (!streamer) return;
@@ -166,9 +174,15 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 int sx, sy, sw, sh;
                 ts->GetTileRect(localId, sx, sy, sw, sh);
 
-                // World-space tile rect (tilemap-local + owner origin).
-                const float wx = originX + static_cast<float>(chunkOriginX + tx * tw);
-                const float wy = originY + static_cast<float>(chunkOriginY + ty * th);
+                // Tiled pixel coords of this tile's top-left, then convert to
+                // engine world coords (Y-up, centered on owner). The world point
+                // we hand to WorldToScreen is the engine-top-left of the tile —
+                // i.e. the corner with the *highest* engine Y, which BlitScaled
+                // expects as its (destX, destY).
+                const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw);
+                const float tiledTileY = static_cast<float>(chunkOriginY + ty * th);
+                const float wx = originX + tiledTileX - halfMapW;
+                const float wy = originY + halfMapH - tiledTileY;
 
                 int destSX, destSY;
                 ctx.camera->WorldToScreen(wx, wy, screenW, screenH, destSX, destSY);
