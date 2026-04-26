@@ -66,6 +66,14 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
+    // Belt-and-suspenders: also register the GUID -> path entry directly with
+    // AssetManager. EditorProjectManager::OpenProject does this in its
+    // post-ImportAllAssets loop, but only the *first* time the project opens.
+    // Hot-reloading the module DLL re-runs our cache handler without re-running
+    // OpenProject — without this call, AssetRef::Get() can't resolve the cache
+    // path until the editor restarts.
+    Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
+
     DEKI_LOG_EDITOR("TilesetSync: baked '%s' -> %s (atlas=%s)",
                     ctx.absolutePath.c_str(), ctx.guid.c_str(), atlasGuid.c_str());
     return DekiEditor::AssetCacheResult::Cached;
@@ -143,6 +151,13 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
     }
 
     ctx.pipeline->RegisterSubAssets(ctx.guid, subs);
+
+    // Belt-and-suspenders: register the GUID -> path entry directly. See the
+    // matching comment in HandleTilesetCache for why this is needed despite
+    // EditorProjectManager's post-import loop. Also register the export-path
+    // key so AssetManager::Load<Tilemap>("path/to/test-map") works the same
+    // way Sprite/BitmapFont do.
+    Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
 
     // Update .data sidecar to record the resolved tileset GUIDs (for tooling /
     // hot-reload diff).
