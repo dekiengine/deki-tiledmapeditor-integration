@@ -46,6 +46,12 @@ TilemapRenderSystem.{h,cpp}        Per-frame visibility + draw pass
 editor/                            Editor-only code (sync handlers, baker, parser)
 ```
 
+## Installation
+
+Install via the Module Manager inside the Deki Editor.
+
 ## License
 
-MIT. See LICENSE.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+Third-party notices are listed in [NOTICE](NOTICE).
