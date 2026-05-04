@@ -115,6 +115,12 @@ struct TmjTileset
     int32_t     rows = 0;
     std::string imageRelative;       // path to PNG, relative to .tsj
     std::vector<TmjTilesetTile> tiles;
+
+    // Tiled "transparentcolor" property: pixels of this exact RGB are skipped
+    // by the renderer (chroma key). Stored RGBA-packed (R in low byte) per
+    // ParseTiledColor convention; the alpha byte is unused for keying.
+    bool        hasTransparentColor = false;
+    uint32_t    transparentColor = 0;
 };
 
 // Parse a .tmj file into TmjMap. Returns false and sets outError on failure.

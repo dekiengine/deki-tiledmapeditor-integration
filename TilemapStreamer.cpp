@@ -1,5 +1,6 @@
 #include "TilemapStreamer.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -42,13 +43,46 @@ void TilemapStreamer::SetMemoryBudget(size_t bytes)
 
 const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t cx, int32_t cy) const
 {
-    for (size_t i = 0; i < m_indexCount; ++i)
+    const uint16_t layer16 = static_cast<uint16_t>(layerIdx);
+    const auto* begin = m_index;
+    const auto* end   = m_index + m_indexCount;
+
+    // Spatial-locality cache: RequestRect scans in (cy, cx) order, so the next
+    // probe usually wants the entry right after the previous hit. Check the
+    // cached pointer and its successor before paying for a fresh binary search.
+    if (m_lastFound && m_lastFound >= begin && m_lastFound < end)
     {
-        const auto& e = m_index[i];
-        if (static_cast<int32_t>(e.layerIndex) == layerIdx && e.chunkX == cx && e.chunkY == cy)
-            return &e;
+        if (m_lastFound->layerIndex == layer16 &&
+            m_lastFound->chunkY == cy && m_lastFound->chunkX == cx)
+            return m_lastFound;
+        const auto* nxt = m_lastFound + 1;
+        if (nxt < end &&
+            nxt->layerIndex == layer16 &&
+            nxt->chunkY == cy && nxt->chunkX == cx)
+        {
+            m_lastFound = nxt;
+            return nxt;
+        }
     }
-    return nullptr;
+
+    // m_index is sorted by (layerIndex, chunkY, chunkX) at load time
+    // (Tilemap::Load), so binary search lands on the exact entry.
+    ChunkIndexEntry key{};
+    key.chunkX     = cx;
+    key.chunkY     = cy;
+    key.layerIndex = layer16;
+    auto cmp = [](const ChunkIndexEntry& a, const ChunkIndexEntry& b)
+    {
+        if (a.layerIndex != b.layerIndex) return a.layerIndex < b.layerIndex;
+        if (a.chunkY     != b.chunkY)     return a.chunkY     < b.chunkY;
+        return a.chunkX < b.chunkX;
+    };
+    const auto* it = std::lower_bound(begin, end, key, cmp);
+    if (it == end) return nullptr;
+    if (it->layerIndex != key.layerIndex || it->chunkY != key.chunkY || it->chunkX != key.chunkX)
+        return nullptr;
+    m_lastFound = it;
+    return it;
 }
 
 void TilemapStreamer::RequestRect(int32_t layerIdx,
@@ -64,11 +98,7 @@ void TilemapStreamer::RequestRect(int32_t layerIdx,
         const ChunkIndexEntry* e = FindIndexEntry(layerIdx, cx, cy);
         if (!e)
             continue;   // index says nothing here — treat as empty
-        // Avoid duplicate pending entries.
-        bool already = false;
-        for (const auto& p : m_pending)
-            if (p == key) { already = true; break; }
-        if (!already)
+        if (m_pendingSet.insert(key).second)
             m_pending.push_back(key);
     }
 }
@@ -150,6 +180,7 @@ void TilemapStreamer::Pump(size_t byteBudget)
     {
         Key k = m_pending.front();
         m_pending.pop_front();
+        m_pendingSet.erase(k);
         const ChunkIndexEntry* e = FindIndexEntry(static_cast<int32_t>(k.layer), k.cx, k.cy);
         if (!e) continue;
         if (LoadChunkNow(*e))

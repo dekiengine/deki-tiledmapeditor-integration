@@ -15,10 +15,40 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     if (tw <= 0 || th <= 0) return false;
 
     // World coords are in tile-pixels matching Tiled's coordinate system.
-    const int tileX = static_cast<int>(worldX) / tw;
-    const int tileY = static_cast<int>(worldY) / th;
+    const int origTileX = static_cast<int>(worldX) / tw;
+    const int origTileY = static_cast<int>(worldY) / th;
+    int tileX = origTileX;
+    int tileY = origTileY;
     const int cw = tm->ChunkWidth();
     const int ch = tm->ChunkHeight();
+
+    // Resolve wrap periods per axis. loop_x/y off → no wrap on that axis.
+    // On with period 0 → auto from authored bounds; with period >0 → explicit.
+    int periodX = 0;
+    int periodY = 0;
+    int originX = 0;
+    int originY = 0;
+    if (loop_x || loop_y)
+    {
+        int32_t bx = 0, by = 0, bw = 0, bh = 0;
+        const bool haveBounds = tm->GetAuthoredBounds(bx, by, bw, bh);
+        if (loop_x)
+        {
+            if (wrap_period_x > 0)   periodX = wrap_period_x;
+            else if (haveBounds)     { periodX = bw; originX = bx; }
+        }
+        if (loop_y)
+        {
+            if (wrap_period_y > 0)   periodY = wrap_period_y;
+            else if (haveBounds)     { periodY = bh; originY = by; }
+        }
+    }
+
+    // Wrap into the authored period so queries past the edge fold back.
+    auto wrapMod = [](int v, int n) { int r = v % n; return r < 0 ? r + n : r; };
+    if (periodX > 0) tileX = originX + wrapMod(tileX - originX, periodX);
+    if (periodY > 0) tileY = originY + wrapMod(tileY - originY, periodY);
+
     const int chunkX = (tileX < 0) ? -((-tileX + cw - 1) / cw) : tileX / cw;
     const int chunkY = (tileY < 0) ? -((-tileY + ch - 1) / ch) : tileY / ch;
     const int withinX = tileX - chunkX * cw;
@@ -56,8 +86,8 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     if (!col) return false;
 
     // Local point inside the tile.
-    const float px = worldX - tileX * tw;
-    const float py = worldY - tileY * th;
+    const float px = worldX - origTileX * tw;
+    const float py = worldY - origTileY * th;
 
     if (col->shape == static_cast<uint32_t>(DekiTilemap::DTileCollisionShape::Rect))
     {

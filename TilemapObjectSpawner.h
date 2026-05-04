@@ -28,10 +28,12 @@ public:
     DEKI_EXPORT
     Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
 
-    // Pixels per world unit, used to convert Tiled object positions to engine
-    // coordinates. Should match the tileset's pixels_per_unit.
+    // Source pixels per world meter for Tiled object positions. Should match
+    // the TilemapComponent's pixels_per_meter (default 16). Used to divide
+    // Tiled pixel coordinates into engine-world meters at spawn time.
     DEKI_EXPORT
-    float pixels_per_unit = 100.0f;
+    DEKI_RANGE(1.0f, 256.0f)
+    float pixels_per_meter = 16.0f;
 
     void Awake() override;
     bool NeedsUpdate() const override { return false; }

@@ -10,7 +10,7 @@
 namespace DekiTilemap
 {
 
-// On-disk header for .dtileset (96 bytes, little-endian, packed by hand).
+// On-disk header for .dtileset (88 bytes, little-endian, packed by hand).
 #pragma pack(push, 1)
 struct DTilesetHeader
 {
@@ -29,7 +29,11 @@ struct DTilesetHeader
     uint32_t collisionCount;
     uint32_t propertyTableOffset;
     uint32_t propertyCount;
-    uint32_t pad1;
+    // Tiled "transparentcolor" chroma key. High bit (0x80000000) is the active
+    // flag, low 24 bits hold packed RGB (R in bits 0-7, G in 8-15, B in 16-23
+    // — matches ParseTiledColor's low 24 bits). 0 = no key. Older .dtileset
+    // files written before this field have pad=0 here, which decodes as "off".
+    uint32_t transparentColorFlag;
 };
 static_assert(sizeof(DTilesetHeader) == 88, "DTilesetHeader layout drift");
 
@@ -84,6 +88,13 @@ public:
     uint16_t Columns()    const { return m_header.columns;    }
     uint16_t Rows()       const { return m_header.rows;       }
     uint32_t TileCount()  const { return m_header.tileCount;  }
+
+    // Chroma-key (Tiled "transparentcolor"). RGB-only; renderer skips matching
+    // pixels regardless of the atlas's own alpha channel (or lack thereof).
+    bool    HasTransparentColor() const { return (m_header.transparentColorFlag & 0x80000000u) != 0; }
+    uint8_t TransparentR()        const { return  m_header.transparentColorFlag        & 0xFFu; }
+    uint8_t TransparentG()        const { return (m_header.transparentColorFlag >>  8) & 0xFFu; }
+    uint8_t TransparentB()        const { return (m_header.transparentColorFlag >> 16) & 0xFFu; }
 
     // Compute the source rect inside the atlas for a tile local id.
     void GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const;

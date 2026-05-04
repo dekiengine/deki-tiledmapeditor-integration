@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <vector>
 
 #include "DekiObject.h"
@@ -29,12 +28,14 @@ namespace
 // 16x16 chunk size. Conservative for ESP32 SD reads.
 constexpr size_t kIOByteBudgetPerFrame = 8 * 1024;
 
-// Reused scratch for tight per-tile copies (see comment at the blit site for
-// why this exists). Grows on demand to fit the largest tile encountered.
-thread_local std::vector<uint8_t> s_TileScratch;
-
-// Build a Tileset Source descriptor referencing the atlas's pixel buffer.
-// Returns false if the atlas isn't ready yet.
+// Build a Tileset Source descriptor referencing the atlas's pixel buffer
+// directly (no copy). Each tile is rendered by pointing the Source at the
+// tile's slice with stride = atlas row bytes — QuadBlit walks rows by stride
+// so adjacent atlas tiles never bleed in. Tileset chroma-key (Tiled
+// "transparentcolor") becomes a per-pixel skip inside QuadBlit; for RGB565
+// atlases the key is pre-quantized to 5/6/5 precision so the compare matches
+// the value QuadBlit extracts from source bytes. Returns false if the atlas
+// isn't loaded yet.
 bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
 {
     if (!ts) return false;
@@ -52,10 +53,72 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
                             atlas->format == Texture2D::TextureFormat::RGB565A8);
     outSrc.alphaRowSpans = nullptr;
     outSrc.ownsPixels    = false;
+    outSrc.stride        = atlas->width * static_cast<int32_t>(bpp);
+
+    if (ts->HasTransparentColor())
+    {
+        uint8_t kr = ts->TransparentR();
+        uint8_t kg = ts->TransparentG();
+        uint8_t kb = ts->TransparentB();
+        // Quantize to RGB565 precision for RGB565/RGB565A8 atlases: PNGs
+        // imported into 5/6/5 lose low bits, so an exact 8-bit compare
+        // against the authored key would never match.
+        if (outSrc.isRGB565)
+        {
+            kr = static_cast<uint8_t>((kr >> 3) << 3);
+            kg = static_cast<uint8_t>((kg >> 2) << 2);
+            kb = static_cast<uint8_t>((kb >> 3) << 3);
+        }
+        outSrc.hasChromaKey = true;
+        outSrc.keyR = kr;
+        outSrc.keyG = kg;
+        outSrc.keyB = kb;
+    }
+    else
+    {
+        outSrc.hasChromaKey = false;
+        outSrc.keyR = outSrc.keyG = outSrc.keyB = 0;
+    }
     return true;
 }
 
 } // namespace
+
+TilemapRenderPass::TilesetCache& TilemapRenderPass::GetCache(Tilemap* tm)
+{
+    for (auto& entry : m_caches)
+        if (entry.first == tm) return entry.second;
+    m_caches.emplace_back(tm, TilesetCache{});
+    auto& cache = m_caches.back().second;
+    const auto& refs = tm->Tilesets();
+    cache.tilesets.assign(refs.size(), nullptr);
+    cache.sources.assign(refs.size(), QuadBlit::Source{});
+    cache.ready.assign(refs.size(), false);
+    return cache;
+}
+
+void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
+{
+    auto* mgr = Deki::AssetManager::Get();
+    if (!mgr) return;
+    const auto& refs = tm->Tilesets();
+    for (size_t i = 0; i < refs.size(); ++i)
+    {
+        // Re-resolve any tileset whose atlas hasn't been ready yet, or whose
+        // pointers may have shifted under us (asset reload). Once a tileset
+        // has resolved with a populated atlas pixel buffer, the cached Source
+        // is stable and we skip rebuilding it.
+        Tileset* ts = cache.tilesets[i];
+        if (!ts)
+        {
+            ts = static_cast<Tileset*>(
+                mgr->LoadByGuidAndType(refs[i].guid, Tileset::AssetTypeName));
+            cache.tilesets[i] = ts;
+        }
+        if (!cache.ready[i])
+            cache.ready[i] = MakeAtlasSource(ts, cache.sources[i]);
+    }
+}
 
 void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 {
@@ -75,30 +138,50 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     const int ch = tm->ChunkHeight();
     if (tw <= 0 || th <= 0 || cw <= 0 || ch <= 0) return;
 
-    // Sprite-style centering: the GameObject's transform is the *center* of the
-    // map for finite maps. For infinite maps we have no extents, so chunk (0,0)
-    // top-left sits at the object position — author negative chunks to shift.
-    // Y is also flipped here: Tiled stores rows top-to-bottom (Y+ = down) but
-    // the engine is Y-up, so Tiled row 0 ends up at engine Y = +mapH/2.
-    const float originX     = obj->GetWorldX();
-    const float originY     = obj->GetWorldY();
-    const float halfMapW    = tm->IsInfinite() ? 0.0f
-                              : 0.5f * static_cast<float>(tm->MapWidth())  * static_cast<float>(tw);
-    const float halfMapH    = tm->IsInfinite() ? 0.0f
-                              : 0.5f * static_cast<float>(tm->MapHeight()) * static_cast<float>(th);
+    // Tilemap's source pixels per world meter. All tile-pixel quantities
+    // below are converted to meters by dividing by tilePPM, so the math
+    // composes cleanly with the owner transform (already meters) and camera
+    // (already pixels-per-meter).
+    const float tilePPM = (tc->pixels_per_meter > 0.0f) ? tc->pixels_per_meter : 1.0f;
+    const float invTilePPM = 1.0f / tilePPM;
 
-    // Camera visible rect, expressed in Tiled-data pixel coords (Y+ down).
+    // What world-meter coordinate maps to the GameObject's world position?
+    //   Finite map:        the map's center — keeps the whole rect on the owner.
+    //   Infinite + origin: a Tiled object named "origin" — author places it
+    //                      wherever they want world (0, 0) to be.
+    //   Infinite, no origin: Tiled (0, 0), strict coord mapping (back-compat).
+    // Y is flipped here because Tiled stores rows top-to-bottom (Y+ down) and
+    // the engine is Y-up, so Tiled row 0 ends up at engine Y = +originOffsetY.
+    const float originX = obj->GetWorldX();
+    const float originY = obj->GetWorldY();
+    float originOffsetX = 0.0f;
+    float originOffsetY = 0.0f;
+    if (!tm->IsInfinite())
+    {
+        // Source-pixel half-extents converted to meters.
+        originOffsetX = 0.5f * static_cast<float>(tm->MapWidth())  * static_cast<float>(tw) * invTilePPM;
+        originOffsetY = 0.5f * static_cast<float>(tm->MapHeight()) * static_cast<float>(th) * invTilePPM;
+    }
+    else
+    {
+        // FindOrigin returns Tiled pixels — convert to meters.
+        tm->FindOrigin(originOffsetX, originOffsetY);
+        originOffsetX *= invTilePPM;
+        originOffsetY *= invTilePPM;
+    }
+
+    // Camera visible rect, expressed in tile-pixel coords (Y+ down) for chunk
+    // selection. Camera/visible sizes are meters; convert via tilePPM.
     const float visW = ctx.camera->GetVisibleWidth(screenW);
     const float visH = ctx.camera->GetVisibleHeight(screenH);
     const float camX = ctx.camera->GetPositionX();
     const float camY = ctx.camera->GetPositionY();
 
-    const float tiledMinX = (camX - originX) + halfMapW - visW * 0.5f;
-    const float tiledMaxX = (camX - originX) + halfMapW + visW * 0.5f;
-    // Top of screen = highest engine Y = lowest Tiled Y. Engine-Y high corresponds
-    // to camY+visH/2, which maps to tiledY = halfMapH - (camY-originY+visH/2).
-    const float tiledMinY = halfMapH - ((camY - originY) + visH * 0.5f);
-    const float tiledMaxY = halfMapH - ((camY - originY) - visH * 0.5f);
+    // Switch to tile-pixel space (meters * tilePPM) for chunk math.
+    const float tiledMinX = ((camX - originX) + originOffsetX - visW * 0.5f) * tilePPM;
+    const float tiledMaxX = ((camX - originX) + originOffsetX + visW * 0.5f) * tilePPM;
+    const float tiledMinY = (originOffsetY - ((camY - originY) + visH * 0.5f)) * tilePPM;
+    const float tiledMaxY = (originOffsetY - ((camY - originY) - visH * 0.5f)) * tilePPM;
 
     auto floorDiv = [](int a, int b) { return (a >= 0) ? (a / b) : -(((-a) + b - 1) / b); };
 
@@ -110,50 +193,165 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     auto* streamer = tm->Streamer();
     if (!streamer) return;
 
+    // Resolve wrap periods. auto_wrap pulls them from authored bounds;
+    // otherwise use the manual wrap_period_x/y fields (0 disables an axis).
+    // Period is interpreted as tiles and floor-divided to chunks — sub-chunk
+    // remainders are silently dropped, so size strips on chunk boundaries.
+    int periodTilesX = 0;
+    int periodTilesY = 0;
+    int originTileX  = 0;
+    int originTileY  = 0;
+    if (tc->loop_x || tc->loop_y)
+    {
+        int32_t bx = 0, by = 0, bw = 0, bh = 0;
+        const bool haveBounds = tm->GetAuthoredBounds(bx, by, bw, bh);
+        if (tc->loop_x)
+        {
+            if (tc->wrap_period_x > 0)   periodTilesX = tc->wrap_period_x;
+            else if (haveBounds)         { periodTilesX = bw; originTileX = bx; }
+        }
+        if (tc->loop_y)
+        {
+            if (tc->wrap_period_y > 0)   periodTilesY = tc->wrap_period_y;
+            else if (haveBounds)         { periodTilesY = bh; originTileY = by; }
+        }
+    }
+    const int periodChunksX = (periodTilesX > 0) ? (periodTilesX / cw) : 0;
+    const int periodChunksY = (periodTilesY > 0) ? (periodTilesY / ch) : 0;
+    const int originChunksX = (cw > 0) ? originTileX / cw : 0;
+    const int originChunksY = (ch > 0) ? originTileY / ch : 0;
+    const bool wrapX = periodChunksX > 0;
+    const bool wrapY = periodChunksY > 0;
+
+    auto wrap = [](int v, int n) { int r = v % n; return r < 0 ? r + n : r; };
+
+    // For streaming, only request authored chunks (those inside the period
+    // window when wrapping; otherwise the unwrapped visible rect). Repeated
+    // tiles reuse the same resident chunk.
+    int reqMinX = chunkMinX, reqMaxX = chunkMaxX;
+    int reqMinY = chunkMinY, reqMaxY = chunkMaxY;
+    if (wrapX)
+    {
+        const int span = chunkMaxX - chunkMinX;
+        if (span >= periodChunksX - 1) { reqMinX = originChunksX; reqMaxX = originChunksX + periodChunksX - 1; }
+        else
+        {
+            reqMinX = originChunksX + wrap(chunkMinX - originChunksX, periodChunksX);
+            reqMaxX = reqMinX + span;
+        }
+    }
+    if (wrapY)
+    {
+        const int span = chunkMaxY - chunkMinY;
+        if (span >= periodChunksY - 1) { reqMinY = originChunksY; reqMaxY = originChunksY + periodChunksY - 1; }
+        else
+        {
+            reqMinY = originChunksY + wrap(chunkMinY - originChunksY, periodChunksY);
+            reqMaxY = reqMinY + span;
+        }
+    }
+
     // Request + pump for every visible layer this frame.
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
         if (((tc->visible_layer_mask >> layer) & 1) == 0) continue;
-        streamer->RequestRect(static_cast<int32_t>(layer),
-                              chunkMinX, chunkMinY, chunkMaxX, chunkMaxY);
+        if (wrapX || wrapY)
+        {
+            // Request may straddle the period boundary; split into up to two
+            // ranges per axis so each piece lands inside [0, period).
+            const int periodEndX = originChunksX + periodChunksX;
+            const int periodEndY = originChunksY + periodChunksY;
+            const int xs[2] = { reqMinX, originChunksX };
+            const int xe[2] = { wrapX && reqMaxX >= periodEndX ? periodEndX - 1 : reqMaxX,
+                                wrapX && reqMaxX >= periodEndX ? reqMaxX - periodChunksX : -1 };
+            const int ys[2] = { reqMinY, originChunksY };
+            const int ye[2] = { wrapY && reqMaxY >= periodEndY ? periodEndY - 1 : reqMaxY,
+                                wrapY && reqMaxY >= periodEndY ? reqMaxY - periodChunksY : -1 };
+            for (int iy = 0; iy < 2; ++iy)
+            {
+                if (ye[iy] < ys[iy]) continue;
+                for (int ix = 0; ix < 2; ++ix)
+                {
+                    if (xe[ix] < xs[ix]) continue;
+                    streamer->RequestRect(static_cast<int32_t>(layer),
+                                          xs[ix], ys[iy], xe[ix], ye[iy]);
+                }
+            }
+        }
+        else
+        {
+            streamer->RequestRect(static_cast<int32_t>(layer),
+                                  chunkMinX, chunkMinY, chunkMaxX, chunkMaxY);
+        }
     }
     streamer->Pump(kIOByteBudgetPerFrame);
 
-    // Cache resolved tilesets (LoadByGuidAndType is moderately expensive).
-    std::vector<Tileset*> tilesets;
-    tilesets.reserve(tm->Tilesets().size());
-    auto* mgr = Deki::AssetManager::Get();
-    for (const auto& tref : tm->Tilesets())
+    // Resolved tilesets + per-tileset Source descriptors. Built once per
+    // Tilemap and reused across frames; entries with not-yet-loaded atlases
+    // are retried each frame.
+    TilesetCache& cache = GetCache(tm);
+    RefreshCache(tm, cache);
+
+    // Precompute the unwrapped→authored chunk-coord mapping per axis once.
+    // Identity when no wrap on that axis. Avoids a modulo+lambda call per
+    // visible cell inside the inner loops.
+    if (wrapX || wrapY)
     {
-        Tileset* ts = mgr ? static_cast<Tileset*>(
-            mgr->LoadByGuidAndType(tref.guid, Tileset::AssetTypeName)) : nullptr;
-        tilesets.push_back(ts);
+        const int spanX = chunkMaxX - chunkMinX + 1;
+        const int spanY = chunkMaxY - chunkMinY + 1;
+        m_srcChunkXLut.resize(static_cast<size_t>(spanX));
+        m_srcChunkYLut.resize(static_cast<size_t>(spanY));
+        for (int i = 0; i < spanX; ++i)
+        {
+            const int cx = chunkMinX + i;
+            m_srcChunkXLut[i] = wrapX ? originChunksX + wrap(cx - originChunksX, periodChunksX) : cx;
+        }
+        for (int i = 0; i < spanY; ++i)
+        {
+            const int cy = chunkMinY + i;
+            m_srcChunkYLut[i] = wrapY ? originChunksY + wrap(cy - originChunksY, periodChunksY) : cy;
+        }
     }
 
-    // Per-tileset Source descriptors (atlas may be null if not yet loaded).
-    std::vector<QuadBlit::Source> atlasSrc(tilesets.size());
-    std::vector<bool>             atlasReady(tilesets.size(), false);
-    for (size_t i = 0; i < tilesets.size(); ++i)
-        atlasReady[i] = MakeAtlasSource(tilesets[i], atlasSrc[i]);
-
-    std::vector<ChunkIndexEntry> visible;
+    const uint8_t tintR = tc->tint_color.r;
+    const uint8_t tintG = tc->tint_color.g;
+    const uint8_t tintB = tc->tint_color.b;
+    const uint8_t tintA = tc->tint_color.a;
 
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
         if (((tc->visible_layer_mask >> layer) & 1) == 0) continue;
 
-        tm->QueryVisibleChunks(static_cast<int32_t>(layer),
-                               chunkMinX, chunkMinY, chunkMaxX, chunkMaxY, visible);
+        m_drawsScratch.clear();
 
-        for (const auto& entry : visible)
+        if (wrapX || wrapY)
+        {
+            const int spanX = chunkMaxX - chunkMinX + 1;
+            const int spanY = chunkMaxY - chunkMinY + 1;
+            m_drawsScratch.reserve(static_cast<size_t>(spanX) * static_cast<size_t>(spanY));
+            for (int iy = 0; iy < spanY; ++iy)
+            for (int ix = 0; ix < spanX; ++ix)
+                m_drawsScratch.push_back({chunkMinX + ix, chunkMinY + iy,
+                                          m_srcChunkXLut[ix], m_srcChunkYLut[iy]});
+        }
+        else
+        {
+            tm->QueryVisibleChunks(static_cast<int32_t>(layer),
+                                   chunkMinX, chunkMinY, chunkMaxX, chunkMaxY, m_visibleScratch);
+            m_drawsScratch.reserve(m_visibleScratch.size());
+            for (const auto& entry : m_visibleScratch)
+                m_drawsScratch.push_back({entry.chunkX, entry.chunkY, entry.chunkX, entry.chunkY});
+        }
+
+        for (const auto& d : m_drawsScratch)
         {
             const TileChunk* chunk = streamer->Get(static_cast<int32_t>(layer),
-                                                   entry.chunkX, entry.chunkY);
+                                                   d.srcX, d.srcY);
             if (!chunk) continue;
-            streamer->TouchLRU(static_cast<int32_t>(layer), entry.chunkX, entry.chunkY);
+            streamer->TouchLRU(static_cast<int32_t>(layer), d.srcX, d.srcY);
 
-            const int chunkOriginX = entry.chunkX * cw * tw;
-            const int chunkOriginY = entry.chunkY * ch * th;
+            const int chunkOriginX = d.drawX * cw * tw;
+            const int chunkOriginY = d.drawY * ch * th;
 
             for (int ty = 0; ty < ch; ++ty)
             for (int tx = 0; tx < cw; ++tx)
@@ -162,77 +360,54 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 if (GidIndex(gid) == 0) continue;
 
                 uint32_t localId = 0;
-                const TilesetRef* tref = tm->ResolveTileset(gid, localId);
+                size_t   tsIdx   = 0;
+                const TilesetRef* tref = tm->ResolveTilesetWithIndex(gid, localId, tsIdx);
                 if (!tref) continue;
+                if (tsIdx >= cache.ready.size() || !cache.ready[tsIdx]) continue;
 
-                // Find the cached tileset slot for this ref.
-                size_t tsIdx = 0;
-                bool found = false;
-                for (; tsIdx < tm->Tilesets().size(); ++tsIdx)
-                {
-                    if (&tm->Tilesets()[tsIdx] == tref) { found = true; break; }
-                }
-                if (!found || !atlasReady[tsIdx]) continue;
-
-                Tileset* ts = tilesets[tsIdx];
+                Tileset* ts = cache.tilesets[tsIdx];
 
                 int sx, sy, sw, sh;
                 ts->GetTileRect(localId, sx, sy, sw, sh);
 
-                // Tiled pixel coords of this tile's top-left, then convert to
-                // engine world coords (Y-up, centered on owner). The world point
-                // we hand to WorldToScreen is the engine-top-left of the tile —
-                // i.e. the corner with the *highest* engine Y, which BlitScaled
-                // expects as its (destX, destY).
-                const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw);
-                const float tiledTileY = static_cast<float>(chunkOriginY + ty * th);
-                const float wx = originX + tiledTileX - halfMapW;
-                const float wy = originY + halfMapH - tiledTileY;
+                // Tiled pixel coords of this tile's top-left, converted to
+                // engine world meters (Y-up, centered on owner). The world
+                // point we hand to WorldToScreen is the engine-top-left of
+                // the tile — i.e. the corner with the *highest* engine Y,
+                // which BlitScaled expects as its (destX, destY).
+                const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw) * invTilePPM;
+                const float tiledTileY = static_cast<float>(chunkOriginY + ty * th) * invTilePPM;
+                const float wx = originX + tiledTileX - originOffsetX;
+                const float wy = originY + originOffsetY - tiledTileY;
 
-                int destSX, destSY;
-                ctx.camera->WorldToScreen(wx, wy, screenW, screenH, destSX, destSY);
+                float fDestSX, fDestSY;
+                ctx.camera->WorldToScreen(wx, wy, screenW, screenH, fDestSX, fDestSY);
+                const int destSX = tc->pixel_snap
+                    ? static_cast<int>(std::lround(fDestSX))
+                    : static_cast<int>(fDestSX);
+                const int destSY = tc->pixel_snap
+                    ? static_cast<int>(std::lround(fDestSY))
+                    : static_cast<int>(fDestSY);
 
-                // Build a per-tile sub-source. QuadBlit::Source has no separate
-                // stride, so pointing it at the atlas slice would make BlitScaled
-                // read sw*bpp bytes per row from the atlas (which has a wider
-                // stride) — adjacent tile rows in atlas memory would bleed in,
-                // producing the horizontal-stripe artifact. Copy each tile into a
-                // tight scratch buffer first so width == stride.
-                const int      bpp         = atlasSrc[tsIdx].bytesPerPixel;
-                const int32_t  atlasStride = atlasSrc[tsIdx].width * bpp;
-                const int32_t  rowBytes    = sw * bpp;
-                const size_t   needed      = static_cast<size_t>(sh) * static_cast<size_t>(rowBytes);
-                if (s_TileScratch.size() < needed) s_TileScratch.resize(needed);
-                const uint8_t* atlasBase = atlasSrc[tsIdx].pixels;
-                for (int row = 0; row < sh; ++row)
-                {
-                    const uint8_t* srcRow = atlasBase + (sy + row) * atlasStride + sx * bpp;
-                    std::memcpy(s_TileScratch.data() + row * rowBytes, srcRow,
-                                static_cast<size_t>(rowBytes));
-                }
-
-                QuadBlit::Source sub = atlasSrc[tsIdx];
-                sub.pixels = s_TileScratch.data();
+                // Point the Source directly at this tile's slice of the atlas;
+                // stride keeps QuadBlit walking the atlas's full row width so
+                // adjacent tiles never bleed in. Chroma-key (when set on the
+                // tileset) is honored by QuadBlit per-pixel without any copy.
+                const QuadBlit::Source& base = cache.sources[tsIdx];
+                QuadBlit::Source sub = base;
+                sub.pixels = base.pixels + sy * base.stride + sx * base.bytesPerPixel;
                 sub.width  = sw;
                 sub.height = sh;
+                // sub.stride stays at the atlas row width.
 
-                // Apply tint from the component (white = no tint).
-                const uint8_t tintR = tc->tint_color.r;
-                const uint8_t tintG = tc->tint_color.g;
-                const uint8_t tintB = tc->tint_color.b;
-                const uint8_t tintA = tc->tint_color.a;
-
-                // Match SpriteComponent's convention: blit at native source
-                // pixel size (no GetZoom() multiplier). Camera zoom is already
-                // baked into screenX/screenY by WorldToScreen. Multiplying here
-                // too would render each tile at zoom*native pixels in the
-                // buffer, which the prefab view then stretches to fit the
-                // panel — a non-integer display ratio produces the
-                // uneven-pixel "blurry" look the user reported.
-                // Flip flags decode to negative size; BlitScaled treats those
-                // as a horizontal/vertical flip.
-                int destW = sw;
-                int destH = sh;
+                // Source tile pixels -> world meters via tilePPM, then world
+                // meters -> screen pixels via camera.PPM. Net scale is
+                // (camera.PPM / tilePPM); when both match, source 1:1 to
+                // screen. Flip flags decode to negative size; BlitScaled
+                // treats those as flips.
+                const float scale = ctx.camera->GetPixelsPerMeter() * invTilePPM;
+                int destW = static_cast<int>(std::floor(static_cast<float>(sw) * scale));
+                int destH = static_cast<int>(std::floor(static_cast<float>(sh) * scale));
                 if (GidFlipH(gid)) destW = -destW;
                 if (GidFlipV(gid)) destH = -destH;
 
@@ -258,6 +433,12 @@ struct TilemapRenderPassRegistrar {
         info.factory    = []() -> RenderPass* { return new DekiTilemap::TilemapRenderPass(); };
         info.autoAttach = true;
         DekiRenderPassRegistry::Register(DekiTilemap::TilemapRenderPass::RegistryName, info);
+    }
+    // Unregister on DLL unload so the std::function factory (whose target
+    // lives in this module's code) doesn't outlive the DLL and crash
+    // deki-rendering's static-registry teardown.
+    ~TilemapRenderPassRegistrar() {
+        DekiRenderPassRegistry::Unregister(DekiTilemap::TilemapRenderPass::RegistryName);
     }
 };
 static TilemapRenderPassRegistrar s_tilemapPassRegistrar;

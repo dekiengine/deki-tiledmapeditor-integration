@@ -337,6 +337,12 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
     }
     outTs.imageRelative = j["image"].get<std::string>();
 
+    if (j.contains("transparentcolor"))
+    {
+        outTs.transparentColor = ParseTiledColor(j["transparentcolor"].get<std::string>());
+        outTs.hasTransparentColor = true;
+    }
+
     if (j.contains("tiles") && j["tiles"].is_array())
     {
         for (const auto& jt : j["tiles"])

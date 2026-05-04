@@ -140,6 +140,12 @@ public:
     // gid is 0 or unmapped.
     const TilesetRef* ResolveTileset(uint32_t gid, uint32_t& outLocalId) const;
 
+    // Same as ResolveTileset but also returns the tileset's index in
+    // Tilesets() — saves the caller a linear search when iterating tiles.
+    // Returns nullptr (and leaves outIndex untouched) for unmapped gids.
+    const TilesetRef* ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLocalId,
+                                              size_t& outIndex) const;
+
     // Iterate the index for chunks intersecting the given chunk-coord rect on
     // the given layer. Output entries are guaranteed sorted by (cy, cx).
     void QueryVisibleChunks(int32_t layerIdx,
@@ -152,6 +158,17 @@ public:
     // Object layers (loaded eagerly with the header).
     const std::vector<DObjectLayer>&    ObjectLayers()  const { return m_objectLayers;  }
     const std::vector<DTilemapObject>&  Objects()       const { return m_objects;       }
+
+    // Tiled-pixel coordinate that should land on the owning GameObject. Set by
+    // adding an object named "origin" (any layer, point or rect) in Tiled.
+    // Returns false and leaves outX/outY untouched if no such object exists.
+    bool FindOrigin(float& outX, float& outY) const;
+
+    // Bounding box of authored chunks across all layers, in tile units.
+    // For finite maps this is just (MapWidth, MapHeight). For infinite maps
+    // it's derived from m_index. Returns false if there are no chunks.
+    bool GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
+                           int32_t& outWidthTiles, int32_t& outHeightTiles) const;
     const std::vector<DTilemapProperty>& Properties()   const { return m_properties;    }
     const std::vector<int32_t>&         PolygonPoints() const { return m_polygonPoints; }
     const std::string&                  StringPool()    const { return m_stringPool;    }

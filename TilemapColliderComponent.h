@@ -24,6 +24,23 @@ public:
     DEKI_EXPORT
     int32_t collision_layer = 0;
 
+    // Loop collision on each axis. When enabled, wrap_period controls the
+    // strip size: 0 = auto (use authored bounds), >0 = explicit tile count.
+    // Should match the rendering component.
+    DEKI_EXPORT
+    bool loop_x = false;
+
+    DEKI_EXPORT
+    DEKI_VISIBLE_WHEN(loop_x, 1)
+    int32_t wrap_period_x = 0;
+
+    DEKI_EXPORT
+    bool loop_y = false;
+
+    DEKI_EXPORT
+    DEKI_VISIBLE_WHEN(loop_y, 1)
+    int32_t wrap_period_y = 0;
+
     // Returns true if any tile at world position (x, y) carries a collision
     // shape that contains the point. outLocalId is set to the tile's local id
     // within its tileset on hit.

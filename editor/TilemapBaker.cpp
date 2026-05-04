@@ -66,6 +66,13 @@ bool WriteDtileset(const TmjTileset& ts,
     hdr.rows       = static_cast<uint16_t>(ts.rows);
     hdr.tileCount  = static_cast<uint32_t>(ts.tileCount);
 
+    // Encode chroma key: high bit = active, low 24 bits = packed RGB. The
+    // alpha byte from ParseTiledColor (high byte of the RGBA packing) is
+    // dropped — we only ever match on RGB.
+    hdr.transparentColorFlag = ts.hasTransparentColor
+        ? (0x80000000u | (ts.transparentColor & 0x00FFFFFFu))
+        : 0u;
+
     // Reserve header space, fill offsets later.
     std::fwrite(&hdr, sizeof(hdr), 1, f);
 

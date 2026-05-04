@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "TileChunk.h"
 #include "Tilemap.h"
@@ -85,9 +86,16 @@ private:
     const ChunkIndexEntry*       m_index;
     size_t                       m_indexCount;
 
+    // Last successful FindIndexEntry result. RequestRect walks chunks in
+    // (cy, cx) order so the next call usually wants the entry adjacent in the
+    // sorted index — try the cache and the entry immediately after it before
+    // falling back to a fresh binary search.
+    mutable const ChunkIndexEntry* m_lastFound = nullptr;
+
     std::unordered_map<Key, ResidentChunk, KeyHash> m_resident;
     std::list<Key>                                  m_lru;          // back = newest
     std::list<Key>                                  m_pending;      // load queue (FIFO)
+    std::unordered_set<Key, KeyHash>                m_pendingSet;   // O(1) dedupe for m_pending
     size_t                                          m_residentBytes = 0;
     size_t                                          m_budgetBytes   = 256 * 1024;
     size_t                                          m_chunkBytes    = 0;

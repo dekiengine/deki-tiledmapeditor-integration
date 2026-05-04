@@ -55,14 +55,14 @@ void TilemapObjectSpawner::Awake()
         return;
     }
 
-    const float ppu = (pixels_per_unit > 0.0f) ? pixels_per_unit : 1.0f;
+    const float ppm = (pixels_per_meter > 0.0f) ? pixels_per_meter : 1.0f;
     const auto& objs = tm->Objects();
     auto* mgr = Deki::AssetManager::Get();
 
     for (const auto& obj : objs)
     {
-        const float wx = static_cast<float>(obj.x) / ppu;
-        const float wy = static_cast<float>(obj.y) / ppu;
+        const float wx = static_cast<float>(obj.x) / ppm;
+        const float wy = static_cast<float>(obj.y) / ppm;
 
         const DekiTilemap::DTilemapProperty* guidProp = FindPrefabGuidProperty(*tm, obj);
         if (guidProp)
