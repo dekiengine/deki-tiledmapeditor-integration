@@ -81,7 +81,7 @@ struct DTilemapObject
     uint32_t gid;              // 0 for non-tile objects
     int32_t  x, y;             // pixels
     int32_t  width, height;
-    float    rotation;         // degrees, Tiled convention
+    float    rotation;         // degrees, Tiled convention (converted to radians at spawn time)
     uint32_t pointOffset;      // file offset to int32_t[2*pointCount] (polygons)
     uint32_t pointCount;
     uint32_t propertyOffset;   // file offset to property k/v pool entry

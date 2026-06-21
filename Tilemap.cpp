@@ -7,7 +7,7 @@
 
 #include "DekiLogSystem.h"
 #include "assets/AssetManager.h"
-#include "providers/DekiFileSystemProvider.h"
+#include "providers/DekiFileSystem.h"
 
 namespace DekiTilemap
 {
@@ -141,7 +141,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     std::fclose(f);
 
     // Streamer keeps its own file handle for chunk reads.
-    IDekiFileSystem* fs = DekiFileSystemProvider::GetCurrentFileSystem();
+    IDekiFileSystem* fs = DekiFileSystem::GetCurrentFileSystem();
     if (!fs)
     {
         DEKI_LOG_ERROR("Tilemap::Load: no filesystem provider available");

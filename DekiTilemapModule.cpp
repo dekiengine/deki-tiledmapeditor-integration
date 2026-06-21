@@ -10,14 +10,12 @@
 #include "TilemapColliderComponent.h"
 #include "TilemapObjectSpawner.h"
 #include "TilemapRenderSystem.h"
-#include "deki-rendering/DekiRenderingInit.h"
 #include "reflection/ComponentRegistry.h"
 #include "reflection/ComponentFactory.h"
 
 #ifdef DEKI_EDITOR
 #include "editor/TilemapSyncHandler.h"
 #include "editor/TilemapInspector.h"
-#include "imgui.h"
 #endif
 
 #ifdef DEKI_EDITOR
@@ -33,11 +31,6 @@ static bool s_Registered = false;
 extern "C" {
 
 #ifndef DEKI_PLUGIN_EXPORTS
-DEKI_TILEDMAP_API void DekiTilemap_SetImGuiContext(void* ctx)
-{
-    ImGui::SetCurrentContext(static_cast<ImGuiContext*>(ctx));
-}
-
 DEKI_TILEDMAP_API int DekiTilemap_EnsureRegistered(void)
 {
     if (s_Registered)
@@ -84,17 +77,7 @@ DEKI_PLUGIN_API int DekiPlugin_Init(void)
 
 DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
 {
-    // Tear down the render pass before this DLL unloads — the renderer holds
-    // a TilemapRenderPass instance whose vtable lives in our memory. Without
-    // this, alt-tab/hot-reload leaves Standard2DRenderer with a dangling pass
-    // and the next frame either renders garbage or crashes.
-    DekiRendering_DetachPass(DekiTilemap::TilemapRenderPass::RegistryName);
     s_Registered = false;
-}
-
-DEKI_PLUGIN_API void DekiPlugin_SetImGuiContext(void* ctx)
-{
-    ImGui::SetCurrentContext(static_cast<ImGuiContext*>(ctx));
 }
 
 DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)

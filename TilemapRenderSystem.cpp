@@ -94,6 +94,11 @@ TilemapRenderPass::TilesetCache& TilemapRenderPass::GetCache(Tilemap* tm)
     cache.tilesets.assign(refs.size(), nullptr);
     cache.sources.assign(refs.size(), QuadBlit::Source{});
     cache.ready.assign(refs.size(), false);
+    // Seed the epoch so the very first RefreshCache doesn't immediately wipe
+    // the freshly-initialised vectors. A bump from any later UnloadAll /
+    // InvalidateAsset will be picked up because it advances the epoch.
+    if (auto* mgr = Deki::AssetManager::Get())
+        cache.epoch = mgr->GetEpoch();
     return cache;
 }
 
@@ -101,13 +106,27 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
 {
     auto* mgr = Deki::AssetManager::Get();
     if (!mgr) return;
+
+    // The cached Source.pixels are raw pointers into atlas memory owned by
+    // AssetManager. UnloadAll / InvalidateAsset / hot-reload free that memory
+    // and bump the global epoch. If our epoch is stale, drop every cached
+    // Tileset* + Source so the loop below re-resolves through AssetManager.
+    const uint64_t curEpoch = mgr->GetEpoch();
+    if (cache.epoch != curEpoch)
+    {
+        std::fill(cache.tilesets.begin(), cache.tilesets.end(), nullptr);
+        std::fill(cache.ready.begin(), cache.ready.end(), false);
+        for (auto& src : cache.sources)
+            src = QuadBlit::Source{};
+        cache.epoch = curEpoch;
+    }
+
     const auto& refs = tm->Tilesets();
     for (size_t i = 0; i < refs.size(); ++i)
     {
-        // Re-resolve any tileset whose atlas hasn't been ready yet, or whose
-        // pointers may have shifted under us (asset reload). Once a tileset
-        // has resolved with a populated atlas pixel buffer, the cached Source
-        // is stable and we skip rebuilding it.
+        // Re-resolve any tileset whose atlas hasn't been ready yet. Once
+        // ready, the cached Source stays valid until the epoch bump above
+        // invalidates it.
         Tileset* ts = cache.tilesets[i];
         if (!ts)
         {
@@ -152,8 +171,8 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     //   Infinite, no origin: Tiled (0, 0), strict coord mapping (back-compat).
     // Y is flipped here because Tiled stores rows top-to-bottom (Y+ down) and
     // the engine is Y-up, so Tiled row 0 ends up at engine Y = +originOffsetY.
-    const float originX = obj->GetWorldX();
-    const float originY = obj->GetWorldY();
+    const float originX = (obj->GetWorldX());
+    const float originY = (obj->GetWorldY());
     float originOffsetX = 0.0f;
     float originOffsetY = 0.0f;
     if (!tm->IsInfinite())

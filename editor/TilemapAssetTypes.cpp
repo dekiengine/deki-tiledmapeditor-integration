@@ -13,6 +13,7 @@
 
 #include <deki-editor/EditorExtension.h>
 #include <deki-editor/EditorRegistry.h>
+#include <deki-editor/AssetTypeRegistry.h>
 
 namespace DekiEditor
 {
@@ -35,6 +36,19 @@ public:
 
 REGISTER_EDITOR(TilemapAssetType)
 REGISTER_EDITOR(TilesetAssetType)
+
+namespace {
+struct TilemapCategoryRegistrar
+{
+    TilemapCategoryRegistrar()
+    {
+        auto& reg = AssetTypeRegistry::Instance();
+        reg.RegisterCategory(".tmj", AssetCategory::Data);
+        reg.RegisterCategory(".tsj", AssetCategory::Data);
+    }
+};
+static TilemapCategoryRegistrar s_TilemapCategoryRegistrar;
+}
 
 } // namespace DekiEditor
 

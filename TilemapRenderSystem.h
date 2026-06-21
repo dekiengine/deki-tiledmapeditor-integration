@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -37,6 +38,11 @@ private:
         std::vector<Tileset*>          tilesets;
         std::vector<QuadBlit::Source>  sources;  // base atlas + chroma key (no per-tile data)
         std::vector<bool>              ready;
+        // AssetManager epoch the source pointers were resolved against. When
+        // the global epoch advances (UnloadAll / InvalidateAsset / hot-reload),
+        // sources[].pixels can dangle into freed atlas memory; bumping triggers
+        // a full re-resolve in RefreshCache.
+        uint64_t                       epoch = 0;
     };
     std::vector<std::pair<Tilemap*, TilesetCache>> m_caches;
 

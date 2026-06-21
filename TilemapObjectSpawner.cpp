@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "DekiLogSystem.h"
+#include "DekiMath.h"
 #include "DekiObject.h"
 #include "Prefab.h"
 #include "assets/AssetManager.h"
@@ -83,7 +84,8 @@ void TilemapObjectSpawner::Awake()
             }
             DekiObject* spawned = prefab->Instantiate(targetPrefab, wx, wy);
             if (!spawned) continue;
-            spawned->SetRotation(obj.rotation);
+            // Tiled stores rotation in degrees; engine convention is radians.
+            spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
             owner->AddChild(spawned);
             m_spawned.push_back(spawned);
             continue;
@@ -94,7 +96,8 @@ void TilemapObjectSpawner::Awake()
         DekiObject* spawned = new DekiObject();
         spawned->SetX(wx);
         spawned->SetY(wy);
-        spawned->SetRotation(obj.rotation);
+        // Tiled stores rotation in degrees; engine convention is radians.
+        spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
         if (obj.name[0]) spawned->SetName(obj.name);
         owner->AddChild(spawned);
         m_spawned.push_back(spawned);

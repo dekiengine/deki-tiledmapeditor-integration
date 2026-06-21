@@ -4,7 +4,6 @@
 
 #include <string>
 
-#include "imgui.h"
 #include "DekiLogSystem.h"
 
 #ifdef _WIN32

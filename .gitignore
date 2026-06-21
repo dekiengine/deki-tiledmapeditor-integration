@@ -3,3 +3,4 @@ generated/
 *.obj
 *.o
 build/
+.cache/
