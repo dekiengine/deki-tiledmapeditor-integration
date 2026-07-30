@@ -24,7 +24,7 @@ namespace DekiTilemap
 namespace
 {
 
-bool s_Registered = false;
+bool s_SyncHandlerRegistered = false;
 
 // Look up the GUID assigned to an arbitrary asset path. Returns empty if the
 // file does not exist on disk; otherwise reads/creates the .data sidecar so the
@@ -193,8 +193,8 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
 
 void RegisterTilemapSyncHandlers()
 {
-    if (s_Registered) return;
-    s_Registered = true;
+    if (s_SyncHandlerRegistered) return;
+    s_SyncHandlerRegistered = true;
 
     DekiEditor::AssetPipeline::OnStarted([](DekiEditor::AssetPipeline* p) {
         // Cache handlers (not sync handlers): returning AssetCacheResult::Cached

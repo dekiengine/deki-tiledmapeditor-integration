@@ -17,7 +17,7 @@ namespace DekiTilemap
 namespace
 {
 
-bool s_Registered = false;
+bool s_InspectorRegistered = false;
 
 void OpenInTiled(const std::string& absPath)
 {
@@ -40,8 +40,8 @@ void OpenInTiled(const std::string& absPath)
 
 void RegisterTilemapInspector()
 {
-    if (s_Registered) return;
-    s_Registered = true;
+    if (s_InspectorRegistered) return;
+    s_InspectorRegistered = true;
 
     // The editor's FileInspector registry isn't exposed via a stable C++ header
     // for module use yet. v1 ships the OpenInTiled helper as a public symbol

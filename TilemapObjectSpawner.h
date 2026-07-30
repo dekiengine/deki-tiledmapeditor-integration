@@ -24,6 +24,7 @@ public:
     DEKI_COMPONENT(TilemapObjectSpawner, DekiBehaviour, "Tilemap",
                    "a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15",
                    "DEKI_FEATURE_TILEMAP_OBJECTS")
+    DEKI_DESCRIPTION("Spawns objects from a Tiled map's object layers when the scene loads.")
 
     DEKI_EXPORT
     Deki::AssetRef<DekiTilemap::Tilemap> tilemap;

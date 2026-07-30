@@ -16,6 +16,7 @@ public:
     DEKI_COMPONENT(TilemapColliderComponent, DekiBehaviour, "Tilemap",
                    "e2b8c4a1-9f30-4d65-8c11-7a4b3e2d1f88",
                    "DEKI_FEATURE_TILEMAP_COLLISION")
+    DEKI_DESCRIPTION("Exposes a tilemap layer's per-tile collision shapes for queries.")
 
     DEKI_EXPORT
     Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
