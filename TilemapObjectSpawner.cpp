@@ -5,15 +5,15 @@
 #include "DekiLogSystem.h"
 #include "DekiMath.h"
 #include "DekiObject.h"
-#include "Prefab.h"
+#include "Scene.h"
 #include "assets/AssetManager.h"
 
 namespace
 {
 
 // Walk the property pool entries that belong to a single object and look for
-// the well-known "prefab_guid" string property.
-const DekiTilemap::DTilemapProperty* FindPrefabGuidProperty(
+// the well-known "scene_guid" string property.
+const DekiTilemap::DTilemapProperty* FindSceneGuidProperty(
     const DekiTilemap::Tilemap& tm,
     const DekiTilemap::DTilemapObject& obj)
 {
@@ -30,7 +30,7 @@ const DekiTilemap::DTilemapProperty* FindPrefabGuidProperty(
         if (p.type != static_cast<uint32_t>(DekiTilemap::DPropertyType::String))
             continue;
         std::string name = tm.GetString(p.nameOffset);
-        if (name == "prefab_guid")
+        if (name == "scene_guid")
             return &p;
     }
     return nullptr;
@@ -49,10 +49,10 @@ void TilemapObjectSpawner::Awake()
 
     DekiObject* owner = GetOwner();
     if (!owner) return;
-    Prefab* targetPrefab = owner->GetOwnerPrefab();
-    if (!targetPrefab)
+    Scene* targetScene = owner->GetOwnerScene();
+    if (!targetScene)
     {
-        DEKI_LOG_ERROR("TilemapObjectSpawner: spawner's owner has no prefab");
+        DEKI_LOG_ERROR("TilemapObjectSpawner: spawner's owner has no scene");
         return;
     }
 
@@ -65,24 +65,24 @@ void TilemapObjectSpawner::Awake()
         const float wx = static_cast<float>(obj.x) / ppm;
         const float wy = static_cast<float>(obj.y) / ppm;
 
-        const DekiTilemap::DTilemapProperty* guidProp = FindPrefabGuidProperty(*tm, obj);
+        const DekiTilemap::DTilemapProperty* guidProp = FindSceneGuidProperty(*tm, obj);
         if (guidProp)
         {
             std::string guid = tm->GetString(guidProp->valueOffset);
             if (guid.empty())
             {
-                DEKI_LOG_ERROR("TilemapObjectSpawner: object %u has empty prefab_guid", obj.id);
+                DEKI_LOG_ERROR("TilemapObjectSpawner: object %u has empty scene_guid", obj.id);
                 continue;
             }
-            Prefab* prefab = mgr ? static_cast<Prefab*>(
-                mgr->LoadByGuidAndType(guid, Prefab::AssetTypeName)) : nullptr;
-            if (!prefab)
+            Scene* scene = mgr ? static_cast<Scene*>(
+                mgr->LoadByGuidAndType(guid, Scene::AssetTypeName)) : nullptr;
+            if (!scene)
             {
-                DEKI_LOG_ERROR("TilemapObjectSpawner: prefab '%s' not found for object %u",
+                DEKI_LOG_ERROR("TilemapObjectSpawner: scene '%s' not found for object %u",
                                guid.c_str(), obj.id);
                 continue;
             }
-            DekiObject* spawned = prefab->Instantiate(targetPrefab, wx, wy);
+            DekiObject* spawned = scene->Instantiate(targetScene, wx, wy);
             if (!spawned) continue;
             // Tiled stores rotation in degrees; engine convention is radians.
             spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
@@ -91,7 +91,7 @@ void TilemapObjectSpawner::Awake()
             continue;
         }
 
-        // No prefab_guid — bare DekiObject with transform only. SpriteComponent
+        // No scene_guid — bare DekiObject with transform only. SpriteComponent
         // synthesis for tile objects is a follow-up.
         DekiObject* spawned = new DekiObject();
         spawned->SetX(wx);

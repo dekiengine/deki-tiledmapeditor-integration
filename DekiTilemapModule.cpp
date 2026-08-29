@@ -109,7 +109,7 @@ static const DekiModuleFeatureInfo s_Features[] = {
         true, "DEKI_FEATURE_TILEMAP_RENDER",    s_RenderGuids,   1},
     {"tilemap_collision", "Tilemap Collision", "Per-tile collision shapes from tileset objectgroups",
         true, "DEKI_FEATURE_TILEMAP_COLLISION", s_ColliderGuids, 1},
-    {"tilemap_objects",   "Object Layers",     "Spawn engine prefabs from Tiled object layers",
+    {"tilemap_objects",   "Object Layers",     "Spawn engine scenes from Tiled object layers",
         true, "DEKI_FEATURE_TILEMAP_OBJECTS",   s_ObjectGuids,   1},
 };
 

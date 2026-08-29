@@ -17,9 +17,9 @@ ESP32 SD cards and direct mmap-style reads on desktop.
   prevents stalls.
 - **TilemapColliderComponent** — exposes per-tile collision shapes from the
   tileset's collision objectgroups.
-- **TilemapObjectSpawner** — instantiates engine prefabs from Tiled object
+- **TilemapObjectSpawner** — instantiates engine scenes from Tiled object
   layers. Convention: a Tiled object with custom string property
-  `prefab_guid = "<guid>"` spawns that prefab at the object's transform.
+  `scene_guid = "<guid>"` spawns that scene at the object's transform.
 
 ## Source format
 
@@ -41,7 +41,7 @@ TileChunk.h                        POD chunk struct
 TilemapStreamer.{h,cpp}            LRU paging
 TilemapComponent.{h,cpp}           Render component
 TilemapColliderComponent.{h,cpp}   Collision component
-TilemapObjectSpawner.{h,cpp}       Object-layer prefab spawner
+TilemapObjectSpawner.{h,cpp}       Object-layer scene spawner
 TilemapRenderSystem.{h,cpp}        Per-frame visibility + draw pass
 editor/                            Editor-only code (sync handlers, baker, parser)
 ```

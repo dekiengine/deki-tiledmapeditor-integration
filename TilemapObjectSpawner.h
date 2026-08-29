@@ -11,10 +11,10 @@
 class DekiObject;
 
 // On Awake, walks Tilemap::ObjectLayers and spawns engine objects per Tiled
-// object using the prefab_guid convention:
+// object using the scene_guid convention:
 //
-//   - If a Tiled object has custom string property "prefab_guid" set, that
-//     prefab is instantiated at the object's transform.
+//   - If a Tiled object has custom string property "scene_guid" set, that
+//     scene is instantiated at the object's transform.
 //   - Otherwise, if the object has a non-zero gid (tile object), an empty
 //     DekiObject with a SpriteComponent is spawned.
 //   - Otherwise, an empty DekiObject is spawned with name/type populated.
