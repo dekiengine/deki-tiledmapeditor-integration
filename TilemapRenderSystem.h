@@ -17,7 +17,7 @@ class Tileset;
 //
 // For each visible chunk on each enabled layer, emits one BlitScaled per
 // non-zero tile against the tileset atlas. Drives the chunk streamer with
-// the camera's visible rect (plus chunk_padding) and a per-frame IO budget.
+// the camera's visible rect (plus chunkPadding) and a per-frame IO budget.
 //
 // Registered with DekiRenderPassRegistry under the name "tilemap" so the
 // project's .rpipeline can activate it.

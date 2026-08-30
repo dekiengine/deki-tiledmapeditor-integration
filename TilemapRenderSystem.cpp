@@ -161,7 +161,7 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     // below are converted to meters by dividing by tilePPM, so the math
     // composes cleanly with the owner transform (already meters) and camera
     // (already pixels-per-meter).
-    const float tilePPM = (tc->pixels_per_meter > 0.0f) ? tc->pixels_per_meter : 1.0f;
+    const float tilePPM = (tc->pixelsPerMeter > 0.0f) ? tc->pixelsPerMeter : 1.0f;
     const float invTilePPM = 1.0f / tilePPM;
 
     // What world-meter coordinate maps to the GameObject's world position?
@@ -204,34 +204,34 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
     auto floorDiv = [](int a, int b) { return (a >= 0) ? (a / b) : -(((-a) + b - 1) / b); };
 
-    const int chunkMinX = floorDiv(static_cast<int>(std::floor(tiledMinX)) / tw, cw) - tc->chunk_padding;
-    const int chunkMinY = floorDiv(static_cast<int>(std::floor(tiledMinY)) / th, ch) - tc->chunk_padding;
-    const int chunkMaxX = floorDiv(static_cast<int>(std::floor(tiledMaxX)) / tw, cw) + tc->chunk_padding;
-    const int chunkMaxY = floorDiv(static_cast<int>(std::floor(tiledMaxY)) / th, ch) + tc->chunk_padding;
+    const int chunkMinX = floorDiv(static_cast<int>(std::floor(tiledMinX)) / tw, cw) - tc->chunkPadding;
+    const int chunkMinY = floorDiv(static_cast<int>(std::floor(tiledMinY)) / th, ch) - tc->chunkPadding;
+    const int chunkMaxX = floorDiv(static_cast<int>(std::floor(tiledMaxX)) / tw, cw) + tc->chunkPadding;
+    const int chunkMaxY = floorDiv(static_cast<int>(std::floor(tiledMaxY)) / th, ch) + tc->chunkPadding;
 
     auto* streamer = tm->Streamer();
     if (!streamer) return;
 
     // Resolve wrap periods. auto_wrap pulls them from authored bounds;
-    // otherwise use the manual wrap_period_x/y fields (0 disables an axis).
+    // otherwise use the manual wrapPeriodX/y fields (0 disables an axis).
     // Period is interpreted as tiles and floor-divided to chunks — sub-chunk
     // remainders are silently dropped, so size strips on chunk boundaries.
     int periodTilesX = 0;
     int periodTilesY = 0;
     int originTileX  = 0;
     int originTileY  = 0;
-    if (tc->loop_x || tc->loop_y)
+    if (tc->loopX || tc->loopY)
     {
         int32_t bx = 0, by = 0, bw = 0, bh = 0;
         const bool haveBounds = tm->GetAuthoredBounds(bx, by, bw, bh);
-        if (tc->loop_x)
+        if (tc->loopX)
         {
-            if (tc->wrap_period_x > 0)   periodTilesX = tc->wrap_period_x;
+            if (tc->wrapPeriodX > 0)   periodTilesX = tc->wrapPeriodX;
             else if (haveBounds)         { periodTilesX = bw; originTileX = bx; }
         }
-        if (tc->loop_y)
+        if (tc->loopY)
         {
-            if (tc->wrap_period_y > 0)   periodTilesY = tc->wrap_period_y;
+            if (tc->wrapPeriodY > 0)   periodTilesY = tc->wrapPeriodY;
             else if (haveBounds)         { periodTilesY = bh; originTileY = by; }
         }
     }
@@ -273,7 +273,7 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     // Request + pump for every visible layer this frame.
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
-        if (((tc->visible_layer_mask >> layer) & 1) == 0) continue;
+        if (((tc->visibleLayerMask >> layer) & 1) == 0) continue;
         if (wrapX || wrapY)
         {
             // Request may straddle the period boundary; split into up to two
@@ -332,14 +332,14 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
         }
     }
 
-    const uint8_t tintR = tc->tint_color.r;
-    const uint8_t tintG = tc->tint_color.g;
-    const uint8_t tintB = tc->tint_color.b;
-    const uint8_t tintA = tc->tint_color.a;
+    const uint8_t tintR = tc->tintColor.r;
+    const uint8_t tintG = tc->tintColor.g;
+    const uint8_t tintB = tc->tintColor.b;
+    const uint8_t tintA = tc->tintColor.a;
 
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
-        if (((tc->visible_layer_mask >> layer) & 1) == 0) continue;
+        if (((tc->visibleLayerMask >> layer) & 1) == 0) continue;
 
         m_drawsScratch.clear();
 
@@ -401,10 +401,10 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
                 float fDestSX, fDestSY;
                 ctx.camera->WorldToScreen(wx, wy, screenW, screenH, fDestSX, fDestSY);
-                const int destSX = tc->pixel_snap
+                const int destSX = tc->pixelSnap
                     ? static_cast<int>(std::lround(fDestSX))
                     : static_cast<int>(fDestSX);
-                const int destSY = tc->pixel_snap
+                const int destSY = tc->pixelSnap
                     ? static_cast<int>(std::lround(fDestSY))
                     : static_cast<int>(fDestSY);
 

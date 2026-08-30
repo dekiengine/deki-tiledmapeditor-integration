@@ -56,7 +56,7 @@ void TilemapObjectSpawner::Awake()
         return;
     }
 
-    const float ppm = (pixels_per_meter > 0.0f) ? pixels_per_meter : 1.0f;
+    const float ppm = (pixelsPerMeter > 0.0f) ? pixelsPerMeter : 1.0f;
     const auto& objs = tm->Objects();
     auto* mgr = Deki::AssetManager::Get();
 

@@ -30,11 +30,11 @@ public:
     Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
 
     // Source pixels per world meter for Tiled object positions. Should match
-    // the TilemapComponent's pixels_per_meter (default 16). Used to divide
+    // the TilemapComponent's pixelsPerMeter (default 16). Used to divide
     // Tiled pixel coordinates into engine-world meters at spawn time.
     DEKI_EXPORT
     DEKI_RANGE(1.0f, 256.0f)
-    float pixels_per_meter = 16.0f;
+    float pixelsPerMeter = 16.0f;
 
     void Awake() override;
     bool NeedsUpdate() const override { return false; }

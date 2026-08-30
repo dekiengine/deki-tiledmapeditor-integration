@@ -22,24 +22,24 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     const int cw = tm->ChunkWidth();
     const int ch = tm->ChunkHeight();
 
-    // Resolve wrap periods per axis. loop_x/y off → no wrap on that axis.
+    // Resolve wrap periods per axis. loopX/y off → no wrap on that axis.
     // On with period 0 → auto from authored bounds; with period >0 → explicit.
     int periodX = 0;
     int periodY = 0;
     int originX = 0;
     int originY = 0;
-    if (loop_x || loop_y)
+    if (loopX || loopY)
     {
         int32_t bx = 0, by = 0, bw = 0, bh = 0;
         const bool haveBounds = tm->GetAuthoredBounds(bx, by, bw, bh);
-        if (loop_x)
+        if (loopX)
         {
-            if (wrap_period_x > 0)   periodX = wrap_period_x;
+            if (wrapPeriodX > 0)   periodX = wrapPeriodX;
             else if (haveBounds)     { periodX = bw; originX = bx; }
         }
-        if (loop_y)
+        if (loopY)
         {
-            if (wrap_period_y > 0)   periodY = wrap_period_y;
+            if (wrapPeriodY > 0)   periodY = wrapPeriodY;
             else if (haveBounds)     { periodY = bh; originY = by; }
         }
     }
@@ -60,12 +60,12 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         DEKI_LOG_ERROR("TilemapCollider: no streamer attached to tilemap");
         return false;
     }
-    const DekiTilemap::TileChunk* chunk = streamer->Get(collision_layer, chunkX, chunkY);
+    const DekiTilemap::TileChunk* chunk = streamer->Get(collisionLayer, chunkX, chunkY);
     if (!chunk)
     {
         DEKI_LOG_ERROR("TilemapCollider: chunk (%d,%d) layer %d is not resident — "
                        "request it via TilemapStreamer::RequestRect first",
-                       chunkX, chunkY, collision_layer);
+                       chunkX, chunkY, collisionLayer);
         return false;
     }
 

@@ -21,39 +21,39 @@ public:
 
     // Bitmask of layers to draw. Default: all layers.
     DEKI_EXPORT
-    int32_t visible_layer_mask = 0x7FFFFFFF;
+    int32_t visibleLayerMask = 0x7FFFFFFF;
 
     // Number of chunks loaded past the visible viewport edge (per side).
     DEKI_EXPORT
-    int32_t chunk_padding = 1;
+    int32_t chunkPadding = 1;
 
     // Tint applied to every drawn tile. White = no tint.
     DEKI_EXPORT
-    deki::Color tint_color;
+    deki::Color tintColor;
 
     // Source pixels per world meter for this tilemap. The renderer treats
-    // each tile pixel as 1/pixels_per_meter meters of world space. When
-    // pixels_per_meter equals camera.pixelsPerMeter and project PPM, tiles
+    // each tile pixel as 1/pixelsPerMeter meters of world space. When
+    // pixelsPerMeter equals camera.pixelsPerMeter and project PPM, tiles
     // render 1:1 with their source. Default 16 matches the project default.
     DEKI_EXPORT
     DEKI_RANGE(1.0f, 256.0f)
-    float pixels_per_meter = 16.0f;
+    float pixelsPerMeter = 16.0f;
 
     // Loop the map on each axis. When enabled, wrap_period controls the
     // strip size: 0 = auto (use authored bounds), >0 = explicit tile count.
     DEKI_EXPORT
-    bool loop_x = false;
+    bool loopX = false;
 
     DEKI_EXPORT
-    DEKI_VISIBLE_WHEN(loop_x, 1)
-    int32_t wrap_period_x = 0;
+    DEKI_VISIBLE_WHEN(loopX, 1)
+    int32_t wrapPeriodX = 0;
 
     DEKI_EXPORT
-    bool loop_y = false;
+    bool loopY = false;
 
     DEKI_EXPORT
-    DEKI_VISIBLE_WHEN(loop_y, 1)
-    int32_t wrap_period_y = 0;
+    DEKI_VISIBLE_WHEN(loopY, 1)
+    int32_t wrapPeriodY = 0;
 
     TilemapComponent();
 

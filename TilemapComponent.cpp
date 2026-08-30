@@ -2,7 +2,7 @@
 
 TilemapComponent::TilemapComponent()
 {
-    tint_color = {255, 255, 255, 255};
+    tintColor = {255, 255, 255, 255};
 }
 
 bool TilemapComponent::RenderContent(const DekiObject* /*owner*/,
