@@ -83,18 +83,18 @@ public:
     ~Tileset();
 
     Sprite*  Atlas() const;
-    uint16_t TileWidth()  const { return m_header.tileWidth;  }
-    uint16_t TileHeight() const { return m_header.tileHeight; }
-    uint16_t Columns()    const { return m_header.columns;    }
-    uint16_t Rows()       const { return m_header.rows;       }
-    uint32_t TileCount()  const { return m_header.tileCount;  }
+    uint16_t TileWidth()  const { return m_MHeader.tileWidth;  }
+    uint16_t TileHeight() const { return m_MHeader.tileHeight; }
+    uint16_t Columns()    const { return m_MHeader.columns;    }
+    uint16_t Rows()       const { return m_MHeader.rows;       }
+    uint32_t TileCount()  const { return m_MHeader.tileCount;  }
 
     // Chroma-key (Tiled "transparentcolor"). RGB-only; renderer skips matching
     // pixels regardless of the atlas's own alpha channel (or lack thereof).
-    bool    HasTransparentColor() const { return (m_header.transparentColorFlag & 0x80000000u) != 0; }
-    uint8_t TransparentR()        const { return  m_header.transparentColorFlag        & 0xFFu; }
-    uint8_t TransparentG()        const { return (m_header.transparentColorFlag >>  8) & 0xFFu; }
-    uint8_t TransparentB()        const { return (m_header.transparentColorFlag >> 16) & 0xFFu; }
+    bool    HasTransparentColor() const { return (m_MHeader.transparentColorFlag & 0x80000000u) != 0; }
+    uint8_t TransparentR()        const { return  m_MHeader.transparentColorFlag        & 0xFFu; }
+    uint8_t TransparentG()        const { return (m_MHeader.transparentColorFlag >>  8) & 0xFFu; }
+    uint8_t TransparentB()        const { return (m_MHeader.transparentColorFlag >> 16) & 0xFFu; }
 
     // Compute the source rect inside the atlas for a tile local id.
     void GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const;
@@ -106,11 +106,11 @@ public:
 private:
     Tileset() = default;
 
-    DTilesetHeader m_header{};
-    mutable Deki::AssetRef<Sprite> m_atlas;
-    std::vector<DTileAnimation>      m_anims;
+    DTilesetHeader m_MHeader{};
+    mutable Deki::AssetRef<Sprite> m_MAtlas;
+    std::vector<DTileAnimation>      m_MAnims;
     std::vector<DTileAnimationFrame> m_animFrames;
-    std::vector<DTileCollision>      m_collisions;
+    std::vector<DTileCollision>      m_MCollisions;
 };
 
 } // namespace DekiTilemap

@@ -14,25 +14,25 @@ TilemapStreamer::TilemapStreamer(IDekiFileSystem* fs,
                                  const DTilemapHeader& header,
                                  const ChunkIndexEntry* index,
                                  size_t indexCount)
-    : m_fs(fs)
-    , m_header(header)
-    , m_index(index)
+    : m_MFs(fs)
+    , m_MHeader(header)
+    , m_MIndex(index)
     , m_indexCount(indexCount)
 {
     m_chunkBytes = static_cast<size_t>(header.chunkWidth) *
                    static_cast<size_t>(header.chunkHeight) * sizeof(uint32_t);
 
-    m_handle = m_fs->OpenFile(dtilemapPath, IDekiFileSystem::OpenMode::READ_BINARY);
-    if (!m_handle)
+    m_MHandle = m_MFs->OpenFile(dtilemapPath, IDekiFileSystem::OpenMode::READ_BINARY);
+    if (!m_MHandle)
         DEKI_LOG_ERROR("TilemapStreamer: cannot open '%s' for streaming", dtilemapPath);
 }
 
 TilemapStreamer::~TilemapStreamer()
 {
-    for (auto& [key, rc] : m_resident)
+    for (auto& [key, rc] : m_MResident)
         std::free(rc.owned);
-    if (m_handle && m_fs)
-        m_fs->CloseFile(m_handle);
+    if (m_MHandle && m_MFs)
+        m_MFs->CloseFile(m_MHandle);
 }
 
 void TilemapStreamer::SetMemoryBudget(size_t bytes)
@@ -44,8 +44,8 @@ void TilemapStreamer::SetMemoryBudget(size_t bytes)
 const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t cx, int32_t cy) const
 {
     const uint16_t layer16 = static_cast<uint16_t>(layerIdx);
-    const auto* begin = m_index;
-    const auto* end   = m_index + m_indexCount;
+    const auto* begin = m_MIndex;
+    const auto* end   = m_MIndex + m_indexCount;
 
     // Spatial-locality cache: RequestRect scans in (cy, cx) order, so the next
     // probe usually wants the entry right after the previous hit. Check the
@@ -65,7 +65,7 @@ const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t
         }
     }
 
-    // m_index is sorted by (layerIndex, chunkY, chunkX) at load time
+    // m_MIndex is sorted by (layerIndex, chunkY, chunkX) at load time
     // (Tilemap::Load), so binary search lands on the exact entry.
     ChunkIndexEntry key{};
     key.chunkX     = cx;
@@ -93,20 +93,20 @@ void TilemapStreamer::RequestRect(int32_t layerIdx,
     for (int32_t cx = chunkMinX; cx <= chunkMaxX; ++cx)
     {
         Key key{cx, cy, static_cast<uint16_t>(layerIdx)};
-        if (m_resident.find(key) != m_resident.end())
+        if (m_MResident.find(key) != m_MResident.end())
             continue;
         const ChunkIndexEntry* e = FindIndexEntry(layerIdx, cx, cy);
         if (!e)
             continue;   // index says nothing here — treat as empty
         if (m_pendingSet.insert(key).second)
-            m_pending.push_back(key);
+            m_MPending.push_back(key);
     }
 }
 
 bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
 {
     Key key{entry.chunkX, entry.chunkY, entry.layerIndex};
-    if (m_resident.find(key) != m_resident.end())
+    if (m_MResident.find(key) != m_MResident.end())
         return true;
 
     if (m_residentBytes + m_chunkBytes > m_budgetBytes)
@@ -116,8 +116,8 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     rc.chunk.chunkX     = entry.chunkX;
     rc.chunk.chunkY     = entry.chunkY;
     rc.chunk.layerIndex = entry.layerIndex;
-    rc.chunk.width      = m_header.chunkWidth;
-    rc.chunk.height     = m_header.chunkHeight;
+    rc.chunk.width      = m_MHeader.chunkWidth;
+    rc.chunk.height     = m_MHeader.chunkHeight;
     rc.chunk.flags      = entry.flags;
     rc.bytes            = m_chunkBytes;
     rc.owned            = static_cast<uint32_t*>(std::malloc(m_chunkBytes));
@@ -135,25 +135,25 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     else if (entry.flags & CHUNK_FLAG_UNIFORM_FILL)
     {
         uint32_t fill = 0;
-        if (m_handle)
+        if (m_MHandle)
         {
-            m_fs->SeekFile(m_handle, static_cast<long>(entry.payloadOffset),
+            m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset),
                            IDekiFileSystem::SeekOrigin::BEGIN);
-            m_fs->ReadFile(m_handle, &fill, sizeof(fill));
+            m_MFs->ReadFile(m_MHandle, &fill, sizeof(fill));
         }
         const size_t n = static_cast<size_t>(rc.chunk.width) * rc.chunk.height;
         for (size_t i = 0; i < n; ++i) rc.owned[i] = fill;
     }
     else
     {
-        if (!m_handle)
+        if (!m_MHandle)
         {
             std::free(rc.owned);
             return false;
         }
-        m_fs->SeekFile(m_handle, static_cast<long>(entry.payloadOffset),
+        m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset),
                        IDekiFileSystem::SeekOrigin::BEGIN);
-        size_t got = m_fs->ReadFile(m_handle, rc.owned, m_chunkBytes);
+        size_t got = m_MFs->ReadFile(m_MHandle, rc.owned, m_chunkBytes);
         if (got != m_chunkBytes)
         {
             DEKI_LOG_ERROR("TilemapStreamer: short read on chunk (%d,%d) layer %u: got %zu of %zu",
@@ -165,21 +165,21 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     }
 
     rc.chunk.tileGids = rc.owned;
-    m_lru.push_back(key);
-    rc.lruIt = std::prev(m_lru.end());
+    m_MLru.push_back(key);
+    rc.lruIt = std::prev(m_MLru.end());
 
     m_residentBytes += rc.bytes;
-    m_resident.emplace(key, std::move(rc));
+    m_MResident.emplace(key, std::move(rc));
     return true;
 }
 
 void TilemapStreamer::Pump(size_t byteBudget)
 {
     size_t spent = 0;
-    while (!m_pending.empty() && spent < byteBudget)
+    while (!m_MPending.empty() && spent < byteBudget)
     {
-        Key k = m_pending.front();
-        m_pending.pop_front();
+        Key k = m_MPending.front();
+        m_MPending.pop_front();
         m_pendingSet.erase(k);
         const ChunkIndexEntry* e = FindIndexEntry(static_cast<int32_t>(k.layer), k.cx, k.cy);
         if (!e) continue;
@@ -191,32 +191,32 @@ void TilemapStreamer::Pump(size_t byteBudget)
 const TileChunk* TilemapStreamer::Get(int32_t layerIdx, int32_t chunkX, int32_t chunkY)
 {
     Key k{chunkX, chunkY, static_cast<uint16_t>(layerIdx)};
-    auto it = m_resident.find(k);
-    if (it == m_resident.end()) return nullptr;
+    auto it = m_MResident.find(k);
+    if (it == m_MResident.end()) return nullptr;
     return &it->second.chunk;
 }
 
 void TilemapStreamer::TouchLRU(int32_t layerIdx, int32_t chunkX, int32_t chunkY)
 {
     Key k{chunkX, chunkY, static_cast<uint16_t>(layerIdx)};
-    auto it = m_resident.find(k);
-    if (it == m_resident.end()) return;
-    m_lru.erase(it->second.lruIt);
-    m_lru.push_back(k);
-    it->second.lruIt = std::prev(m_lru.end());
+    auto it = m_MResident.find(k);
+    if (it == m_MResident.end()) return;
+    m_MLru.erase(it->second.lruIt);
+    m_MLru.push_back(k);
+    it->second.lruIt = std::prev(m_MLru.end());
 }
 
 void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
 {
-    while (m_residentBytes > targetBytes && !m_lru.empty())
+    while (m_residentBytes > targetBytes && !m_MLru.empty())
     {
-        Key oldest = m_lru.front();
-        m_lru.pop_front();
-        auto it = m_resident.find(oldest);
-        if (it == m_resident.end()) continue;
+        Key oldest = m_MLru.front();
+        m_MLru.pop_front();
+        auto it = m_MResident.find(oldest);
+        if (it == m_MResident.end()) continue;
         std::free(it->second.owned);
         m_residentBytes -= it->second.bytes;
-        m_resident.erase(it);
+        m_MResident.erase(it);
     }
 }
 

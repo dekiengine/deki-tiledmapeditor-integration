@@ -87,7 +87,7 @@ void TilemapObjectSpawner::Awake()
             // Tiled stores rotation in degrees; engine convention is radians.
             spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
             owner->AddChild(spawned);
-            m_spawned.push_back(spawned);
+            m_MSpawned.push_back(spawned);
             continue;
         }
 
@@ -100,6 +100,6 @@ void TilemapObjectSpawner::Awake()
         spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
         if (obj.name[0]) spawned->SetName(obj.name);
         owner->AddChild(spawned);
-        m_spawned.push_back(spawned);
+        m_MSpawned.push_back(spawned);
     }
 }

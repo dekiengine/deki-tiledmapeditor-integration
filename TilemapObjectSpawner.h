@@ -40,7 +40,7 @@ public:
     bool NeedsUpdate() const override { return false; }
 
 private:
-    std::vector<DekiObject*> m_spawned;
+    std::vector<DekiObject*> m_MSpawned;
 };
 
 #include "generated/TilemapObjectSpawner.gen.h"

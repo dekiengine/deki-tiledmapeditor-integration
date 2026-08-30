@@ -44,7 +44,7 @@ private:
         // a full re-resolve in RefreshCache.
         uint64_t                       epoch = 0;
     };
-    std::vector<std::pair<Tilemap*, TilesetCache>> m_caches;
+    std::vector<std::pair<Tilemap*, TilesetCache>> m_MCaches;
 
     // Reused scratch — avoids heap traffic in Execute().
     std::vector<ChunkIndexEntry> m_visibleScratch;

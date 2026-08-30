@@ -47,8 +47,8 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
     outSrc.width         = atlas->width;
     outSrc.height        = atlas->height;
     outSrc.bytesPerPixel = static_cast<int32_t>(bpp);
-    outSrc.hasAlpha      = atlas->has_alpha;
-    outSrc.alphaOffset   = atlas->has_alpha ? static_cast<uint8_t>(bpp - 1) : 0;
+    outSrc.hasAlpha      = atlas->hasAlpha;
+    outSrc.alphaOffset   = atlas->hasAlpha ? static_cast<uint8_t>(bpp - 1) : 0;
     outSrc.isRGB565      = (atlas->format == Texture2D::TextureFormat::RGB565 ||
                             atlas->format == Texture2D::TextureFormat::RGB565A8);
     outSrc.alphaRowSpans = nullptr;
@@ -86,10 +86,10 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
 
 TilemapRenderPass::TilesetCache& TilemapRenderPass::GetCache(Tilemap* tm)
 {
-    for (auto& entry : m_caches)
+    for (auto& entry : m_MCaches)
         if (entry.first == tm) return entry.second;
-    m_caches.emplace_back(tm, TilesetCache{});
-    auto& cache = m_caches.back().second;
+    m_MCaches.emplace_back(tm, TilesetCache{});
+    auto& cache = m_MCaches.back().second;
     const auto& refs = tm->Tilesets();
     cache.tilesets.assign(refs.size(), nullptr);
     cache.sources.assign(refs.size(), QuadBlit::Source{});

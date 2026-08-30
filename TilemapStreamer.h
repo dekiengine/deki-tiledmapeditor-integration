@@ -45,8 +45,8 @@ public:
     size_t MemoryBudget() const { return m_budgetBytes; }
     size_t ResidentBytes() const { return m_residentBytes; }
 
-    uint16_t ChunkWidth()  const { return m_header.chunkWidth; }
-    uint16_t ChunkHeight() const { return m_header.chunkHeight; }
+    uint16_t ChunkWidth()  const { return m_MHeader.chunkWidth; }
+    uint16_t ChunkHeight() const { return m_MHeader.chunkHeight; }
 
 private:
     struct Key
@@ -80,10 +80,10 @@ private:
     bool LoadChunkNow(const ChunkIndexEntry& entry);
     const ChunkIndexEntry* FindIndexEntry(int32_t layerIdx, int32_t cx, int32_t cy) const;
 
-    IDekiFileSystem*             m_fs;
-    IDekiFileSystem::FileHandle  m_handle = nullptr;
-    DTilemapHeader               m_header;
-    const ChunkIndexEntry*       m_index;
+    IDekiFileSystem*             m_MFs;
+    IDekiFileSystem::FileHandle  m_MHandle = nullptr;
+    DTilemapHeader               m_MHeader;
+    const ChunkIndexEntry*       m_MIndex;
     size_t                       m_indexCount;
 
     // Last successful FindIndexEntry result. RequestRect walks chunks in
@@ -92,10 +92,10 @@ private:
     // falling back to a fresh binary search.
     mutable const ChunkIndexEntry* m_lastFound = nullptr;
 
-    std::unordered_map<Key, ResidentChunk, KeyHash> m_resident;
-    std::list<Key>                                  m_lru;          // back = newest
-    std::list<Key>                                  m_pending;      // load queue (FIFO)
-    std::unordered_set<Key, KeyHash>                m_pendingSet;   // O(1) dedupe for m_pending
+    std::unordered_map<Key, ResidentChunk, KeyHash> m_MResident;
+    std::list<Key>                                  m_MLru;          // back = newest
+    std::list<Key>                                  m_MPending;      // load queue (FIFO)
+    std::unordered_set<Key, KeyHash>                m_pendingSet;   // O(1) dedupe for m_MPending
     size_t                                          m_residentBytes = 0;
     size_t                                          m_budgetBytes   = 256 * 1024;
     size_t                                          m_chunkBytes    = 0;

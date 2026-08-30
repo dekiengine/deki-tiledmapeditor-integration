@@ -38,23 +38,23 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     }
 
     auto* ts = new Tileset();
-    ts->m_header = hdr;
-    ts->m_atlas.guid = std::string(hdr.atlasGuid, strnlen(hdr.atlasGuid, 36));
+    ts->m_MHeader = hdr;
+    ts->m_MAtlas.guid = std::string(hdr.atlasGuid, strnlen(hdr.atlasGuid, 36));
 
     if (hdr.animCount > 0)
     {
-        ts->m_anims.resize(hdr.animCount);
+        ts->m_MAnims.resize(hdr.animCount);
         std::fseek(f, static_cast<long>(hdr.animTableOffset), SEEK_SET);
-        std::fread(ts->m_anims.data(), sizeof(DTileAnimation), hdr.animCount, f);
+        std::fread(ts->m_MAnims.data(), sizeof(DTileAnimation), hdr.animCount, f);
 
         // Pull the frames blob: we trust the baker to lay frames contiguously
         // immediately after the animation table.
         uint32_t totalFrames = 0;
-        for (const auto& a : ts->m_anims) totalFrames += a.frameCount;
+        for (const auto& a : ts->m_MAnims) totalFrames += a.frameCount;
         if (totalFrames > 0)
         {
             ts->m_animFrames.resize(totalFrames);
-            uint32_t firstOffset = ts->m_anims.front().frameOffset;
+            uint32_t firstOffset = ts->m_MAnims.front().frameOffset;
             std::fseek(f, static_cast<long>(firstOffset), SEEK_SET);
             std::fread(ts->m_animFrames.data(), sizeof(DTileAnimationFrame), totalFrames, f);
         }
@@ -62,9 +62,9 @@ Tileset* Tileset::Load(const char* dtilesetPath)
 
     if (hdr.collisionCount > 0)
     {
-        ts->m_collisions.resize(hdr.collisionCount);
+        ts->m_MCollisions.resize(hdr.collisionCount);
         std::fseek(f, static_cast<long>(hdr.collisionTableOffset), SEEK_SET);
-        std::fread(ts->m_collisions.data(), sizeof(DTileCollision), hdr.collisionCount, f);
+        std::fread(ts->m_MCollisions.data(), sizeof(DTileCollision), hdr.collisionCount, f);
     }
 
     std::fclose(f);
@@ -73,36 +73,36 @@ Tileset* Tileset::Load(const char* dtilesetPath)
 
 Sprite* Tileset::Atlas() const
 {
-    return m_atlas.Get();
+    return m_MAtlas.Get();
 }
 
 void Tileset::GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const
 {
-    const uint32_t cols = m_header.columns ? m_header.columns : 1;
-    x = static_cast<int>((localId % cols) * m_header.tileWidth);
-    y = static_cast<int>((localId / cols) * m_header.tileHeight);
-    w = m_header.tileWidth;
-    h = m_header.tileHeight;
+    const uint32_t cols = m_MHeader.columns ? m_MHeader.columns : 1;
+    x = static_cast<int>((localId % cols) * m_MHeader.tileWidth);
+    y = static_cast<int>((localId / cols) * m_MHeader.tileHeight);
+    w = m_MHeader.tileWidth;
+    h = m_MHeader.tileHeight;
 }
 
 const DTileAnimation* Tileset::GetAnimation(uint32_t localId) const
 {
-    for (const auto& a : m_anims)
+    for (const auto& a : m_MAnims)
         if (a.localId == localId) return &a;
     return nullptr;
 }
 
 const DTileCollision* Tileset::GetCollision(uint32_t localId) const
 {
-    for (const auto& c : m_collisions)
+    for (const auto& c : m_MCollisions)
         if (c.localId == localId) return &c;
     return nullptr;
 }
 
 const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) const
 {
-    if (m_animFrames.empty() || m_anims.empty()) return nullptr;
-    const uint32_t base = m_anims.front().frameOffset;
+    if (m_animFrames.empty() || m_MAnims.empty()) return nullptr;
+    const uint32_t base = m_MAnims.front().frameOffset;
     if (a.frameOffset < base) return nullptr;
     const uint32_t idx = (a.frameOffset - base) / sizeof(DTileAnimationFrame);
     if (idx + a.frameCount > m_animFrames.size()) return nullptr;

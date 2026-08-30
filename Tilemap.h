@@ -124,17 +124,17 @@ public:
 
     ~Tilemap();
 
-    bool     IsInfinite()  const { return (m_header.flags & 1u) != 0; }
-    uint32_t MapWidth()    const { return m_header.mapWidth; }   // tiles; 0xFFFFFFFF if infinite
-    uint32_t MapHeight()   const { return m_header.mapHeight; }
-    uint16_t TileWidth()   const { return m_header.tileWidth; }
-    uint16_t TileHeight()  const { return m_header.tileHeight; }
-    uint16_t ChunkWidth()  const { return m_header.chunkWidth; }
-    uint16_t ChunkHeight() const { return m_header.chunkHeight; }
-    uint32_t LayerCount()  const { return m_header.layerCount; }
-    uint32_t BackgroundColor() const { return m_header.backgroundColor; }
+    bool     IsInfinite()  const { return (m_MHeader.flags & 1u) != 0; }
+    uint32_t MapWidth()    const { return m_MHeader.mapWidth; }   // tiles; 0xFFFFFFFF if infinite
+    uint32_t MapHeight()   const { return m_MHeader.mapHeight; }
+    uint16_t TileWidth()   const { return m_MHeader.tileWidth; }
+    uint16_t TileHeight()  const { return m_MHeader.tileHeight; }
+    uint16_t ChunkWidth()  const { return m_MHeader.chunkWidth; }
+    uint16_t ChunkHeight() const { return m_MHeader.chunkHeight; }
+    uint32_t LayerCount()  const { return m_MHeader.layerCount; }
+    uint32_t BackgroundColor() const { return m_MHeader.backgroundColor; }
 
-    const std::vector<TilesetRef>& Tilesets() const { return m_tilesets; }
+    const std::vector<TilesetRef>& Tilesets() const { return m_MTilesets; }
 
     // Resolve a global tile id to its tileset and local id. Returns nullptr if
     // gid is 0 or unmapped.
@@ -153,11 +153,11 @@ public:
                             int32_t chunkMaxX, int32_t chunkMaxY,
                             std::vector<ChunkIndexEntry>& out) const;
 
-    TilemapStreamer* Streamer() const { return m_streamer; }
+    TilemapStreamer* Streamer() const { return m_MStreamer; }
 
     // Object layers (loaded eagerly with the header).
     const std::vector<DObjectLayer>&    ObjectLayers()  const { return m_objectLayers;  }
-    const std::vector<DTilemapObject>&  Objects()       const { return m_objects;       }
+    const std::vector<DTilemapObject>&  Objects()       const { return m_MObjects;       }
 
     // Tiled-pixel coordinate that should land on the owning GameObject. Set by
     // adding an object named "origin" (any layer, point or rect) in Tiled.
@@ -166,10 +166,10 @@ public:
 
     // Bounding box of authored chunks across all layers, in tile units.
     // For finite maps this is just (MapWidth, MapHeight). For infinite maps
-    // it's derived from m_index. Returns false if there are no chunks.
+    // it's derived from m_MIndex. Returns false if there are no chunks.
     bool GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
                            int32_t& outWidthTiles, int32_t& outHeightTiles) const;
-    const std::vector<DTilemapProperty>& Properties()   const { return m_properties;    }
+    const std::vector<DTilemapProperty>& Properties()   const { return m_MProperties;    }
     const std::vector<int32_t>&         PolygonPoints() const { return m_polygonPoints; }
     const std::string&                  StringPool()    const { return m_stringPool;    }
 
@@ -177,22 +177,22 @@ public:
     std::string GetString(uint32_t offset) const;
 
     // Internal — not intended for game code.
-    const std::vector<ChunkIndexEntry>& Index() const { return m_index; }
+    const std::vector<ChunkIndexEntry>& Index() const { return m_MIndex; }
     const std::string& AbsolutePath() const { return m_absolutePath; }
 
 private:
     Tilemap() = default;
 
-    DTilemapHeader               m_header{};
-    std::vector<ChunkIndexEntry> m_index;
-    std::vector<TilesetRef>      m_tilesets;
+    DTilemapHeader               m_MHeader{};
+    std::vector<ChunkIndexEntry> m_MIndex;
+    std::vector<TilesetRef>      m_MTilesets;
     std::vector<DObjectLayer>    m_objectLayers;
-    std::vector<DTilemapObject>  m_objects;
-    std::vector<DTilemapProperty> m_properties;
+    std::vector<DTilemapObject>  m_MObjects;
+    std::vector<DTilemapProperty> m_MProperties;
     std::vector<int32_t>         m_polygonPoints;
     std::string                  m_stringPool;
     std::string                  m_absolutePath;
-    TilemapStreamer*             m_streamer = nullptr;
+    TilemapStreamer*             m_MStreamer = nullptr;
 };
 
 } // namespace DekiTilemap
