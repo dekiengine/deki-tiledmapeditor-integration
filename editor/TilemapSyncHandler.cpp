@@ -74,7 +74,7 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
     // Belt-and-suspenders: also register the GUID -> path entry directly with
     // AssetManager. EditorProjectManager::OpenProject does this in its
     // post-ImportAllAssets loop, but only the *first* time the project opens.
-    // Hot-reloading the module DLL re-runs our cache handler without re-running
+    // Hot-reloading the package DLL re-runs our cache handler without re-running
     // OpenProject — without this call, AssetRef::Get() can't resolve the cache
     // path until the editor restarts.
     Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
@@ -107,7 +107,7 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         fs::path tsjRel = fs::relative(tsjAbs, ctx.projectPath);
         std::string tsjRelStr = tsjRel.generic_string();
 
-        // .tsx (XML) tilesets aren't supported by this module — JSON only.
+        // .tsx (XML) tilesets aren't supported by this package — JSON only.
         // Tiled defaults to .tsx even when maps are .tmj, so this is the most
         // common bake failure. Give the user the exact fix.
         std::string ext = tsjAbs.extension().string();
@@ -115,7 +115,7 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         if (ext == ".tsx")
         {
             DEKI_LOG_ERROR(
-                "TilemapSync: '%s' references XML tileset '%s'. The deki-tilemap module is "
+                "TilemapSync: '%s' references XML tileset '%s'. The deki-tilemap package is "
                 "JSON-only. In Tiled: open the .tsx, File > Export As > Tiled JSON Tileset (.tsj), "
                 "then update the map's tileset reference to the .tsj file. To stop hitting this: "
                 "Edit > Preferences > General > Store tilesets as > JSON.",

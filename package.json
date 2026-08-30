@@ -1,7 +1,7 @@
 {
   "id": "deki-tiledmap",
   "displayName": "Tiled Map Editor Integration",
-  "buildDefine": "DEKI_MODULE_TILEDMAP",
+  "buildDefine": "DEKI_PACKAGE_TILEDMAP",
   "requires": ["deki-2d", "deki-rendering"],
   "features": [
     {

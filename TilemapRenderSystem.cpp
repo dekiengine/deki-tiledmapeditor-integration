@@ -441,7 +441,7 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 } // namespace DekiTilemap
 
 // Self-registration with autoAttach=true so DekiRenderingInit attaches the
-// pass to the active Standard2DRenderer whenever the deki-tilemap module is
+// pass to the active Standard2DRenderer whenever the deki-tilemap package is
 // loaded. The project's .rpipeline doesn't need to know about "tilemap"; it
 // can still mention it explicitly to control ordering relative to other
 // passes (e.g. clip2d) if needed.
@@ -454,7 +454,7 @@ struct TilemapRenderPassRegistrar {
         DekiRenderPassRegistry::Register(DekiTilemap::TilemapRenderPass::RegistryName, info);
     }
     // Unregister on DLL unload so the std::function factory (whose target
-    // lives in this module's code) doesn't outlive the DLL and crash
+    // lives in this package's code) doesn't outlive the DLL and crash
     // deki-rendering's static-registry teardown.
     ~TilemapRenderPassRegistrar() {
         DekiRenderPassRegistry::Unregister(DekiTilemap::TilemapRenderPass::RegistryName);

@@ -34,7 +34,7 @@ time with a clear error — no silent fallback.
 ## File layout
 
 ```
-DekiTilemapModule.{h,cpp}          DLL entry, plugin exports
+DekiTilemapPackage.{h,cpp}          DLL entry, plugin exports
 Tilemap.{h,cpp}                    Runtime asset, .dtilemap loader
 Tileset.{h,cpp}                    Runtime asset, .dtileset loader
 TileChunk.h                        POD chunk struct
@@ -48,7 +48,7 @@ editor/                            Editor-only code (sync handlers, baker, parse
 
 ## Installation
 
-Install via the Module Manager inside the Deki Editor.
+Install via the Package Manager inside the Deki Editor.
 
 ## License
 

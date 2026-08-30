@@ -1,11 +1,11 @@
 /**
- * @file DekiTilemapModule.cpp
- * @brief Module entry point for deki-tiledmap DLL
+ * @file DekiTilemapPackage.cpp
+ * @brief Package entry point for deki-tiledmap DLL
  */
 
-#include "DekiTilemapModule.h"
+#include "DekiTilemapPackage.h"
 #include "interop/DekiPlugin.h"
-#include "DekiModuleFeatureMeta.h"
+#include "DekiPackageFeatureMeta.h"
 #include "TilemapComponent.h"
 #include "TilemapColliderComponent.h"
 #include "TilemapObjectSpawner.h"
@@ -53,13 +53,13 @@ extern "C" {
 #ifndef DEKI_PLUGIN_EXPORTS
 DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
 {
-    return "Deki Tiled Map Module";
+    return "Deki Tiled Map Package";
 }
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
 {
-#ifdef DEKI_MODULE_VERSION
-    return DEKI_MODULE_VERSION;
+#ifdef DEKI_PACKAGE_VERSION
+    return DEKI_PACKAGE_VERSION;
 #else
     return "0.0.0-dev";
 #endif
@@ -97,14 +97,14 @@ DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
 #endif // DEKI_PLUGIN_EXPORTS
 
 // =============================================================================
-// Module Feature API
+// Package Feature API
 // =============================================================================
 
 static const char* s_RenderGuids[]    = { TilemapComponent::StaticGuid };
 static const char* s_ColliderGuids[]  = { TilemapColliderComponent::StaticGuid };
 static const char* s_ObjectGuids[]    = { TilemapObjectSpawner::StaticGuid };
 
-static const DekiModuleFeatureInfo s_Features[] = {
+static const DekiPackageFeatureInfo s_Features[] = {
     {"tilemap_render",    "Tilemap Rendering", "Render Tiled maps via batched quad blits",
         true, "DEKI_FEATURE_TILEMAP_RENDER",    s_RenderGuids,   1},
     {"tilemap_collision", "Tilemap Collision", "Per-tile collision shapes from tileset objectgroups",
@@ -119,7 +119,7 @@ DEKI_PLUGIN_API int DekiPlugin_GetFeatureCount(void)
     return sizeof(s_Features) / sizeof(s_Features[0]);
 }
 
-DEKI_PLUGIN_API const DekiModuleFeatureInfo* DekiPlugin_GetFeature(int index)
+DEKI_PLUGIN_API const DekiPackageFeatureInfo* DekiPlugin_GetFeature(int index)
 {
     if (index < 0 || index >= DekiPlugin_GetFeatureCount())
         return nullptr;
@@ -127,7 +127,7 @@ DEKI_PLUGIN_API const DekiModuleFeatureInfo* DekiPlugin_GetFeature(int index)
 }
 #endif // DEKI_PLUGIN_EXPORTS
 
-// Module-specific feature API (linked-DLL access without name conflicts)
+// Package-specific feature API (linked-DLL access without name conflicts)
 
 DEKI_TILEDMAP_API const char* DekiTilemap_GetName(void)
 {
@@ -139,7 +139,7 @@ DEKI_TILEDMAP_API int DekiTilemap_GetFeatureCount(void)
     return static_cast<int>(sizeof(s_Features) / sizeof(s_Features[0]));
 }
 
-DEKI_TILEDMAP_API const DekiModuleFeatureInfo* DekiTilemap_GetFeature(int index)
+DEKI_TILEDMAP_API const DekiPackageFeatureInfo* DekiTilemap_GetFeature(int index)
 {
     if (index < 0 || index >= DekiTilemap_GetFeatureCount())
         return nullptr;

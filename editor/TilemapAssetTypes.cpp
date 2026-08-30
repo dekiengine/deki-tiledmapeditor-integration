@@ -6,7 +6,7 @@
  * sync-handler callback. These AssetTypeEditor subclasses only exist to map
  * extensions to type names so AssetPipeline::GetAssetTypeFromExtension and
  * IsAssetFile can resolve them through AssetTypeRegistry — same path every
- * other module uses.
+ * other package uses.
  */
 
 #ifdef DEKI_EDITOR

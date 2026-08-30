@@ -44,7 +44,7 @@ void RegisterTilemapInspector()
     s_InspectorRegistered = true;
 
     // The editor's FileInspector registry isn't exposed via a stable C++ header
-    // for module use yet. v1 ships the OpenInTiled helper as a public symbol
+    // for package use yet. v1 ships the OpenInTiled helper as a public symbol
     // that the project's component custom-editor can call from its inspector
     // panel. Future revisions will subscribe directly once the registry API
     // is available.
