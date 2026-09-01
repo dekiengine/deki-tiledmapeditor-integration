@@ -29,7 +29,7 @@ public:
 
     // Tint applied to every drawn tile. White = no tint.
     DEKI_EXPORT
-    deki::Color tintColor;
+    Deki::Color tintColor;
 
     // Source pixels per world meter for this tilemap. The renderer treats
     // each tile pixel as 1/pixelsPerMeter meters of world space. When

@@ -5,7 +5,6 @@
 
 #include "DekiTilemapPackage.h"
 #include "interop/DekiPlugin.h"
-#include "DekiPackageFeatureMeta.h"
 #include "TilemapComponent.h"
 #include "TilemapColliderComponent.h"
 #include "TilemapObjectSpawner.h"
@@ -65,11 +64,6 @@ DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
 #endif
 }
 
-DEKI_PLUGIN_API const char* DekiPlugin_GetReflectionJson(void)
-{
-    return "{}";
-}
-
 DEKI_PLUGIN_API int DekiPlugin_Init(void)
 {
     return 0;
@@ -96,54 +90,11 @@ DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
 }
 #endif // DEKI_PLUGIN_EXPORTS
 
-// =============================================================================
-// Package Feature API
-// =============================================================================
-
-static const char* s_RenderGuids[]    = { TilemapComponent::StaticGuid };
-static const char* s_ColliderGuids[]  = { TilemapColliderComponent::StaticGuid };
-static const char* s_ObjectGuids[]    = { TilemapObjectSpawner::StaticGuid };
-
-static const DekiPackageFeatureInfo s_Features[] = {
-    {"tilemap_render",    "Tilemap Rendering", "Render Tiled maps via batched quad blits",
-        true, "DEKI_FEATURE_TILEMAP_RENDER",    s_RenderGuids,   1},
-    {"tilemap_collision", "Tilemap Collision", "Per-tile collision shapes from tileset objectgroups",
-        true, "DEKI_FEATURE_TILEMAP_COLLISION", s_ColliderGuids, 1},
-    {"tilemap_objects",   "Object Layers",     "Spawn engine scenes from Tiled object layers",
-        true, "DEKI_FEATURE_TILEMAP_OBJECTS",   s_ObjectGuids,   1},
-};
-
-#ifndef DEKI_PLUGIN_EXPORTS
-DEKI_PLUGIN_API int DekiPlugin_GetFeatureCount(void)
-{
-    return sizeof(s_Features) / sizeof(s_Features[0]);
-}
-
-DEKI_PLUGIN_API const DekiPackageFeatureInfo* DekiPlugin_GetFeature(int index)
-{
-    if (index < 0 || index >= DekiPlugin_GetFeatureCount())
-        return nullptr;
-    return &s_Features[index];
-}
-#endif // DEKI_PLUGIN_EXPORTS
-
 // Package-specific feature API (linked-DLL access without name conflicts)
 
 DEKI_TILEDMAP_API const char* DekiTilemap_GetName(void)
 {
     return "Tiled Map";
-}
-
-DEKI_TILEDMAP_API int DekiTilemap_GetFeatureCount(void)
-{
-    return static_cast<int>(sizeof(s_Features) / sizeof(s_Features[0]));
-}
-
-DEKI_TILEDMAP_API const DekiPackageFeatureInfo* DekiTilemap_GetFeature(int index)
-{
-    if (index < 0 || index >= DekiTilemap_GetFeatureCount())
-        return nullptr;
-    return &s_Features[index];
 }
 
 } // extern "C"
