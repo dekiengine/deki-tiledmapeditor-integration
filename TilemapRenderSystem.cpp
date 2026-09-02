@@ -422,13 +422,15 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 // Source tile pixels -> world meters via tilePPM, then world
                 // meters -> screen pixels via camera.PPM. Net scale is
                 // (camera.PPM / tilePPM); when both match, source 1:1 to
-                // screen. Flip flags decode to negative size; BlitScaled
-                // treats those as flips.
+                // screen. Tiled's flip flags go on the Source: a negative
+                // size used to be passed instead, which BlitScaled rejects,
+                // so every flipped tile silently vanished.
                 const float scale = ctx.camera->GetPixelsPerMeter() * invTilePPM;
-                int destW = static_cast<int>(std::floor(static_cast<float>(sw) * scale));
-                int destH = static_cast<int>(std::floor(static_cast<float>(sh) * scale));
-                if (GidFlipH(gid)) destW = -destW;
-                if (GidFlipV(gid)) destH = -destH;
+                const int destW = static_cast<int>(std::floor(static_cast<float>(sw) * scale));
+                const int destH = static_cast<int>(std::floor(static_cast<float>(sh) * scale));
+                sub.flipH = GidFlipH(gid);
+                sub.flipV = GidFlipV(gid);
+                sub.flipD = GidFlipD(gid);
 
                 QuadBlit::BlitScaled(sub, ctx.buffer, screenW, screenH, ctx.format,
                                      destSX, destSY, destW, destH,
