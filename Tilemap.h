@@ -162,13 +162,29 @@ public:
     // Tiled-pixel coordinate that should land on the owning GameObject. Set by
     // adding an object named "origin" (any layer, point or rect) in Tiled.
     // Returns false and leaves outX/outY untouched if no such object exists.
-    bool FindOrigin(float& outX, float& outY) const;
+    // Resolved once at load (the render pass asks every frame).
+    bool FindOrigin(float& outX, float& outY) const
+    {
+        if (!m_hasOrigin) return false;
+        outX = m_originX;
+        outY = m_originY;
+        return true;
+    }
 
     // Bounding box of authored chunks across all layers, in tile units.
     // For finite maps this is just (MapWidth, MapHeight). For infinite maps
     // it's derived from m_MIndex. Returns false if there are no chunks.
+    // Resolved once at load (the render pass asks every frame).
     bool GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
-                           int32_t& outWidthTiles, int32_t& outHeightTiles) const;
+                           int32_t& outWidthTiles, int32_t& outHeightTiles) const
+    {
+        if (!m_hasBounds) return false;
+        outMinTileX = m_boundsMinX;
+        outMinTileY = m_boundsMinY;
+        outWidthTiles = m_boundsW;
+        outHeightTiles = m_boundsH;
+        return true;
+    }
     const std::vector<DTilemapProperty>& Properties()   const { return m_MProperties;    }
     const std::vector<int32_t>&         PolygonPoints() const { return m_polygonPoints; }
     const std::string&                  StringPool()    const { return m_stringPool;    }
@@ -182,6 +198,15 @@ public:
 
 private:
     Tilemap() = default;
+
+    bool ComputeOrigin(float& outX, float& outY) const;
+    bool ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
+                               int32_t& outWidthTiles, int32_t& outHeightTiles) const;
+
+    bool    m_hasOrigin = false;
+    float   m_originX = 0.0f, m_originY = 0.0f;
+    bool    m_hasBounds = false;
+    int32_t m_boundsMinX = 0, m_boundsMinY = 0, m_boundsW = 0, m_boundsH = 0;
 
     DTilemapHeader               m_MHeader{};
     std::vector<ChunkIndexEntry> m_MIndex;

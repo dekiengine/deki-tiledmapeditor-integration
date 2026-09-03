@@ -150,6 +150,12 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     }
     tm->m_MStreamer = new TilemapStreamer(fs, dtilemapPath, tm->m_MHeader,
                                          tm->m_MIndex.data(), tm->m_MIndex.size());
+
+    // Both are pure functions of the data just loaded; the render pass reads
+    // them every frame, so resolve them once here.
+    tm->m_hasOrigin = tm->ComputeOrigin(tm->m_originX, tm->m_originY);
+    tm->m_hasBounds = tm->ComputeAuthoredBounds(tm->m_boundsMinX, tm->m_boundsMinY,
+                                                tm->m_boundsW, tm->m_boundsH);
     return tm;
 }
 
@@ -223,7 +229,7 @@ std::string Tilemap::GetString(uint32_t offset) const
     return std::string(p, n);
 }
 
-bool Tilemap::FindOrigin(float& outX, float& outY) const
+bool Tilemap::ComputeOrigin(float& outX, float& outY) const
 {
     // DTilemapObject::name is an inlined char[32], not a string-pool offset,
     // so compare directly. strncmp is safe even if the field happens to fill
@@ -240,8 +246,8 @@ bool Tilemap::FindOrigin(float& outX, float& outY) const
     return false;
 }
 
-bool Tilemap::GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
-                                int32_t& outWidthTiles, int32_t& outHeightTiles) const
+bool Tilemap::ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
+                                    int32_t& outWidthTiles, int32_t& outHeightTiles) const
 {
     if (!IsInfinite())
     {

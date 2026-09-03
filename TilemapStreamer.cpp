@@ -196,6 +196,24 @@ const TileChunk* TilemapStreamer::Get(int32_t layerIdx, int32_t chunkX, int32_t 
     return &it->second.chunk;
 }
 
+const TileChunk* TilemapStreamer::GetAndTouch(int32_t layerIdx, int32_t chunkX, int32_t chunkY, uint32_t frame)
+{
+    Key k{chunkX, chunkY, static_cast<uint16_t>(layerIdx)};
+    auto it = m_MResident.find(k);
+    if (it == m_MResident.end()) return nullptr;
+    ResidentChunk& rc = it->second;
+    if (rc.lastTouchFrame != frame)
+    {
+        rc.lastTouchFrame = frame;
+        if (rc.lruIt != std::prev(m_MLru.end()))
+        {
+            m_MLru.splice(m_MLru.end(), m_MLru, rc.lruIt);  // move the node, no alloc
+            rc.lruIt = std::prev(m_MLru.end());
+        }
+    }
+    return &rc.chunk;
+}
+
 void TilemapStreamer::TouchLRU(int32_t layerIdx, int32_t chunkX, int32_t chunkY)
 {
     Key k{chunkX, chunkY, static_cast<uint16_t>(layerIdx)};

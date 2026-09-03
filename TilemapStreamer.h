@@ -41,6 +41,12 @@ public:
     // Mark a chunk as recently used (caller does this when it draws a chunk).
     void TouchLRU(int32_t layerIdx, int32_t chunkX, int32_t chunkY);
 
+    // Get + TouchLRU with one hash lookup. `frame` is any per-frame serial:
+    // the LRU node is relinked at most once per frame per chunk, so a chunk
+    // drawn by several tilemap objects (or wrapped several times) costs one
+    // list splice instead of one per draw.
+    const TileChunk* GetAndTouch(int32_t layerIdx, int32_t chunkX, int32_t chunkY, uint32_t frame);
+
     void   SetMemoryBudget(size_t bytes);
     size_t MemoryBudget() const { return m_budgetBytes; }
     size_t ResidentBytes() const { return m_residentBytes; }
@@ -74,6 +80,7 @@ private:
         uint32_t*            owned;       // free()-able buffer behind chunk.tileGids
         size_t               bytes;
         std::list<Key>::iterator lruIt;
+        uint32_t             lastTouchFrame = 0;  // see GetAndTouch
     };
 
     void EvictUntilUnder(size_t targetBytes);

@@ -93,6 +93,9 @@ TilemapRenderPass::TilesetCache& TilemapRenderPass::GetCache(Tilemap* tm)
     cache.tilesets.assign(refs.size(), nullptr);
     cache.sources.assign(refs.size(), QuadBlit::Source{});
     cache.ready.assign(refs.size(), false);
+    cache.destW.assign(refs.size(), 0);
+    cache.destH.assign(refs.size(), 0);
+    cache.scratch.assign(refs.size(), QuadBlit::Source{});
     // Seed the epoch so the very first RefreshCache doesn't immediately wipe
     // the freshly-initialised vectors. A bump from any later UnloadAll /
     // InvalidateAsset will be picked up because it advances the epoch.
@@ -117,6 +120,8 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         std::fill(cache.ready.begin(), cache.ready.end(), false);
         for (auto& src : cache.sources)
             src = QuadBlit::Source{};
+        cache.gidLut.clear();
+        cache.gidLimit = 0;
         cache.epoch = curEpoch;
     }
 
@@ -136,6 +141,68 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         if (!cache.ready[i])
             cache.ready[i] = MakeAtlasSource(ts, cache.sources[i]);
     }
+
+    // The gid range is known once every tileset header is in (atlases may
+    // still be loading). Tile counts come from the baked headers.
+    if (cache.gidLimit == 0 && !refs.empty())
+    {
+        uint32_t limit = 0;
+        bool allLoaded = true;
+        for (size_t i = 0; i < refs.size(); ++i)
+        {
+            if (!cache.tilesets[i]) { allLoaded = false; break; }
+            limit = std::max(limit, refs[i].firstGid + cache.tilesets[i]->TileCount());
+        }
+        if (allLoaded && limit > 0)
+        {
+            cache.gidLimit = limit;
+            cache.gidLut.assign(limit, TileLUT{ kUnresolved, 0, 0 });
+        }
+    }
+}
+
+bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex,
+                                    int32_t& outTsIdx, int32_t& outSx, int32_t& outSy)
+{
+    if (gidIndex == 0) return false;
+
+    if (cache.gidLimit != 0)
+    {
+        if (gidIndex >= cache.gidLimit) return false;  // beyond every tileset
+        TileLUT& e = cache.gidLut[gidIndex];
+        if (e.tsIdx == kUnresolved)
+        {
+            uint32_t localId = 0;
+            size_t tsIdx = 0;
+            const TilesetRef* tref = tm->ResolveTilesetWithIndex(gidIndex, localId, tsIdx);
+            Tileset* ts = tref ? cache.tilesets[tsIdx] : nullptr;
+            if (!ts || localId >= ts->TileCount())
+                e.tsIdx = kUnmapped;
+            else
+            {
+                int sx, sy, sw, sh;
+                ts->GetTileRect(localId, sx, sy, sw, sh);
+                e = TileLUT{ static_cast<int32_t>(tsIdx), sx, sy };
+            }
+        }
+        if (e.tsIdx < 0) return false;
+        outTsIdx = e.tsIdx;
+        outSx = e.sx;
+        outSy = e.sy;
+        return true;
+    }
+
+    // Some tileset header is still loading: resolve without caching.
+    uint32_t localId = 0;
+    size_t tsIdx = 0;
+    const TilesetRef* tref = tm->ResolveTilesetWithIndex(gidIndex, localId, tsIdx);
+    if (!tref || tsIdx >= cache.tilesets.size() || !cache.tilesets[tsIdx]) return false;
+    int sx, sy, sw, sh;
+    cache.tilesets[tsIdx]->GetTileRect(localId, sx, sy, sw, sh);
+    outTsIdx = static_cast<int32_t>(tsIdx);
+    outSx = sx;
+    outSy = sy;
+    return true;
 }
 
 void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
@@ -145,7 +212,7 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     if (!tc) return;
     Tilemap* tm = tc->tilemap.Get();
     if (!tm) return;
-    if (!ctx.camera || !ctx.buffer) return;
+    if (!ctx.camera || !ctx.buffer || !ctx.cam.valid) return;
 
     const int32_t screenW = ctx.width;
     const int32_t screenH = ctx.height;
@@ -190,8 +257,11 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
     // Camera visible rect, expressed in tile-pixel coords (Y+ down) for chunk
     // selection. Camera/visible sizes are meters; convert via tilePPM.
-    const float visW = ctx.camera->GetVisibleWidth(screenW);
-    const float visH = ctx.camera->GetVisibleHeight(screenH);
+    // Visible size = screen / ppm (CameraComponent::GetVisibleWidth); the
+    // camera position is the unsnapped one, so it still comes from the camera
+    // (the snapshot's is pixel-snapped when the camera asks for that).
+    const float visW = (ctx.cam.ppm > 0.0f) ? (static_cast<float>(screenW) / ctx.cam.ppm) : 0.0f;
+    const float visH = (ctx.cam.ppm > 0.0f) ? (static_cast<float>(screenH) / ctx.cam.ppm) : 0.0f;
     const float camX = ctx.camera->GetPositionX();
     const float camY = ctx.camera->GetPositionY();
 
@@ -306,7 +376,17 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
     // Resolved tilesets + per-tileset Source descriptors. Built once per
     // Tilemap and reused across frames; entries with not-yet-loaded atlases
-    // are retried each frame.
+    // are retried each frame. The whole table is dropped when the asset
+    // epoch moves: its Tilemap* keys are asset pointers.
+    if (auto* mgr = Deki::AssetManager::Get())
+    {
+        const uint64_t epoch = mgr->GetEpoch();
+        if (epoch != m_cachesEpoch)
+        {
+            m_MCaches.clear();
+            m_cachesEpoch = epoch;
+        }
+    }
     TilesetCache& cache = GetCache(tm);
     RefreshCache(tm, cache);
 
@@ -335,6 +415,46 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
     const uint8_t tintG = tc->tintColor.g;
     const uint8_t tintB = tc->tintColor.b;
     const uint8_t tintA = tc->tintColor.a;
+    const bool pixelSnap = tc->pixelSnap;
+
+    // Everything below maps through the frame's camera snapshot: the same
+    // arithmetic as CameraComponent::WorldToScreen, no virtual call per tile.
+    const FrameCamera& cam = ctx.cam;
+
+    // Source tile pixels -> world meters via tilePPM, then world meters ->
+    // screen pixels via camera.PPM. Net scale is (camera.PPM / tilePPM); when
+    // both match, source 1:1 to screen. Every tile of a tileset has the same
+    // destination size, so it is computed once per tileset per frame, and the
+    // per-tileset scratch Source is seeded once here; tiles only move its
+    // pixel pointer and flip flags.
+    const float scale = cam.ppm * invTilePPM;
+    int32_t maxDestW = 0, maxDestH = 0;
+    for (size_t i = 0; i < cache.sources.size(); ++i)
+    {
+        if (!cache.ready[i]) continue;
+        const Tileset* ts = cache.tilesets[i];
+        cache.destW[i] = static_cast<int32_t>(std::floor(static_cast<float>(ts->TileWidth()) * scale));
+        cache.destH[i] = static_cast<int32_t>(std::floor(static_cast<float>(ts->TileHeight()) * scale));
+        cache.scratch[i] = cache.sources[i];
+        cache.scratch[i].width = ts->TileWidth();
+        cache.scratch[i].height = ts->TileHeight();
+        // scratch.stride stays at the atlas row width.
+        maxDestW = std::max(maxDestW, cache.destW[i]);
+        maxDestH = std::max(maxDestH, cache.destH[i]);
+    }
+
+    // The rectangle BlitScaled can actually write: target ∩ current clip.
+    // A tile (or a whole chunk) outside it is dropped before any Source work,
+    // exactly the tiles BlitScaled would have clipped to nothing.
+    const QuadBlit::ClipRect clip = QuadBlit::GetCurrentClipRect();
+    const int32_t clipL = std::max<int32_t>(0, clip.left);
+    const int32_t clipT = std::max<int32_t>(0, clip.top);
+    const int32_t clipR = std::min<int32_t>(screenW, clip.right);
+    const int32_t clipB = std::min<int32_t>(screenH, clip.bottom);
+    if (clipL >= clipR || clipT >= clipB) return;
+
+    ++m_frameSerial;
+    if (m_frameSerial == 0) ++m_frameSerial;  // 0 means "never touched" in the streamer
 
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
@@ -363,30 +483,34 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
 
         for (const auto& d : m_drawsScratch)
         {
-            const TileChunk* chunk = streamer->Get(static_cast<int32_t>(layer),
-                                                   d.srcX, d.srcY);
-            if (!chunk) continue;
-            streamer->TouchLRU(static_cast<int32_t>(layer), d.srcX, d.srcY);
-
             const int chunkOriginX = d.drawX * cw * tw;
             const int chunkOriginY = d.drawY * ch * th;
+
+            // Chunk screen box, conservative (largest tile, 2 px for the
+            // snap rounding): skip padding chunks that cannot touch the clip.
+            {
+                float fx0, fy0;
+                cam.WorldToScreen(originX + static_cast<float>(chunkOriginX) * invTilePPM - originOffsetX,
+                                  originY + originOffsetY - static_cast<float>(chunkOriginY) * invTilePPM,
+                                  fx0, fy0);
+                const float spanX = static_cast<float>((cw - 1) * tw) * scale + static_cast<float>(maxDestW);
+                const float spanY = static_cast<float>((ch - 1) * th) * scale + static_cast<float>(maxDestH);
+                if (fx0 + spanX + 2.0f < static_cast<float>(clipL) || fx0 - 2.0f > static_cast<float>(clipR) ||
+                    fy0 + spanY + 2.0f < static_cast<float>(clipT) || fy0 - 2.0f > static_cast<float>(clipB))
+                    continue;
+            }
+
+            const TileChunk* chunk = streamer->GetAndTouch(static_cast<int32_t>(layer),
+                                                           d.srcX, d.srcY, m_frameSerial);
+            if (!chunk) continue;
 
             for (int ty = 0; ty < ch; ++ty)
             for (int tx = 0; tx < cw; ++tx)
             {
                 const uint32_t gid = chunk->tileGids[ty * cw + tx];
-                if (GidIndex(gid) == 0) continue;
-
-                uint32_t localId = 0;
-                size_t   tsIdx   = 0;
-                const TilesetRef* tref = tm->ResolveTilesetWithIndex(gid, localId, tsIdx);
-                if (!tref) continue;
-                if (tsIdx >= cache.ready.size() || !cache.ready[tsIdx]) continue;
-
-                Tileset* ts = cache.tilesets[tsIdx];
-
-                int sx, sy, sw, sh;
-                ts->GetTileRect(localId, sx, sy, sw, sh);
+                int32_t tsIdx, sx, sy;
+                if (!ResolveTile(tm, cache, GidIndex(gid), tsIdx, sx, sy)) continue;
+                if (!cache.ready[tsIdx]) continue;
 
                 // Tiled pixel coords of this tile's top-left, converted to
                 // engine world meters (Y-up, centered on owner). The world
@@ -399,34 +523,31 @@ void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
                 const float wy = originY + originOffsetY - tiledTileY;
 
                 float fDestSX, fDestSY;
-                ctx.camera->WorldToScreen(wx, wy, screenW, screenH, fDestSX, fDestSY);
-                const int destSX = tc->pixelSnap
+                cam.WorldToScreen(wx, wy, fDestSX, fDestSY);
+                const int destSX = pixelSnap
                     ? static_cast<int>(std::lround(fDestSX))
                     : static_cast<int>(fDestSX);
-                const int destSY = tc->pixelSnap
+                const int destSY = pixelSnap
                     ? static_cast<int>(std::lround(fDestSY))
                     : static_cast<int>(fDestSY);
 
-                // Point the Source directly at this tile's slice of the atlas;
+                const int destW = cache.destW[tsIdx];
+                const int destH = cache.destH[tsIdx];
+                if (destW <= 0 || destH <= 0 ||
+                    destSX >= clipR || destSX + destW <= clipL ||
+                    destSY >= clipB || destSY + destH <= clipT)
+                    continue;  // BlitScaled would clip this to nothing
+
+                // Point the scratch Source at this tile's slice of the atlas;
                 // stride keeps QuadBlit walking the atlas's full row width so
                 // adjacent tiles never bleed in. Chroma-key (when set on the
                 // tileset) is honored by QuadBlit per-pixel without any copy.
+                // Tiled's flip flags go on the Source: a negative size used
+                // to be passed instead, which BlitScaled rejects, so every
+                // flipped tile silently vanished.
                 const QuadBlit::Source& base = cache.sources[tsIdx];
-                QuadBlit::Source sub = base;
+                QuadBlit::Source& sub = cache.scratch[tsIdx];
                 sub.pixels = base.pixels + sy * base.stride + sx * base.bytesPerPixel;
-                sub.width  = sw;
-                sub.height = sh;
-                // sub.stride stays at the atlas row width.
-
-                // Source tile pixels -> world meters via tilePPM, then world
-                // meters -> screen pixels via camera.PPM. Net scale is
-                // (camera.PPM / tilePPM); when both match, source 1:1 to
-                // screen. Tiled's flip flags go on the Source: a negative
-                // size used to be passed instead, which BlitScaled rejects,
-                // so every flipped tile silently vanished.
-                const float scale = ctx.camera->GetPixelsPerMeter() * invTilePPM;
-                const int destW = static_cast<int>(std::floor(static_cast<float>(sw) * scale));
-                const int destH = static_cast<int>(std::floor(static_cast<float>(sh) * scale));
                 sub.flipH = GidFlipH(gid);
                 sub.flipV = GidFlipV(gid);
                 sub.flipD = GidFlipD(gid);
