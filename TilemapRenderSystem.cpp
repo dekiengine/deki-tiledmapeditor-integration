@@ -1,4 +1,5 @@
 #include "TilemapRenderSystem.h"
+#include "PixelFormat.h"
 
 #include <algorithm>
 #include <cmath>
@@ -65,9 +66,7 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
         // against the authored key would never match.
         if (outSrc.isRGB565)
         {
-            kr = static_cast<uint8_t>((kr >> 3) << 3);
-            kg = static_cast<uint8_t>((kg >> 2) << 2);
-            kb = static_cast<uint8_t>((kb >> 3) << 3);
+            DekiPixel::QuantizeRGB565(kr, kg, kb);
         }
         outSrc.hasChromaKey = true;
         outSrc.keyR = kr;
