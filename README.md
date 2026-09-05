@@ -1,5 +1,7 @@
 # deki-tiledmap
 
+Documentation: https://dekiengine.github.io/deki-tiledmapeditor-integration/ (components and properties, generated from the code)
+
 Tiled Map Editor (https://www.mapeditor.org) integration for the Deki engine.
 
 Author tilemaps in Tiled, drop the exported `.tmj` (and any external `.tsj`
