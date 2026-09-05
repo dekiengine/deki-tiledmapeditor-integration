@@ -9,7 +9,7 @@
 namespace DekiTilemap
 {
 
-TilemapStreamer::TilemapStreamer(IDekiFileSystem* fs,
+TilemapStreamer::TilemapStreamer(Deki::IFileSystem* fs,
                                  const char* dtilemapPath,
                                  const DTilemapHeader& header,
                                  const ChunkIndexEntry* index,
@@ -22,7 +22,7 @@ TilemapStreamer::TilemapStreamer(IDekiFileSystem* fs,
     m_chunkBytes = static_cast<size_t>(header.chunkWidth) *
                    static_cast<size_t>(header.chunkHeight) * sizeof(uint32_t);
 
-    m_MHandle = m_MFs->OpenFile(dtilemapPath, IDekiFileSystem::OpenMode::READ_BINARY);
+    m_MHandle = m_MFs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
     if (!m_MHandle)
         DEKI_LOG_ERROR("TilemapStreamer: cannot open '%s' for streaming", dtilemapPath);
 }
@@ -138,7 +138,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
         if (m_MHandle)
         {
             m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset),
-                           IDekiFileSystem::SeekOrigin::BEGIN);
+                           Deki::IFileSystem::SeekOrigin::BEGIN);
             m_MFs->ReadFile(m_MHandle, &fill, sizeof(fill));
         }
         const size_t n = static_cast<size_t>(rc.chunk.width) * rc.chunk.height;
@@ -152,7 +152,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
             return false;
         }
         m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset),
-                       IDekiFileSystem::SeekOrigin::BEGIN);
+                       Deki::IFileSystem::SeekOrigin::BEGIN);
         size_t got = m_MFs->ReadFile(m_MHandle, rc.owned, m_chunkBytes);
         if (got != m_chunkBytes)
         {

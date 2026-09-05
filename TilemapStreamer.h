@@ -13,13 +13,13 @@
 namespace DekiTilemap
 {
 
-// LRU chunk pager backed by IDekiFileSystem. Holds a single open file handle
+// LRU chunk pager backed by Deki::IFileSystem. Holds a single open file handle
 // to the .dtilemap and seeks into it to load chunks on demand. Driven by
 // TilemapRenderSystem each frame.
 class TilemapStreamer
 {
 public:
-    TilemapStreamer(IDekiFileSystem* fs,
+    TilemapStreamer(Deki::IFileSystem* fs,
                     const char* dtilemapPath,
                     const DTilemapHeader& header,
                     const ChunkIndexEntry* index,
@@ -87,8 +87,8 @@ private:
     bool LoadChunkNow(const ChunkIndexEntry& entry);
     const ChunkIndexEntry* FindIndexEntry(int32_t layerIdx, int32_t cx, int32_t cy) const;
 
-    IDekiFileSystem*             m_MFs;
-    IDekiFileSystem::FileHandle  m_MHandle = nullptr;
+    Deki::IFileSystem*             m_MFs;
+    Deki::IFileSystem::FileHandle  m_MHandle = nullptr;
     DTilemapHeader               m_MHeader;
     const ChunkIndexEntry*       m_MIndex;
     size_t                       m_indexCount;

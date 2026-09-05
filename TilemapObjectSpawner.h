@@ -8,7 +8,7 @@
 #include "assets/AssetRef.h"
 #include "reflection/DekiProperty.h"
 
-class DekiObject;
+namespace Deki { class Object; }
 
 // On Awake, walks Tilemap::ObjectLayers and spawns engine objects per Tiled
 // object using the scene_guid convention:
@@ -16,12 +16,12 @@ class DekiObject;
 //   - If a Tiled object has custom string property "scene_guid" set, that
 //     scene is instantiated at the object's transform.
 //   - Otherwise, if the object has a non-zero gid (tile object), an empty
-//     DekiObject with a SpriteComponent is spawned.
-//   - Otherwise, an empty DekiObject is spawned with name/type populated.
-class TilemapObjectSpawner : public DekiBehaviour
+//     Deki::Object with a SpriteComponent is spawned.
+//   - Otherwise, an empty Deki::Object is spawned with name/type populated.
+class TilemapObjectSpawner : public Deki::Behaviour
 {
 public:
-    DEKI_COMPONENT(TilemapObjectSpawner, DekiBehaviour, "Tilemap",
+    DEKI_COMPONENT(TilemapObjectSpawner, Deki::Behaviour, "Tilemap",
                    "a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15",
                    "DEKI_FEATURE_TILEMAP_OBJECTS")
     DEKI_DESCRIPTION("Spawns objects from a Tiled map's object layers when the scene loads.")
@@ -40,7 +40,7 @@ public:
     bool NeedsUpdate() const override { return false; }
 
 private:
-    std::vector<DekiObject*> m_MSpawned;
+    std::vector<Deki::Object*> m_MSpawned;
 };
 
 #include "generated/TilemapObjectSpawner.gen.h"

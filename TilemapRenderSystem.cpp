@@ -205,7 +205,7 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
     return true;
 }
 
-void TilemapRenderPass::Execute(DekiObject* obj, RenderContext& ctx)
+void TilemapRenderPass::Execute(Deki::Object* obj, RenderContext& ctx)
 {
     if (!obj) return;
     auto* tc = obj->GetComponent<TilemapComponent>();

@@ -47,9 +47,9 @@ void TilemapObjectSpawner::Awake()
         return;
     }
 
-    DekiObject* owner = GetOwner();
+    Deki::Object* owner = GetOwner();
     if (!owner) return;
-    Scene* targetScene = owner->GetOwnerScene();
+    Deki::Scene* targetScene = owner->GetOwnerScene();
     if (!targetScene)
     {
         DEKI_LOG_ERROR("TilemapObjectSpawner: spawner's owner has no scene");
@@ -74,30 +74,30 @@ void TilemapObjectSpawner::Awake()
                 DEKI_LOG_ERROR("TilemapObjectSpawner: object %u has empty scene_guid", obj.id);
                 continue;
             }
-            Scene* scene = mgr ? static_cast<Scene*>(
-                mgr->LoadByGuidAndType(guid, Scene::AssetTypeName)) : nullptr;
+            Deki::Scene* scene = mgr ? static_cast<Deki::Scene*>(
+                mgr->LoadByGuidAndType(guid, Deki::Scene::AssetTypeName)) : nullptr;
             if (!scene)
             {
                 DEKI_LOG_ERROR("TilemapObjectSpawner: scene '%s' not found for object %u",
                                guid.c_str(), obj.id);
                 continue;
             }
-            DekiObject* spawned = scene->Instantiate(targetScene, wx, wy);
+            Deki::Object* spawned = scene->Instantiate(targetScene, wx, wy);
             if (!spawned) continue;
             // Tiled stores rotation in degrees; engine convention is radians.
-            spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
+            spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
             owner->AddChild(spawned);
             m_MSpawned.push_back(spawned);
             continue;
         }
 
-        // No scene_guid — bare DekiObject with transform only. SpriteComponent
+        // No scene_guid — bare Deki::Object with transform only. SpriteComponent
         // synthesis for tile objects is a follow-up.
-        DekiObject* spawned = new DekiObject();
+        Deki::Object* spawned = new Deki::Object();
         spawned->SetX(wx);
         spawned->SetY(wy);
         // Tiled stores rotation in degrees; engine convention is radians.
-        spawned->SetRotation(obj.rotation * DekiMath::kDegToRad);
+        spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
         if (obj.name[0]) spawned->SetName(obj.name);
         owner->AddChild(spawned);
         m_MSpawned.push_back(spawned);

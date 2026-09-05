@@ -141,7 +141,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     std::fclose(f);
 
     // Streamer keeps its own file handle for chunk reads.
-    IDekiFileSystem* fs = DekiFileSystem::GetCurrentFileSystem();
+    Deki::IFileSystem* fs = Deki::FileSystem::GetCurrentFileSystem();
     if (!fs)
     {
         DEKI_LOG_ERROR("Tilemap::Load: no filesystem provider available");

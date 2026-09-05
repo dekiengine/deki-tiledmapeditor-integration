@@ -28,7 +28,7 @@ public:
 
     // Execute only: the renderer skips this pass for the other four hooks.
     uint32_t HookMask() const override { return RenderPassHooks::Execute; }
-    void Execute(DekiObject* obj, RenderContext& ctx) override;
+    void Execute(Deki::Object* obj, RenderContext& ctx) override;
 
 private:
     // Per-Tilemap resolution cache. Built lazily on first frame; entries with

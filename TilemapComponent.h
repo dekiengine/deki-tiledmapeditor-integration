@@ -58,7 +58,7 @@ public:
     TilemapComponent();
 
     // Returns false: TilemapRenderSystem renders chunks itself, not as a single quad.
-    bool RenderContent(const DekiObject* owner,
+    bool RenderContent(const Deki::Object* owner,
                        QuadBlit::Source& outSource,
                        float& outPivotX,
                        float& outPivotY,

@@ -10,10 +10,10 @@
 // Exposes per-tile collision shapes from a tilemap's tilesets. v1 query path
 // is resident-chunks-only: hitting a non-resident chunk returns false and
 // logs an error (no silent miss, per project policy).
-class TilemapColliderComponent : public DekiBehaviour
+class TilemapColliderComponent : public Deki::Behaviour
 {
 public:
-    DEKI_COMPONENT(TilemapColliderComponent, DekiBehaviour, "Tilemap",
+    DEKI_COMPONENT(TilemapColliderComponent, Deki::Behaviour, "Tilemap",
                    "e2b8c4a1-9f30-4d65-8c11-7a4b3e2d1f88",
                    "DEKI_FEATURE_TILEMAP_COLLISION")
     DEKI_DESCRIPTION("Exposes a tilemap layer's per-tile collision shapes for queries.")

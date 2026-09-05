@@ -5,7 +5,7 @@ TilemapComponent::TilemapComponent()
     tintColor = {255, 255, 255, 255};
 }
 
-bool TilemapComponent::RenderContent(const DekiObject* /*owner*/,
+bool TilemapComponent::RenderContent(const Deki::Object* /*owner*/,
                                      QuadBlit::Source& /*outSource*/,
                                      float& /*outPivotX*/,
                                      float& /*outPivotY*/,

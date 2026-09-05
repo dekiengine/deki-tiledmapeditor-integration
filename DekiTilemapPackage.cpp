@@ -22,7 +22,7 @@
 #ifndef DEKI_PLUGIN_EXPORTS
 extern void DekiTilemap_RegisterComponents();
 extern int  DekiTilemap_GetAutoComponentCount();
-extern const DekiComponentMeta* DekiTilemap_GetAutoComponentMeta(int index);
+extern const Deki::ComponentMeta* DekiTilemap_GetAutoComponentMeta(int index);
 
 static bool s_Registered = false;
 #endif
@@ -79,7 +79,7 @@ DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
     return DekiTilemap_GetAutoComponentCount();
 }
 
-DEKI_PLUGIN_API const DekiComponentMeta* DekiPlugin_GetComponentMeta(int index)
+DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
 {
     return DekiTilemap_GetAutoComponentMeta(index);
 }
