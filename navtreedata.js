@@ -28,9 +28,9 @@ var NAVTREE =
     [ "Components", "index.html#autotoc_md0", null ],
     [ "Feature flags", "index.html#autotoc_md1", null ],
     [ "Component reference", "index.html#autotoc_md2", [
-      [ "TilemapColliderComponent (Tilemap Collider Component)", "index.html#c-tilemapcollidercomponent", null ],
-      [ "TilemapComponent (Tilemap Component)", "index.html#c-tilemapcomponent", null ],
-      [ "TilemapObjectSpawner (Tilemap Object Spawner)", "index.html#c-tilemapobjectspawner", null ]
+      [ "TilemapColliderComponent", "index.html#c-tilemapcollidercomponent", null ],
+      [ "TilemapComponent", "index.html#c-tilemapcomponent", null ],
+      [ "TilemapObjectSpawner", "index.html#c-tilemapobjectspawner", null ]
     ] ]
   ] ]
 ];

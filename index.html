@@ -89,11 +89,11 @@ Components</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Component  </th><th class="markdownTableHeadNone">Category  </th><th class="markdownTableHeadNone">Description  </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapcollidercomponent" title="TilemapColliderComponent (Tilemap Collider Component)">TilemapColliderComponent</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Exposes a tilemap layer's per-tile collision shapes for queries.  </td></tr>
+<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapcollidercomponent" title="TilemapColliderComponent">TilemapColliderComponent</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Exposes a tilemap layer's per-tile collision shapes for queries.  </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapcomponent" title="TilemapComponent (Tilemap Component)">TilemapComponent</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Draws a Tiled map, streaming chunks in around the camera.  </td></tr>
+<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapcomponent" title="TilemapComponent">TilemapComponent</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Draws a Tiled map, streaming chunks in around the camera.  </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapobjectspawner" title="TilemapObjectSpawner (Tilemap Object Spawner)">TilemapObjectSpawner</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Spawns objects from a Tiled map's object layers when the scene loads.  </td></tr>
+<td class="markdownTableBodyNone"><a class="el" href="#c-tilemapobjectspawner" title="TilemapObjectSpawner">TilemapObjectSpawner</a>  </td><td class="markdownTableBodyNone">Tilemap  </td><td class="markdownTableBodyNone">Spawns objects from a Tiled map's object layers when the scene loads.  </td></tr>
 </table>
 <h1 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
 Feature flags</h1>
@@ -111,70 +111,63 @@ Feature flags</h1>
 <h1 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
 Component reference</h1>
 <h2 class="doxsection"><a class="anchor" id="c-tilemapcollidercomponent"></a>
-TilemapColliderComponent (Tilemap Collider Component)</h2>
+TilemapColliderComponent</h2>
 <p>Exposes a tilemap layer's per-tile collision shapes for queries.</p>
-<p>Category: Tilemap · Type GUID: <span class="tt">e2b8c4a1-9f30-4d65-8c11-7a4b3e2d1f88</span></p>
+<p>Inspector name: Tilemap Collider Component · Category: Tilemap · Type GUID: <span class="tt">e2b8c4a1-9f30-4d65-8c11-7a4b3e2d1f88</span></p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Notes  </th></tr>
+<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Constraints  </th><th class="markdownTableHeadNone">Description  </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">collisionLayer</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">collisionLayer</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">loopX</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">loopX</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">wrapPeriodX</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">Shown when <span class="tt">loopX</span> allows it  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">wrapPeriodX</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">shown when <span class="tt">loopX</span> allows  </td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">loopY</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">loopY</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">wrapPeriodY</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">Shown when <span class="tt">loopY</span> allows it  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">wrapPeriodY</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">shown when <span class="tt">loopY</span> allows  </td><td class="markdownTableBodyNone"></td></tr>
 </table>
 <h2 class="doxsection"><a class="anchor" id="c-tilemapcomponent"></a>
-TilemapComponent (Tilemap Component)</h2>
+TilemapComponent</h2>
 <p>Draws a Tiled map, streaming chunks in around the camera.</p>
-<p>Category: Tilemap · Base: RendererComponent · Type GUID: <span class="tt">7c9a1d20-3e44-4b8a-9f12-6d2c5e3a8b71</span></p>
+<p>Inspector name: Tilemap Component · Category: Tilemap · Type GUID: <span class="tt">7c9a1d20-3e44-4b8a-9f12-6d2c5e3a8b71</span></p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Notes  </th></tr>
+<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Constraints  </th><th class="markdownTableHeadNone">Description  </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">sortingOrder</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">From RendererComponent  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">ignoreClip</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone">From RendererComponent  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">visibleLayerMask</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">2147483647</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">pixelSnap</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">true</span>  </td><td class="markdownTableBodyNone">From RendererComponent  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">chunkPadding</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">1</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">alphaMode</span>  </td><td class="markdownTableBodyNone">enum  </td><td class="markdownTableBodyNone"><span class="tt">Blend</span>  </td><td class="markdownTableBodyNone">How partial-alpha pixels are rendered. Blend = smooth alpha blend (slower, no artifacts). OrderedDither = stippling pattern (much faster, visible dither — best for fades and retro pixel art). Values: <span class="tt">Blend</span>, <span class="tt">OrderedDither</span> From RendererComponent  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">tintColor</span>  </td><td class="markdownTableBodyNone">Color  </td><td class="markdownTableBodyNone"><span class="tt">0xFFFFFFFF</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">pixelsPerMeter</span>  </td><td class="markdownTableBodyNone">float  </td><td class="markdownTableBodyNone"><span class="tt">16</span>  </td><td class="markdownTableBodyNone">1 to 256  </td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">visibleLayerMask</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">2147483647</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">loopX</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">chunkPadding</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">1</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">wrapPeriodX</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">shown when <span class="tt">loopX</span> allows  </td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">tintColor</span>  </td><td class="markdownTableBodyNone">Color  </td><td class="markdownTableBodyNone"><span class="tt">0xFFFFFFFF</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">loopY</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">pixelsPerMeter</span>  </td><td class="markdownTableBodyNone">float  </td><td class="markdownTableBodyNone"><span class="tt">16</span>  </td><td class="markdownTableBodyNone">Range 1 to 256  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">loopX</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">wrapPeriodX</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">Shown when <span class="tt">loopX</span> allows it  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">loopY</span>  </td><td class="markdownTableBodyNone">bool  </td><td class="markdownTableBodyNone"><span class="tt">false</span>  </td><td class="markdownTableBodyNone"></td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">wrapPeriodY</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">Shown when <span class="tt">loopY</span> allows it  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">wrapPeriodY</span>  </td><td class="markdownTableBodyNone">int32  </td><td class="markdownTableBodyNone"><span class="tt">0</span>  </td><td class="markdownTableBodyNone">shown when <span class="tt">loopY</span> allows  </td><td class="markdownTableBodyNone"></td></tr>
 </table>
+<p>Inherits <span class="tt">sortingOrder</span>, <span class="tt">ignoreClip</span>, <span class="tt">pixelSnap</span>, <span class="tt">alphaMode</span> from <a href="https://dekiengine.github.io/docs/engine-core.html#engine-renderercomponent">RendererComponent</a>.</p>
 <h2 class="doxsection"><a class="anchor" id="c-tilemapobjectspawner"></a>
-TilemapObjectSpawner (Tilemap Object Spawner)</h2>
+TilemapObjectSpawner</h2>
 <p>Spawns objects from a Tiled map's object layers when the scene loads.</p>
-<p>Category: Tilemap · Type GUID: <span class="tt">a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15</span></p>
+<p>Inspector name: Tilemap Object Spawner · Category: Tilemap · Type GUID: <span class="tt">a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15</span></p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Notes  </th></tr>
+<th class="markdownTableHeadNone">Property  </th><th class="markdownTableHeadNone">Type  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Constraints  </th><th class="markdownTableHeadNone">Description  </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td></tr>
+<td class="markdownTableBodyNone"><span class="tt">tilemap</span>  </td><td class="markdownTableBodyNone">AssetRef (Tilemap)  </td><td class="markdownTableBodyNone"><span class="tt">""</span>  </td><td class="markdownTableBodyNone"></td><td class="markdownTableBodyNone"></td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">pixelsPerMeter</span>  </td><td class="markdownTableBodyNone">float  </td><td class="markdownTableBodyNone"><span class="tt">16</span>  </td><td class="markdownTableBodyNone">Range 1 to 256  </td></tr>
+<td class="markdownTableBodyNone"><span class="tt">pixelsPerMeter</span>  </td><td class="markdownTableBodyNone">float  </td><td class="markdownTableBodyNone"><span class="tt">16</span>  </td><td class="markdownTableBodyNone">1 to 256  </td><td class="markdownTableBodyNone"></td></tr>
 </table>
 <hr  />
 <p>Generated from the package's reflection metadata by the Deki documentation build (engine 1.3.0). Reflected property names are the keys scene files use; a rename ships with an alias, see <a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">COMPATIBILITY.md</a>. </p>
