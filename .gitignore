@@ -1,0 +1,6 @@
+generated/
+.deki-package.json
+*.obj
+*.o
+build/
+.cache/

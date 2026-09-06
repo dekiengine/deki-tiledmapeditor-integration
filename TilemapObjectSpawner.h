@@ -1,0 +1,46 @@
+#pragma once
+
+#include <cstdint>
+#include <vector>
+
+#include <deki/Behaviour.h>
+#include "Tilemap.h"
+#include <deki/assets/AssetRef.h>
+#include <deki/reflection/Property.h>
+
+namespace Deki { class Object; }
+
+// On Awake, walks Tilemap::ObjectLayers and spawns engine objects per Tiled
+// object using the scene_guid convention:
+//
+//   - If a Tiled object has custom string property "scene_guid" set, that
+//     scene is instantiated at the object's transform.
+//   - Otherwise, if the object has a non-zero gid (tile object), an empty
+//     Deki::Object with a SpriteComponent is spawned.
+//   - Otherwise, an empty Deki::Object is spawned with name/type populated.
+class TilemapObjectSpawner : public Deki::Behaviour
+{
+public:
+    DEKI_COMPONENT(TilemapObjectSpawner, Deki::Behaviour, "Tilemap",
+                   "a4f2b6c8-5d10-4e93-bc77-2f8a9d3c4e15",
+                   "DEKI_FEATURE_TILEMAP_OBJECTS")
+    DEKI_DESCRIPTION("Spawns objects from a Tiled map's object layers when the scene loads.")
+
+    DEKI_EXPORT
+    Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
+
+    // Source pixels per world meter for Tiled object positions. Should match
+    // the TilemapComponent's pixelsPerMeter (default 16). Used to divide
+    // Tiled pixel coordinates into engine-world meters at spawn time.
+    DEKI_EXPORT
+    DEKI_RANGE(1.0f, 256.0f)
+    float pixelsPerMeter = 16.0f;
+
+    void Awake() override;
+    bool NeedsUpdate() const override { return false; }
+
+private:
+    std::vector<Deki::Object*> m_MSpawned;
+};
+
+#include "generated/TilemapObjectSpawner.gen.h"
