@@ -26,8 +26,7 @@ var NAVTREE =
 [
   [ "deki-tiledmapeditor-integration", "index.html", [
     [ "Components", "index.html#autotoc_md0", null ],
-    [ "Feature flags", "index.html#autotoc_md1", null ],
-    [ "Component reference", "index.html#autotoc_md2", [
+    [ "Component reference", "index.html#autotoc_md1", [
       [ "TilemapColliderComponent", "index.html#c-tilemapcollidercomponent", null ],
       [ "TilemapComponent", "index.html#c-tilemapcomponent", null ],
       [ "TilemapObjectSpawner", "index.html#c-tilemapobjectspawner", null ]
