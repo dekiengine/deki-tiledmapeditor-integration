@@ -8,13 +8,11 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
 
+DEKI_CATEGORY("Tilemap")
+DEKI_DESCRIPTION("Draws a Tiled map, streaming chunks in around the camera.")
 class TilemapComponent : public RendererComponent
 {
 public:
-    DEKI_COMPONENT(TilemapComponent, RendererComponent, "Tilemap",
-                   "7c9a1d20-3e44-4b8a-9f12-6d2c5e3a8b71",
-                   "DEKI_FEATURE_TILEMAP_RENDER")
-    DEKI_DESCRIPTION("Draws a Tiled map, streaming chunks in around the camera.")
 
     DEKI_EXPORT
     Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
@@ -71,4 +69,3 @@ public:
     void UnloadAssets() override;
 };
 
-#include "generated/TilemapComponent.gen.h"
