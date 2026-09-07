@@ -35,7 +35,6 @@ public:
     float pixelsPerMeter = 16.0f;
 
     void Awake() override;
-    bool NeedsUpdate() const override { return false; }
 
 private:
     std::vector<Deki::Object*> m_MSpawned;
