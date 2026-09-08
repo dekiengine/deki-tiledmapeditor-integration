@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <deki/Behaviour.h>
+#include <deki/Component.h>
 #include "Tilemap.h"
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
@@ -20,7 +20,7 @@ namespace Deki { class Object; }
 //   - Otherwise, an empty Deki::Object is spawned with name/type populated.
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Spawns objects from a Tiled map's object layers when the scene loads.")
-class TilemapObjectSpawner : public Deki::Behaviour
+class TilemapObjectSpawner : public Deki::Component
 {
 public:
 

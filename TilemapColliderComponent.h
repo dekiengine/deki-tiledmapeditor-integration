@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include <deki/Behaviour.h>
+#include <deki/Component.h>
 #include "Tilemap.h"
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
@@ -12,7 +12,7 @@
 // logs an error (no silent miss, per project policy).
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Exposes a tilemap layer's per-tile collision shapes for queries.")
-class TilemapColliderComponent : public Deki::Behaviour
+class TilemapColliderComponent : public Deki::Component
 {
 public:
 
