@@ -2,6 +2,9 @@
   "id": "deki-tiledmap",
   "displayName": "Tiled Map Editor Integration",
   "minEngine": "0.13.0",
+  "tags": [
+    "transform_2d"
+  ],
   "buildDefine": "DEKI_PACKAGE_TILEDMAP",
   "requires": [
     "deki-2d",
