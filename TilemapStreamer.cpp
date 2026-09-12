@@ -1,4 +1,5 @@
 #include "TilemapStreamer.h"
+#include <deki/providers/Memory.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -30,7 +31,7 @@ TilemapStreamer::TilemapStreamer(Deki::IFileSystem* fs,
 TilemapStreamer::~TilemapStreamer()
 {
     for (auto& [key, rc] : m_MResident)
-        std::free(rc.owned);
+        Deki::Memory::Free(rc.owned);
     if (m_MHandle && m_MFs)
         m_MFs->CloseFile(m_MHandle);
 }
@@ -120,7 +121,9 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     rc.chunk.height     = m_MHeader.chunkHeight;
     rc.chunk.flags      = entry.flags;
     rc.bytes            = m_chunkBytes;
-    rc.owned            = static_cast<uint32_t*>(std::malloc(m_chunkBytes));
+    // Through the engine: a streamed map chunk is a large read-mostly blob.
+    rc.owned            = static_cast<uint32_t*>(
+        Deki::Memory::Allocate(m_chunkBytes, Deki::MemoryUse::Buffer, "Tilemap::chunk"));
     if (!rc.owned)
     {
         DEKI_LOG_ERROR("TilemapStreamer: alloc failed for chunk (%d,%d) layer %u",
@@ -148,7 +151,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     {
         if (!m_MHandle)
         {
-            std::free(rc.owned);
+            Deki::Memory::Free(rc.owned);
             return false;
         }
         m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset),
@@ -159,7 +162,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
             DEKI_LOG_ERROR("TilemapStreamer: short read on chunk (%d,%d) layer %u: got %zu of %zu",
                            entry.chunkX, entry.chunkY, static_cast<unsigned>(entry.layerIndex),
                            got, m_chunkBytes);
-            std::free(rc.owned);
+            Deki::Memory::Free(rc.owned);
             return false;
         }
     }
@@ -232,7 +235,7 @@ void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
         m_MLru.pop_front();
         auto it = m_MResident.find(oldest);
         if (it == m_MResident.end()) continue;
-        std::free(it->second.owned);
+        Deki::Memory::Free(it->second.owned);
         m_residentBytes -= it->second.bytes;
         m_MResident.erase(it);
     }
