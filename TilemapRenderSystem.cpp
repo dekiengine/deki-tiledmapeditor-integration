@@ -1,5 +1,6 @@
 #include "TilemapRenderSystem.h"
 #include "PixelFormat.h"
+#include <deki/assets/Texture2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -43,15 +44,15 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
     Sprite* atlas = ts->Atlas();
     if (!atlas || !atlas->data) return false;
 
-    const uint32_t bpp   = Texture2D::GetBytesPerPixel(atlas->format);
+    const uint32_t bpp   = Deki::Texture2D::GetBytesPerPixel(atlas->format);
     outSrc.pixels        = atlas->data;
     outSrc.width         = atlas->width;
     outSrc.height        = atlas->height;
     outSrc.bytesPerPixel = static_cast<int32_t>(bpp);
     outSrc.hasAlpha      = atlas->hasAlpha;
     outSrc.alphaOffset   = atlas->hasAlpha ? static_cast<uint8_t>(bpp - 1) : 0;
-    outSrc.isRGB565      = (atlas->format == Texture2D::TextureFormat::RGB565 ||
-                            atlas->format == Texture2D::TextureFormat::RGB565A8);
+    outSrc.isRGB565      = (atlas->format == Deki::Texture2D::TextureFormat::RGB565 ||
+                            atlas->format == Deki::Texture2D::TextureFormat::RGB565A8);
     outSrc.alphaRowSpans = nullptr;
     outSrc.ownsPixels    = false;
     outSrc.stride        = atlas->width * static_cast<int32_t>(bpp);
