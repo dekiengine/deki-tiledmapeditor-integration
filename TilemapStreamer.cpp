@@ -123,7 +123,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     rc.bytes            = m_chunkBytes;
     // Through the engine: a streamed map chunk is a large read-mostly blob.
     rc.owned            = static_cast<uint32_t*>(
-        Deki::Memory::Allocate(m_chunkBytes, Deki::MemoryUse::External, "Tilemap::chunk"));
+        Deki::Memory::Allocate(m_chunkBytes, Deki::MemoryUse::External));
     if (!rc.owned)
     {
         DEKI_LOG_ERROR("TilemapStreamer: alloc failed for chunk (%d,%d) layer %u",
