@@ -26,10 +26,15 @@ var NAVTREE =
 [
   [ "deki-tiledmapeditor-integration", "index.html", [
     [ "Components", "index.html#autotoc_md0", null ],
-    [ "Component reference", "index.html#autotoc_md1", [
+    [ "Feature flags", "index.html#autotoc_md1", null ],
+    [ "Component reference", "index.html#autotoc_md2", [
       [ "TilemapColliderComponent", "index.html#c-tilemapcollidercomponent", null ],
       [ "TilemapComponent", "index.html#c-tilemapcomponent", null ],
       [ "TilemapObjectSpawner", "index.html#c-tilemapobjectspawner", null ]
+    ] ],
+    [ "Changelog", "index.html#autotoc_md3", [
+      [ "0.15.0", "index.html#autotoc_md4", null ],
+      [ "Changed", "index.html#autotoc_md5", null ]
     ] ]
   ] ]
 ];
