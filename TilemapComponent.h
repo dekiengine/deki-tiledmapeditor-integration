@@ -19,18 +19,22 @@ class TilemapComponent : public DekiRendering::RendererComponent
 public:
 
     DEKI_EXPORT
+    DEKI_TOOLTIP("A map exported from Tiled.")
     Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
 
     // Bitmask of layers to draw. Default: all layers.
     DEKI_EXPORT
+    DEKI_TOOLTIP("Which of the map's layers to draw, one bit per layer. All bits set draws everything.")
     int32_t visibleLayerMask = 0x7FFFFFFF;
 
     // Number of chunks loaded past the visible viewport edge (per side).
     DEKI_EXPORT
+    DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at the edge while scrolling.")
     int32_t chunkPadding = 1;
 
     // Tint applied to every drawn tile. White = no tint.
     DEKI_EXPORT
+    DEKI_TOOLTIP("Multiplied into every tile. White leaves the map alone.")
     Deki::Color tintColor;
 
     // Source pixels per world meter for this tilemap. The renderer treats
@@ -38,22 +42,27 @@ public:
     // pixelsPerMeter equals camera.pixelsPerMeter and project PPM, tiles
     // render 1:1 with their source. Default 16 matches the project default.
     DEKI_EXPORT
+    DEKI_TOOLTIP("How many of the map's pixels make one meter. This is what lines the map up with everything else in the scene.")
     DEKI_RANGE(1.0f, 256.0f)
     float pixelsPerMeter = 16.0f;
 
     // Loop the map on each axis. When enabled, wrap_period controls the
     // strip size: 0 = auto (use authored bounds), >0 = explicit tile count.
     DEKI_EXPORT
+    DEKI_TOOLTIP("Repeat the map horizontally, so scrolling past the edge wraps round.")
     bool loopX = false;
 
     DEKI_EXPORT
+    DEKI_TOOLTIP("How wide one horizontal repeat is, in tiles. 0 uses the map's own width.")
     DEKI_VISIBLE_WHEN(loopX, 1)
     int32_t wrapPeriodX = 0;
 
     DEKI_EXPORT
+    DEKI_TOOLTIP("Repeat the map vertically.")
     bool loopY = false;
 
     DEKI_EXPORT
+    DEKI_TOOLTIP("How tall one vertical repeat is, in tiles. 0 uses the map's own height.")
     DEKI_VISIBLE_WHEN(loopY, 1)
     int32_t wrapPeriodY = 0;
 
