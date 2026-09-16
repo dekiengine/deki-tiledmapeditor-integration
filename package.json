@@ -1,5 +1,5 @@
 {
-  "id": "deki-tiledmap",
+  "id": "deki-tiledmapeditor-integration",
   "displayName": "Tiled Map Editor Integration",
   "minEngine": "0.15.0",
   "tags": [
