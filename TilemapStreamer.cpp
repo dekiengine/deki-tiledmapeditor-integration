@@ -7,7 +7,7 @@
 
 #include <deki/LogSystem.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 TilemapStreamer::TilemapStreamer(Deki::IFileSystem* fs,
@@ -241,4 +241,4 @@ void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
     }
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

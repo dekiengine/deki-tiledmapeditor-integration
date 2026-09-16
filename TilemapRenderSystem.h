@@ -8,7 +8,7 @@
 #include "deki-rendering/RenderPass.h"
 #include "Tilemap.h"
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 class Tileset;
@@ -19,16 +19,16 @@ class Tileset;
 // non-zero tile against the tileset atlas. Drives the chunk streamer with
 // the camera's visible rect (plus chunkPadding) and a per-frame IO budget.
 //
-// Registered with DekiRenderPassRegistry under the name "tilemap" so the
+// Registered with DekiRendering::DekiRenderPassRegistry under the name "tilemap" so the
 // project's .rpipeline can activate it.
-class TilemapRenderPass : public RenderPass
+class TilemapRenderPass : public DekiRendering::RenderPass
 {
 public:
     static constexpr const char* RegistryName = "tilemap";
 
     // Execute only: the renderer skips this pass for the other four hooks.
-    uint32_t HookMask() const override { return RenderPassHooks::Execute; }
-    void Execute(Deki::Object* obj, RenderContext& ctx) override;
+    uint32_t HookMask() const override { return DekiRendering::RenderPassHooks::Execute; }
+    void Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx) override;
 
 private:
     // Per-Tilemap resolution cache. Built lazily on first frame; entries with
@@ -92,4 +92,4 @@ private:
                               int32_t& outTsIdx, int32_t& outSx, int32_t& outSy);
 };
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

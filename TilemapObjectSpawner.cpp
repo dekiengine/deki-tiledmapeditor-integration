@@ -8,14 +8,17 @@
 #include <deki/Scene.h>
 #include <deki/assets/AssetManager.h>
 
+namespace DekiTiledMap
+{
+
 namespace
 {
 
 // Walk the property pool entries that belong to a single object and look for
 // the well-known "scene_guid" string property.
-const DekiTilemap::DTilemapProperty* FindSceneGuidProperty(
-    const DekiTilemap::Tilemap& tm,
-    const DekiTilemap::DTilemapObject& obj)
+const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(
+    const DekiTiledMap::Tilemap& tm,
+    const DekiTiledMap::DTilemapObject& obj)
 {
     if (obj.propertyCount == 0) return nullptr;
     const auto& props = tm.Properties();
@@ -27,7 +30,7 @@ const DekiTilemap::DTilemapProperty* FindSceneGuidProperty(
     for (uint32_t i = 0; i < obj.propertyCount; ++i)
     {
         const auto& p = props[obj.propertyOffset + i];
-        if (p.type != static_cast<uint32_t>(DekiTilemap::DPropertyType::String))
+        if (p.type != static_cast<uint32_t>(DekiTiledMap::DPropertyType::String))
             continue;
         std::string name = tm.GetString(p.nameOffset);
         if (name == "scene_guid")
@@ -40,7 +43,7 @@ const DekiTilemap::DTilemapProperty* FindSceneGuidProperty(
 
 void TilemapObjectSpawner::Awake()
 {
-    DekiTilemap::Tilemap* tm = tilemap.Get();
+    DekiTiledMap::Tilemap* tm = tilemap.Get();
     if (!tm)
     {
         DEKI_LOG_WARNING("TilemapObjectSpawner: no tilemap assigned");
@@ -65,7 +68,7 @@ void TilemapObjectSpawner::Awake()
         const float wx = static_cast<float>(obj.x) / ppm;
         const float wy = static_cast<float>(obj.y) / ppm;
 
-        const DekiTilemap::DTilemapProperty* guidProp = FindSceneGuidProperty(*tm, obj);
+        const DekiTiledMap::DTilemapProperty* guidProp = FindSceneGuidProperty(*tm, obj);
         if (guidProp)
         {
             std::string guid = tm->GetString(guidProp->valueOffset);
@@ -91,7 +94,7 @@ void TilemapObjectSpawner::Awake()
             continue;
         }
 
-        // No scene_guid — bare Deki::Object with transform only. SpriteComponent
+        // No scene_guid — bare Deki::Object with transform only. Deki2D::SpriteComponent
         // synthesis for tile objects is a follow-up.
         Deki::Object* spawned = new Deki::Object();
         spawned->SetX(wx);
@@ -103,3 +106,5 @@ void TilemapObjectSpawner::Awake()
         m_MSpawned.push_back(spawned);
     }
 }
+
+}  // namespace DekiTiledMap

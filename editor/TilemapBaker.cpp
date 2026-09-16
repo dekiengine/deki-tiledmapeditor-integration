@@ -10,7 +10,7 @@
 
 #include <deki/LogSystem.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 namespace
@@ -387,6 +387,6 @@ bool WriteDtilemap(const TmjMap& map,
     return true;
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

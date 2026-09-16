@@ -15,7 +15,7 @@
 namespace fs = std::filesystem;
 using nlohmann::json;
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 namespace
@@ -392,6 +392,6 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
     return true;
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

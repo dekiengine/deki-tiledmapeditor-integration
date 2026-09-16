@@ -8,14 +8,18 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
 
+namespace DekiTiledMap
+{
+
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Draws a Tiled map, streaming chunks in around the camera.")
-class TilemapComponent : public RendererComponent
+DEKI_FORMER_NAME("TilemapComponent")
+class TilemapComponent : public DekiRendering::RendererComponent
 {
 public:
 
     DEKI_EXPORT
-    Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
+    Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
 
     // Bitmask of layers to draw. Default: all layers.
     DEKI_EXPORT
@@ -68,4 +72,6 @@ public:
     void OnAssetRefResolved(const char* propertyName, void* asset, const char* guid) override;
     void UnloadAssets() override;
 };
+
+}  // namespace DekiTiledMap
 

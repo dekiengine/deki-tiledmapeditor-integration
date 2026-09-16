@@ -17,15 +17,25 @@
 #include "editor/TilemapInspector.h"
 #endif
 
-#ifdef DEKI_EDITOR
-
-#ifndef DEKI_PLUGIN_EXPORTS
 extern void DekiTilemap_RegisterComponents();
 extern int  DekiTilemap_GetAutoComponentCount();
 extern const Deki::ComponentMeta* DekiTilemap_GetAutoComponentMeta(int index);
 
+namespace DekiTiledMap
+{
+
+
+#ifdef DEKI_EDITOR
+
+#ifndef DEKI_PLUGIN_EXPORTS
+
 static bool s_Registered = false;
 #endif
+
+
+// The exports below are C symbols at global scope; the package's own
+// registration helpers and statics live in its namespace.
+using namespace DekiTiledMap;
 
 extern "C" {
 
@@ -33,15 +43,15 @@ extern "C" {
 DEKI_TILEDMAP_API int DekiTilemap_EnsureRegistered(void)
 {
     if (s_Registered)
-        return DekiTilemap_GetAutoComponentCount();
+        return ::DekiTilemap_GetAutoComponentCount();
     s_Registered = true;
 
-    DekiTilemap_RegisterComponents();
+    ::DekiTilemap_RegisterComponents();
 
-    DekiTilemap::RegisterTilemapSyncHandlers();
-    DekiTilemap::RegisterTilemapInspector();
+    DekiTiledMap::RegisterTilemapSyncHandlers();
+    DekiTiledMap::RegisterTilemapInspector();
 
-    return DekiTilemap_GetAutoComponentCount();
+    return ::DekiTilemap_GetAutoComponentCount();
 }
 #endif // DEKI_PLUGIN_EXPORTS
 
@@ -52,7 +62,7 @@ extern "C" {
 #ifndef DEKI_PLUGIN_EXPORTS
 DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
 {
-    return "Deki Tiled Map Package";
+    return "DekiRendering::Deki Tiled Map Package";
 }
 
 DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
@@ -76,12 +86,12 @@ DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
 
 DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
 {
-    return DekiTilemap_GetAutoComponentCount();
+    return ::DekiTilemap_GetAutoComponentCount();
 }
 
 DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
 {
-    return DekiTilemap_GetAutoComponentMeta(index);
+    return ::DekiTilemap_GetAutoComponentMeta(index);
 }
 
 DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
@@ -105,3 +115,5 @@ DEKI_TILEDMAP_API const char* DekiTilemap_GetName(void)
 // initializers and there is no plugin export surface to expose.
 
 #endif // DEKI_EDITOR
+}  // namespace DekiTiledMap
+

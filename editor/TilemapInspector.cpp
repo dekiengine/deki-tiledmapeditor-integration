@@ -11,7 +11,7 @@
 #include <shellapi.h>
 #endif
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 namespace
@@ -52,6 +52,6 @@ void RegisterTilemapInspector()
     (void)&OpenInTiled;     // silence unused-function warning
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

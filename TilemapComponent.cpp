@@ -1,5 +1,8 @@
 #include "TilemapComponent.h"
 
+namespace DekiTiledMap
+{
+
 TilemapComponent::TilemapComponent()
 {
     tintColor = {255, 255, 255, 255};
@@ -34,3 +37,5 @@ void TilemapComponent::UnloadAssets()
     tilemap.ptr = nullptr;
     tilemap.loadAttempted = false;
 }
+
+}  // namespace DekiTiledMap

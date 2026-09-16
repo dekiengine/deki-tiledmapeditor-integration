@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 // Tiled's GID flip-flag bit layout (top 4 bits of a 32-bit GID).
@@ -37,4 +37,4 @@ enum ChunkIndexFlags : uint16_t
     CHUNK_FLAG_UNIFORM_FILL = 1 << 1,  // payload is a single uint32 repeated for every tile
 };
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

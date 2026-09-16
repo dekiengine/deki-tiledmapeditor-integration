@@ -10,7 +10,7 @@
 #include "Tilemap.h"
 #include <deki/providers/IFileSystem.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 // LRU chunk pager backed by Deki::IFileSystem. Holds a single open file handle
@@ -108,4 +108,4 @@ private:
     size_t                                          m_chunkBytes    = 0;
 };
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

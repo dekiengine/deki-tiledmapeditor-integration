@@ -6,7 +6,7 @@
 
 #include "TmjParser.h"
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 struct BakedTilesetRef
@@ -30,6 +30,6 @@ bool WriteDtilemap(const TmjMap& map,
                    const std::vector<BakedTilesetRef>& tilesets,
                    const std::string& outAbsPath);
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

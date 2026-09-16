@@ -18,7 +18,7 @@
 namespace fs = std::filesystem;
 using nlohmann::json;
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 namespace
@@ -161,7 +161,7 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
     // matching comment in HandleTilesetCache for why this is needed despite
     // EditorProjectManager's post-import loop. Also register the export-path
     // key so AssetManager::Load<Tilemap>("path/to/test-map") works the same
-    // way Sprite/BitmapFont do.
+    // way Deki2D::Sprite/Deki2D::BitmapFont do.
     Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
 
     // Update .data sidecar to record the resolved tileset GUIDs (for tooling /
@@ -207,6 +207,6 @@ void RegisterTilemapSyncHandlers()
     });
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

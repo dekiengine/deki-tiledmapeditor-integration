@@ -8,7 +8,7 @@
 #include "TileChunk.h"
 #include <deki/assets/AssetRef.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 class TilemapStreamer;
@@ -220,4 +220,4 @@ private:
     TilemapStreamer*             m_MStreamer = nullptr;
 };
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

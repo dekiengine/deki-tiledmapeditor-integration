@@ -7,7 +7,7 @@
 #include "deki-2d/Sprite.h"
 #include <deki/assets/AssetRef.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 // On-disk header for .dtileset (88 bytes, little-endian, packed by hand).
@@ -82,7 +82,7 @@ public:
 
     ~Tileset();
 
-    Sprite*  Atlas() const;
+    Deki2D::Sprite*  Atlas() const;
     uint16_t TileWidth()  const { return m_MHeader.tileWidth;  }
     uint16_t TileHeight() const { return m_MHeader.tileHeight; }
     uint16_t Columns()    const { return m_MHeader.columns;    }
@@ -107,10 +107,10 @@ private:
     Tileset() = default;
 
     DTilesetHeader m_MHeader{};
-    mutable Deki::AssetRef<Sprite> m_MAtlas;
+    mutable Deki::AssetRef<Deki2D::Sprite> m_MAtlas;
     std::vector<DTileAnimation>      m_MAnims;
     std::vector<DTileAnimationFrame> m_animFrames;
     std::vector<DTileCollision>      m_MCollisions;
 };
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

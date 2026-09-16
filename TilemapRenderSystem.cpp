@@ -20,7 +20,7 @@
 #include "Tileset.h"
 #include <deki/assets/AssetManager.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 namespace
@@ -41,7 +41,7 @@ constexpr size_t kIOByteBudgetPerFrame = 8 * 1024;
 bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
 {
     if (!ts) return false;
-    Sprite* atlas = ts->Atlas();
+    Deki2D::Sprite* atlas = ts->Atlas();
     if (!atlas || !atlas->data) return false;
 
     const uint32_t bpp   = Deki::Texture2D::GetBytesPerPixel(atlas->format);
@@ -206,7 +206,7 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
     return true;
 }
 
-void TilemapRenderPass::Execute(Deki::Object* obj, RenderContext& ctx)
+void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx)
 {
     if (!obj) return;
     auto* tc = obj->GetComponent<TilemapComponent>();
@@ -258,7 +258,7 @@ void TilemapRenderPass::Execute(Deki::Object* obj, RenderContext& ctx)
 
     // Camera visible rect, expressed in tile-pixel coords (Y+ down) for chunk
     // selection. Camera/visible sizes are meters; convert via tilePPM.
-    // Visible size = screen / ppm (CameraComponent::GetVisibleWidth); the
+    // Visible size = screen / ppm (DekiRendering::CameraComponent::GetVisibleWidth); the
     // camera position is the unsnapped one, so it still comes from the camera
     // (the snapshot's is pixel-snapped when the camera asks for that).
     const float visW = (ctx.cam.ppm > 0.0f) ? (static_cast<float>(screenW) / ctx.cam.ppm) : 0.0f;
@@ -419,8 +419,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, RenderContext& ctx)
     const bool pixelSnap = tc->pixelSnap;
 
     // Everything below maps through the frame's camera snapshot: the same
-    // arithmetic as CameraComponent::WorldToScreen, no virtual call per tile.
-    const FrameCamera& cam = ctx.cam;
+    // arithmetic as DekiRendering::CameraComponent::WorldToScreen, no virtual call per tile.
+    const DekiRendering::FrameCamera& cam = ctx.cam;
 
     // Source tile pixels -> world meters via tilePPM, then world meters ->
     // screen pixels via camera.PPM. Net scale is (camera.PPM / tilePPM); when
@@ -561,26 +561,26 @@ void TilemapRenderPass::Execute(Deki::Object* obj, RenderContext& ctx)
     }
 }
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 // Self-registration with autoAttach=true so DekiRenderingInit attaches the
-// pass to the active Standard2DRenderer whenever the deki-tilemap package is
+// pass to the active DekiRendering::Standard2DRenderer whenever the deki-tilemap package is
 // loaded. The project's .rpipeline doesn't need to know about "tilemap"; it
 // can still mention it explicitly to control ordering relative to other
 // passes (e.g. clip2d) if needed.
 namespace {
 struct TilemapRenderPassRegistrar {
     TilemapRenderPassRegistrar() {
-        RenderPassInfo info;
-        info.factory    = []() -> RenderPass* { return new DekiTilemap::TilemapRenderPass(); };
+        DekiRendering::RenderPassInfo info;
+        info.factory    = []() -> DekiRendering::RenderPass* { return new DekiTiledMap::TilemapRenderPass(); };
         info.autoAttach = true;
-        DekiRenderPassRegistry::Register(DekiTilemap::TilemapRenderPass::RegistryName, info);
+        DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::RegistryName, info);
     }
     // Unregister on DLL unload so the std::function factory (whose target
     // lives in this package's code) doesn't outlive the DLL and crash
     // deki-rendering's static-registry teardown.
     ~TilemapRenderPassRegistrar() {
-        DekiRenderPassRegistry::Unregister(DekiTilemap::TilemapRenderPass::RegistryName);
+        DekiRendering::DekiRenderPassRegistry::Unregister(DekiTiledMap::TilemapRenderPass::RegistryName);
     }
 };
 static TilemapRenderPassRegistrar s_tilemapPassRegistrar;

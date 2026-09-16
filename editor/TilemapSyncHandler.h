@@ -2,13 +2,13 @@
 
 #ifdef DEKI_EDITOR
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 // Registers .tmj/.tsj sync handlers with AssetPipeline. Idempotent —
 // safe to call multiple times (only the first call subscribes).
 void RegisterTilemapSyncHandlers();
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

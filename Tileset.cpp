@@ -6,7 +6,7 @@
 #include <deki/LogSystem.h>
 #include <deki/assets/AssetManager.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 Tileset::~Tileset() = default;
@@ -71,7 +71,7 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     return ts;
 }
 
-Sprite* Tileset::Atlas() const
+Deki2D::Sprite* Tileset::Atlas() const
 {
     return m_MAtlas.Get();
 }
@@ -113,4 +113,4 @@ const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) 
 // can't accept a qualified name. Call inside the namespace.
 REGISTER_ASSET_TYPE(Tileset, Tileset::Load)
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 struct TmjTilesetRef
@@ -131,6 +131,6 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
 // Parse a .tsj file into TmjTileset.
 bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::string& outError);
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

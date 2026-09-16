@@ -9,7 +9,7 @@
 #include <deki/assets/AssetManager.h>
 #include <deki/providers/FileSystem.h>
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 Tilemap::~Tilemap()
@@ -277,4 +277,4 @@ bool Tilemap::ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
 
 REGISTER_ASSET_TYPE(Tilemap, Tilemap::Load)
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap

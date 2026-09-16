@@ -7,17 +7,21 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
 
+namespace DekiTiledMap
+{
+
 // Exposes per-tile collision shapes from a tilemap's tilesets. v1 query path
 // is resident-chunks-only: hitting a non-resident chunk returns false and
 // logs an error (no silent miss, per project policy).
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Exposes a tilemap layer's per-tile collision shapes for queries.")
+DEKI_FORMER_NAME("TilemapColliderComponent")
 class TilemapColliderComponent : public Deki::Component
 {
 public:
 
     DEKI_EXPORT
-    Deki::AssetRef<DekiTilemap::Tilemap> tilemap;
+    Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
 
     // Layer index to source collision from. Default: layer 0.
     DEKI_EXPORT
@@ -45,4 +49,6 @@ public:
     // within its tileset on hit.
     bool HitTest(float worldX, float worldY, uint32_t* outLocalId = nullptr);
 };
+
+}  // namespace DekiTiledMap
 

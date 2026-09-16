@@ -2,12 +2,12 @@
 
 #ifdef DEKI_EDITOR
 
-namespace DekiTilemap
+namespace DekiTiledMap
 {
 
 // Registers the .tmj / .tsj asset-browser inspector. Idempotent.
 void RegisterTilemapInspector();
 
-} // namespace DekiTilemap
+} // namespace DekiTiledMap
 
 #endif // DEKI_EDITOR

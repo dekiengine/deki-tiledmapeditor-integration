@@ -5,9 +5,12 @@
 #include "TilemapStreamer.h"
 #include <deki/assets/AssetManager.h>
 
+namespace DekiTiledMap
+{
+
 bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* outLocalId)
 {
-    DekiTilemap::Tilemap* tm = tilemap.Get();
+    DekiTiledMap::Tilemap* tm = tilemap.Get();
     if (!tm) return false;
 
     const int tw = tm->TileWidth();
@@ -60,7 +63,7 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         DEKI_LOG_ERROR("TilemapCollider: no streamer attached to tilemap");
         return false;
     }
-    const DekiTilemap::TileChunk* chunk = streamer->Get(collisionLayer, chunkX, chunkY);
+    const DekiTiledMap::TileChunk* chunk = streamer->Get(collisionLayer, chunkX, chunkY);
     if (!chunk)
     {
         DEKI_LOG_ERROR("TilemapCollider: chunk (%d,%d) layer %d is not resident — "
@@ -70,26 +73,26 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     }
 
     const uint32_t gid = chunk->tileGids[withinY * cw + withinX];
-    if (DekiTilemap::GidIndex(gid) == 0) return false;
+    if (DekiTiledMap::GidIndex(gid) == 0) return false;
 
     uint32_t localId = 0;
-    const DekiTilemap::TilesetRef* tref = tm->ResolveTileset(gid, localId);
+    const DekiTiledMap::TilesetRef* tref = tm->ResolveTileset(gid, localId);
     if (!tref) return false;
 
     auto* tileset = Deki::AssetManager::Get()
-        ? static_cast<DekiTilemap::Tileset*>(
-              Deki::AssetManager::Get()->LoadByGuidAndType(tref->guid, DekiTilemap::Tileset::AssetTypeName))
+        ? static_cast<DekiTiledMap::Tileset*>(
+              Deki::AssetManager::Get()->LoadByGuidAndType(tref->guid, DekiTiledMap::Tileset::AssetTypeName))
         : nullptr;
     if (!tileset) return false;
 
-    const DekiTilemap::DTileCollision* col = tileset->GetCollision(localId);
+    const DekiTiledMap::DTileCollision* col = tileset->GetCollision(localId);
     if (!col) return false;
 
     // Local point inside the tile.
     const float px = worldX - origTileX * tw;
     const float py = worldY - origTileY * th;
 
-    if (col->shape == static_cast<uint32_t>(DekiTilemap::DTileCollisionShape::Rect))
+    if (col->shape == static_cast<uint32_t>(DekiTiledMap::DTileCollisionShape::Rect))
     {
         if (px >= col->x && px <= col->x + col->width &&
             py >= col->y && py <= col->y + col->height)
@@ -99,7 +102,7 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         }
         return false;
     }
-    if (col->shape == static_cast<uint32_t>(DekiTilemap::DTileCollisionShape::Ellipse))
+    if (col->shape == static_cast<uint32_t>(DekiTiledMap::DTileCollisionShape::Ellipse))
     {
         const float rx = col->width  * 0.5f;
         const float ry = col->height * 0.5f;
@@ -124,3 +127,5 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     }
     return false;
 }
+
+}  // namespace DekiTiledMap
