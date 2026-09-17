@@ -1,4 +1,4 @@
-# deki-tiledmap
+# deki-tiledmapeditor-integration
 
 Documentation: https://dekiengine.github.io/deki-tiledmapeditor-integration/ (components and properties, generated from the code)
 
@@ -15,7 +15,7 @@ ESP32 SD cards and direct mmap-style reads on desktop.
   shared `QuadBlit` pipeline used by `SpriteComponent`. Per-tile flip flags
   (H/V/D) are honored.
 - **TilemapStreamer** — LRU chunk paging keyed by viewport. Bounded memory
-  budget (256 KiB ESP32 / 16 MiB desktop default), per-frame IO budget
+  budget (256 KiB on every platform by default; raise it with `SetMemoryBudget`), per-frame IO budget
   prevents stalls.
 - **TilemapColliderComponent** — exposes per-tile collision shapes from the
   tileset's collision objectgroups.
@@ -61,6 +61,13 @@ obj->AddComponent<SomeComponent>();
 
 Scenes saved before 0.16.0 used bare names and still load: every component
 records what it used to be called, and a save writes the current name.
+
+## Dependencies
+
+| Dependency | Type |
+|---|---|
+| `deki-2d` | Deki package |
+| `deki-rendering` | Deki package |
 
 ## Installation
 
