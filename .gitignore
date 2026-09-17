@@ -4,3 +4,16 @@ generated/
 *.o
 build/
 .cache/
+
+# Build and editor leftovers, matching the other packages.
+*.a
+*.lib
+*.dll
+*.pdb
+*.tmp
+*.log
+.vs/
+.vscode/
+.claude/
+CMakeFiles/
+cmake-build-*/
