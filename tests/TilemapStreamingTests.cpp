@@ -18,7 +18,7 @@
 #include <deki/providers/FileSystem.h>
 #include <deki/providers/IFileSystem.h>
 #include <deki/providers/Memory.h>
-#include <deki/platforms/desktop/DesktopMemoryProvider.h>
+#include <deki/providers/HostMemoryProvider.h>
 
 #include <cstring>
 #include <memory>
@@ -168,7 +168,7 @@ protected:
         // The streamer allocates chunk buffers through Deki::Memory.
         if (!Deki::Memory::IsInitialized())
         {
-            Deki::Memory::SetBackend(new Deki::DesktopMemoryProvider());
+            Deki::Memory::SetBackend(new Deki::HostMemoryProvider());
             Deki::Memory::Initialize();
         }
     }
