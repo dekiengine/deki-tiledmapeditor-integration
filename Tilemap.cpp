@@ -2,7 +2,6 @@
 #include "TilemapStreamer.h"
 
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 
 #include <deki/LogSystem.h>
@@ -22,7 +21,21 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (!dtilemapPath)
         return nullptr;
 
-    FILE* f = std::fopen(dtilemapPath, "rb");
+    // Through the engine filesystem, never stdio. The path the asset manager
+    // hands us carries the cache directory, and on a device and in the
+    // simulator that is the "S:/" mount — a prefix only IFileSystem knows how
+    // to resolve. This used to be std::fopen, so a tilemap loaded in the editor
+    // (native cache path) and nowhere else, while the chunk streamer set up at
+    // the bottom of this function had always read through the filesystem.
+    Deki::IFileSystem* fs = Deki::FileSystem::GetFileSystemForPath(dtilemapPath);
+    if (!fs)
+    {
+        DEKI_LOG_ERROR("Tilemap::Load: no filesystem provider available");
+        return nullptr;
+    }
+
+    Deki::IFileSystem::FileHandle f =
+        fs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
     if (!f)
     {
         DEKI_LOG_ERROR("Tilemap::Load: cannot open '%s'", dtilemapPath);
@@ -30,15 +43,15 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     }
 
     DTilemapHeader hdr{};
-    if (std::fread(&hdr, sizeof(hdr), 1, f) != 1)
+    if (fs->ReadFile(f, &hdr, sizeof(hdr)) != sizeof(hdr))
     {
-        std::fclose(f);
+        fs->CloseFile(f);
         DEKI_LOG_ERROR("Tilemap::Load: short read on header for '%s'", dtilemapPath);
         return nullptr;
     }
     if (std::memcmp(hdr.magic, "DTM1", 4) != 0 || hdr.version != 1)
     {
-        std::fclose(f);
+        fs->CloseFile(f);
         DEKI_LOG_ERROR("Tilemap::Load: bad magic/version in '%s'", dtilemapPath);
         return nullptr;
     }
@@ -50,8 +63,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (hdr.chunkIndexCount > 0)
     {
         tm->m_MIndex.resize(hdr.chunkIndexCount);
-        std::fseek(f, static_cast<long>(hdr.chunkIndexOffset), SEEK_SET);
-        std::fread(tm->m_MIndex.data(), sizeof(ChunkIndexEntry), hdr.chunkIndexCount, f);
+        fs->SeekFile(f, static_cast<long>(hdr.chunkIndexOffset),
+                     Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, tm->m_MIndex.data(), sizeof(ChunkIndexEntry) * hdr.chunkIndexCount);
 
         // Sort by (layerIndex, chunkY, chunkX) so streamer + query paths can
         // do O(log N) binary search. Idempotent for already-sorted bakes.
@@ -67,8 +81,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (hdr.tilesetCount > 0)
     {
         tm->m_MTilesets.resize(hdr.tilesetCount);
-        std::fseek(f, static_cast<long>(hdr.tilesetTableOffset), SEEK_SET);
-        std::fread(tm->m_MTilesets.data(), sizeof(TilesetRef), hdr.tilesetCount, f);
+        fs->SeekFile(f, static_cast<long>(hdr.tilesetTableOffset),
+                     Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, tm->m_MTilesets.data(), sizeof(TilesetRef) * hdr.tilesetCount);
 
         // Sort by firstGid so ResolveTilesetWithIndex can binary-search the
         // hot-path lookup. The baker conventionally writes ascending, but
@@ -81,8 +96,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (hdr.objectLayerCount > 0)
     {
         tm->m_objectLayers.resize(hdr.objectLayerCount);
-        std::fseek(f, static_cast<long>(hdr.objectLayerOffset), SEEK_SET);
-        std::fread(tm->m_objectLayers.data(), sizeof(DObjectLayer), hdr.objectLayerCount, f);
+        fs->SeekFile(f, static_cast<long>(hdr.objectLayerOffset),
+                     Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, tm->m_objectLayers.data(), sizeof(DObjectLayer) * hdr.objectLayerCount);
 
         // Walk every layer and pull its object range. The baker writes
         // contiguous object blobs but we don't assume contiguity here — each
@@ -96,8 +112,10 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
             for (const auto& L : tm->m_objectLayers)
             {
                 if (L.objectCount == 0) continue;
-                std::fseek(f, static_cast<long>(L.objectOffset), SEEK_SET);
-                std::fread(tm->m_MObjects.data() + cursor, sizeof(DTilemapObject), L.objectCount, f);
+                fs->SeekFile(f, static_cast<long>(L.objectOffset),
+                             Deki::IFileSystem::SeekOrigin::BEGIN);
+                fs->ReadFile(f, tm->m_MObjects.data() + cursor,
+                             sizeof(DTilemapObject) * L.objectCount);
                 cursor += L.objectCount;
             }
         }
@@ -113,9 +131,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     // their offsets inside DTilemapObject entries; they must be reachable from
     // those offsets. We allocate a tail blob of (file_size - tail_start) and
     // expose accessors via offsets relative to file start.
-    long fileSize = 0;
-    std::fseek(f, 0, SEEK_END);
-    fileSize = std::ftell(f);
+    const long fileSize = fs->GetFileSize(f);
 
     // Heuristic tail start: end of object table, or end of chunk index if no
     // objects, or end of header if neither. The baker always writes the
@@ -134,20 +150,14 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     {
         long tailLen = fileSize - static_cast<long>(tailStart);
         tm->m_stringPool.resize(static_cast<size_t>(tailLen));
-        std::fseek(f, static_cast<long>(tailStart), SEEK_SET);
-        std::fread(tm->m_stringPool.data(), 1, static_cast<size_t>(tailLen), f);
+        fs->SeekFile(f, static_cast<long>(tailStart), Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, tm->m_stringPool.data(), static_cast<size_t>(tailLen));
     }
 
-    std::fclose(f);
+    fs->CloseFile(f);
 
-    // Streamer keeps its own file handle for chunk reads.
-    Deki::IFileSystem* fs = Deki::FileSystem::GetCurrentFileSystem();
-    if (!fs)
-    {
-        DEKI_LOG_ERROR("Tilemap::Load: no filesystem provider available");
-        delete tm;
-        return nullptr;
-    }
+    // The streamer keeps its own handle for chunk reads, on the same
+    // filesystem this function read the header with.
     tm->m_MStreamer = new TilemapStreamer(fs, dtilemapPath, tm->m_MHeader,
                                          tm->m_MIndex.data(), tm->m_MIndex.size());
 

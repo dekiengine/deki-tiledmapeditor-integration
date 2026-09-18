@@ -1,10 +1,10 @@
 #include "Tileset.h"
 
-#include <cstdio>
 #include <cstring>
 
 #include <deki/LogSystem.h>
 #include <deki/assets/AssetManager.h>
+#include <deki/providers/FileSystem.h>
 
 namespace DekiTiledMap
 {
@@ -16,7 +16,19 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     if (!dtilesetPath)
         return nullptr;
 
-    FILE* f = std::fopen(dtilesetPath, "rb");
+    // Through the engine filesystem, never stdio: the asset manager prefixes
+    // the cache directory, which is the "S:/" mount on a device and in the
+    // simulator, and only IFileSystem resolves that prefix. As std::fopen this
+    // loaded in the editor and failed everywhere else.
+    Deki::IFileSystem* fs = Deki::FileSystem::GetFileSystemForPath(dtilesetPath);
+    if (!fs)
+    {
+        DEKI_LOG_ERROR("Tileset::Load: no filesystem provider available");
+        return nullptr;
+    }
+
+    Deki::IFileSystem::FileHandle f =
+        fs->OpenFile(dtilesetPath, Deki::IFileSystem::OpenMode::READ_BINARY);
     if (!f)
     {
         DEKI_LOG_ERROR("Tileset::Load: cannot open '%s'", dtilesetPath);
@@ -24,15 +36,15 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     }
 
     DTilesetHeader hdr{};
-    if (std::fread(&hdr, sizeof(hdr), 1, f) != 1)
+    if (fs->ReadFile(f, &hdr, sizeof(hdr)) != sizeof(hdr))
     {
-        std::fclose(f);
+        fs->CloseFile(f);
         DEKI_LOG_ERROR("Tileset::Load: short read on header for '%s'", dtilesetPath);
         return nullptr;
     }
     if (std::memcmp(hdr.magic, "DTS1", 4) != 0 || hdr.version != 1)
     {
-        std::fclose(f);
+        fs->CloseFile(f);
         DEKI_LOG_ERROR("Tileset::Load: bad magic/version in '%s'", dtilesetPath);
         return nullptr;
     }
@@ -44,8 +56,9 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     if (hdr.animCount > 0)
     {
         ts->m_MAnims.resize(hdr.animCount);
-        std::fseek(f, static_cast<long>(hdr.animTableOffset), SEEK_SET);
-        std::fread(ts->m_MAnims.data(), sizeof(DTileAnimation), hdr.animCount, f);
+        fs->SeekFile(f, static_cast<long>(hdr.animTableOffset),
+                     Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, ts->m_MAnims.data(), sizeof(DTileAnimation) * hdr.animCount);
 
         // Pull the frames blob: we trust the baker to lay frames contiguously
         // immediately after the animation table.
@@ -55,19 +68,22 @@ Tileset* Tileset::Load(const char* dtilesetPath)
         {
             ts->m_animFrames.resize(totalFrames);
             uint32_t firstOffset = ts->m_MAnims.front().frameOffset;
-            std::fseek(f, static_cast<long>(firstOffset), SEEK_SET);
-            std::fread(ts->m_animFrames.data(), sizeof(DTileAnimationFrame), totalFrames, f);
+            fs->SeekFile(f, static_cast<long>(firstOffset),
+                         Deki::IFileSystem::SeekOrigin::BEGIN);
+            fs->ReadFile(f, ts->m_animFrames.data(),
+                         sizeof(DTileAnimationFrame) * totalFrames);
         }
     }
 
     if (hdr.collisionCount > 0)
     {
         ts->m_MCollisions.resize(hdr.collisionCount);
-        std::fseek(f, static_cast<long>(hdr.collisionTableOffset), SEEK_SET);
-        std::fread(ts->m_MCollisions.data(), sizeof(DTileCollision), hdr.collisionCount, f);
+        fs->SeekFile(f, static_cast<long>(hdr.collisionTableOffset),
+                     Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->ReadFile(f, ts->m_MCollisions.data(), sizeof(DTileCollision) * hdr.collisionCount);
     }
 
-    std::fclose(f);
+    fs->CloseFile(f);
     return ts;
 }
 

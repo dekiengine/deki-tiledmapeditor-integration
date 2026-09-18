@@ -10,6 +10,17 @@ alongside one that has them.
 
 ## 0.16.0
 
+### Fixed
+- **Maps and tilesets load outside the editor.** Both loaders read the asset
+  file with `std::fopen`. The asset manager prefixes the cache directory, which
+  is the `S:/` mount on a device and in the desktop simulator, and only the
+  engine's filesystem resolves that prefix — stdio sees a drive that does not
+  exist. So a tilemap loaded in the editor, where the cache directory is a real
+  native path, and nowhere else. Both now read through `IFileSystem`, which is
+  what the chunk streamer set up at the end of `Tilemap::Load` had always done:
+  one function was using both routes. Covered by tests that serve the file from
+  a filesystem mounted at `S:/`.
+
 ### Changed
 - **Moved into the `DekiTiledMap` namespace.** Every component was declared at global
   scope, which made its identity a bare class name — the name a scene file
