@@ -11,6 +11,13 @@ alongside one that has them.
 ## 0.16.0
 
 ### Fixed
+- **The chunk memory budget is reachable.** `SetMemoryBudget` existed and
+  nothing called it, so every target ran on the 256 KiB default chosen for an
+  ESP32, desktop builds included. `TilemapComponent` now exposes it as **Chunk
+  Cache KiB** and applies it when the map resolves. The budget belongs to the
+  map, which the asset manager shares between components, so a component only
+  ever raises it: two objects drawing one map settle on the larger request
+  instead of the last one resolved.
 - **Maps and tilesets load outside the editor.** Both loaders read the asset
   file with `std::fopen`. The asset manager prefixes the cache directory, which
   is the `S:/` mount on a device and in the desktop simulator, and only the

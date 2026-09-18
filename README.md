@@ -14,9 +14,14 @@ ESP32 SD cards and direct mmap-style reads on desktop.
 - **TilemapComponent** — renders any layer set of a Tiled map through the
   shared `QuadBlit` pipeline used by `SpriteComponent`. Per-tile flip flags
   (H/V/D) are honored.
-- **TilemapStreamer** — LRU chunk paging keyed by viewport. Bounded memory
-  budget (256 KiB on every platform by default; raise it with `SetMemoryBudget`), per-frame IO budget
-  prevents stalls.
+- **TilemapStreamer** — LRU chunk paging keyed by viewport, with a memory
+  budget and a per-frame IO budget so a scroll never stalls on storage. The
+  memory budget is the component's **Chunk Cache KiB**, 256 by default, which
+  is sized for an ESP32; a desktop build can afford far more. Past the budget
+  the least recently drawn chunks are dropped and re-read when they are needed
+  again, so a budget that is too small shows up as stutter while scrolling
+  rather than as missing tiles. Two objects drawing the same map settle on the
+  larger of their two requests.
 - **TilemapColliderComponent** — exposes per-tile collision shapes from the
   tileset's collision objectgroups.
 - **TilemapObjectSpawner** — instantiates engine scenes from Tiled object

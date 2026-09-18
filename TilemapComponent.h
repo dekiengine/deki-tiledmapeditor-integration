@@ -32,6 +32,20 @@ public:
     DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at the edge while scrolling.")
     int32_t chunkPadding = 1;
 
+    // How much decoded chunk data the map may hold. Applied to the map's
+    // streamer when the asset resolves; until this existed nothing ever called
+    // SetMemoryBudget, so every target ran on the 256 KiB default — the figure
+    // chosen for an ESP32 — including desktop builds with memory to spare.
+    //
+    // KiB is in the name because there is no memory PhysicalUnit to carry it.
+    DEKI_EXPORT
+    DEKI_TOOLTIP("How much memory this map may keep decoded chunks in, in KiB. Past the budget the "
+                 "least recently drawn chunks are dropped and re-read from storage when they are "
+                 "needed again, so too small shows up as stutter while scrolling rather than as "
+                 "anything missing. 256 suits an ESP32; a desktop can afford far more.")
+    DEKI_RANGE(16.0f, 262144.0f)
+    int32_t chunkCacheKiB = 256;
+
     // Tint applied to every drawn tile. White = no tint.
     DEKI_EXPORT
     DEKI_TOOLTIP("Multiplied into every tile. White leaves the map alone.")
