@@ -525,10 +525,15 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
 
                 float fDestSX, fDestSY;
                 cam.WorldToScreen(wx, wy, fDestSX, fDestSY);
-                const int destSX = pixelSnap
+                if (cam.snapStep > 0)  // project Pixel Perfect: the art-pixel grid
+                {
+                    fDestSX = cam.SnapX(fDestSX);
+                    fDestSY = cam.SnapY(fDestSY);
+                }
+                const int destSX = (pixelSnap || cam.snapStep > 0)
                     ? static_cast<int>(std::lround(fDestSX))
                     : static_cast<int>(fDestSX);
-                const int destSY = pixelSnap
+                const int destSY = (pixelSnap || cam.snapStep > 0)
                     ? static_cast<int>(std::lround(fDestSY))
                     : static_cast<int>(fDestSY);
 
