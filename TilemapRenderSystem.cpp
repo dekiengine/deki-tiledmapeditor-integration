@@ -162,8 +162,24 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
     }
 }
 
+namespace
+{
+// A tileset rect (in the atlas image's pixels) in the atlas's stored pixels.
+// The same numbers unless Max Size shrank the atlas; edges are mapped, so
+// tiles that touch in the image still touch.
+void ToStoredRect(const Deki2D::Sprite* atlas, int sx, int sy, int sw, int sh,
+                  int32_t& x, int32_t& y, int32_t& w, int32_t& h)
+{
+    x = atlas->SourceToStoredX(sx);
+    y = atlas->SourceToStoredY(sy);
+    w = std::max(1, atlas->SourceToStoredX(sx + sw) - x);
+    h = std::max(1, atlas->SourceToStoredY(sy + sh) - y);
+}
+}  // namespace
+
 bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex,
-                                    int32_t& outTsIdx, int32_t& outSx, int32_t& outSy)
+                                    int32_t& outTsIdx, int32_t& outSx, int32_t& outSy,
+                                    int32_t& outSw, int32_t& outSh)
 {
     if (gidIndex == 0) return false;
 
@@ -179,17 +195,23 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
             Tileset* ts = tref ? cache.tilesets[tsIdx] : nullptr;
             if (!ts || localId >= ts->TileCount())
                 e.tsIdx = kUnmapped;
+            else if (!ts->Atlas())
+                return false;  // stored size not known yet; resolve once it loads
             else
             {
                 int sx, sy, sw, sh;
                 ts->GetTileRect(localId, sx, sy, sw, sh);
-                e = TileLUT{ static_cast<int32_t>(tsIdx), sx, sy };
+                TileLUT entry{ static_cast<int32_t>(tsIdx), 0, 0, 0, 0 };
+                ToStoredRect(ts->Atlas(), sx, sy, sw, sh, entry.sx, entry.sy, entry.sw, entry.sh);
+                e = entry;
             }
         }
         if (e.tsIdx < 0) return false;
         outTsIdx = e.tsIdx;
         outSx = e.sx;
         outSy = e.sy;
+        outSw = e.sw;
+        outSh = e.sh;
         return true;
     }
 
@@ -198,11 +220,12 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
     size_t tsIdx = 0;
     const TilesetRef* tref = tm->ResolveTilesetWithIndex(gidIndex, localId, tsIdx);
     if (!tref || tsIdx >= cache.tilesets.size() || !cache.tilesets[tsIdx]) return false;
+    Tileset* ts = cache.tilesets[tsIdx];
+    if (!ts->Atlas()) return false;
     int sx, sy, sw, sh;
-    cache.tilesets[tsIdx]->GetTileRect(localId, sx, sy, sw, sh);
+    ts->GetTileRect(localId, sx, sy, sw, sh);
     outTsIdx = static_cast<int32_t>(tsIdx);
-    outSx = sx;
-    outSy = sy;
+    ToStoredRect(ts->Atlas(), sx, sy, sw, sh, outSx, outSy, outSw, outSh);
     return true;
 }
 
@@ -437,9 +460,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         cache.destW[i] = static_cast<int32_t>(std::floor(static_cast<float>(ts->TileWidth()) * scale));
         cache.destH[i] = static_cast<int32_t>(std::floor(static_cast<float>(ts->TileHeight()) * scale));
         cache.scratch[i] = cache.sources[i];
-        cache.scratch[i].width = ts->TileWidth();
-        cache.scratch[i].height = ts->TileHeight();
-        // scratch.stride stays at the atlas row width.
+        // Width and height are set per tile (a shrunk atlas's tiles can differ
+        // by a pixel); scratch.stride stays at the atlas row width.
         maxDestW = std::max(maxDestW, cache.destW[i]);
         maxDestH = std::max(maxDestH, cache.destH[i]);
     }
@@ -509,8 +531,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
             for (int tx = 0; tx < cw; ++tx)
             {
                 const uint32_t gid = chunk->tileGids[ty * cw + tx];
-                int32_t tsIdx, sx, sy;
-                if (!ResolveTile(tm, cache, GidIndex(gid), tsIdx, sx, sy)) continue;
+                int32_t tsIdx, sx, sy, sw, sh;
+                if (!ResolveTile(tm, cache, GidIndex(gid), tsIdx, sx, sy, sw, sh)) continue;
                 if (!cache.ready[tsIdx]) continue;
 
                 // Tiled pixel coords of this tile's top-left, converted to
@@ -554,6 +576,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                 const QuadBlit::Source& base = cache.sources[tsIdx];
                 QuadBlit::Source& sub = cache.scratch[tsIdx];
                 sub.pixels = base.pixels + sy * base.stride + sx * base.bytesPerPixel;
+                sub.width = sw;  // stored pixels; the destination keeps the tileset's size
+                sub.height = sh;
                 sub.flipH = GidFlipH(gid);
                 sub.flipV = GidFlipV(gid);
                 sub.flipD = GidFlipD(gid);

@@ -11,6 +11,9 @@ alongside one that has them.
 ## Unreleased
 
 ### Changed
+- Max Size: tile rects (in the atlas image's pixels) are mapped to the
+  atlas's stored pixels, and each tile is drawn at the tileset's size, so a
+  shrunk atlas keeps its tiles and their size in the world.
 - Tiles snap to the art-pixel grid when the project is Pixel Perfect.
 
 ## 0.16.0

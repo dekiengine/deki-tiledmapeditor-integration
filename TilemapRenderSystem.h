@@ -41,8 +41,10 @@ private:
     struct TileLUT
     {
         int32_t tsIdx;  // >= 0 resolved; kUnmapped; kUnresolved (fill on first use)
-        int32_t sx;
-        int32_t sy;
+        int32_t sx;     // the tile's rect in the atlas's stored pixels (fewer
+        int32_t sy;     // than the tileset's when Max Size shrank the atlas)
+        int32_t sw;
+        int32_t sh;
     };
     static constexpr int32_t kUnmapped = -1;
     static constexpr int32_t kUnresolved = -2;
@@ -85,11 +87,12 @@ private:
 
     TilesetCache& GetCache(Tilemap* tm);
     void          RefreshCache(Tilemap* tm, TilesetCache& cache);
-    // Resolve a gid (index bits only) to its tileset + atlas origin, through
-    // the LUT when it exists. Returns false for gid 0, unmapped gids and
-    // tilesets whose header has not loaded yet.
+    // Resolve a gid (index bits only) to its tileset + rect in the atlas's
+    // stored pixels, through the LUT when it exists. Returns false for gid 0,
+    // unmapped gids and tilesets whose header or atlas has not loaded yet.
     static bool   ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex,
-                              int32_t& outTsIdx, int32_t& outSx, int32_t& outSy);
+                              int32_t& outTsIdx, int32_t& outSx, int32_t& outSy,
+                              int32_t& outSw, int32_t& outSh);
 };
 
 } // namespace DekiTiledMap
