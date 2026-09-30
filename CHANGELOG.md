@@ -8,9 +8,10 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.17.0
 
 ### Changed
+- `minEngine` 0.17.0. Reflection ABI 20: the package must be rebuilt.
 - Max Size: tile rects (in the atlas image's pixels) are mapped to the
   atlas's stored pixels, and each tile is drawn at the tileset's size, so a
   shrunk atlas keeps its tiles and their size in the world.
