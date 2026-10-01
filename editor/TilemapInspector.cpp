@@ -48,7 +48,6 @@ void RegisterTilemapInspector()
     // that the project's component custom-editor can call from its inspector
     // panel. Future revisions will subscribe directly once the registry API
     // is available.
-    DEKI_LOG_EDITOR("TilemapInspector: ready (OpenInTiled available to component editors)");
     (void)&OpenInTiled;     // silence unused-function warning
 }
 
