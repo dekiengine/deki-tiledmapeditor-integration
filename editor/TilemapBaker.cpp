@@ -149,6 +149,16 @@ bool WriteDtilemap(const TmjMap& map,
                    const std::vector<BakedTilesetRef>& tilesets,
                    const std::string& outAbsPath)
 {
+    // What Tilemap::Load accepts: a bigger chunk would bake fine and then be
+    // refused on every device.
+    if (map.chunkWidth < 1 || map.chunkHeight < 1 || map.chunkWidth > 1024 || map.chunkHeight > 1024)
+    {
+        DEKI_LOG_ERROR("TilemapBaker: the map's chunk size is %dx%d tiles; 1 to 1024 each are supported. Change it "
+                       "in Tiled (Map > Map Properties > Output Chunk Width/Height).",
+                       (int)map.chunkWidth, (int)map.chunkHeight);
+        return false;
+    }
+
     FILE* f = std::fopen(outAbsPath.c_str(), "wb");
     if (!f)
     {

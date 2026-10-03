@@ -56,16 +56,55 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         return nullptr;
     }
 
+    // Chunk sides come from the file too. Zero divided by zero in the
+    // collider (a panic on Xtensa); a huge one wrapped the streamer's chunk
+    // buffer size on 32 bits, and its fill loop wrote far past the buffer.
+    if (hdr.chunkWidth == 0 || hdr.chunkHeight == 0 || hdr.chunkWidth > 1024 || hdr.chunkHeight > 1024)
+    {
+        fs->CloseFile(f);
+        DEKI_LOG_ERROR("Tilemap::Load: '%s' has chunks of %ux%u tiles; 1 to 1024 each are supported", dtilemapPath,
+                       (unsigned)hdr.chunkWidth, (unsigned)hdr.chunkHeight);
+        return nullptr;
+    }
+
+    // Every count and offset below comes from the file, so each table is
+    // checked against the file's size first, in 64 bits. Unchecked, a corrupt
+    // map overflowed the object table (the per-layer counts wrapped their
+    // uint32 sum), and a huge count made resize() abort on the device.
+    const long fileSizeL = fs->GetFileSize(f);
+    const uint64_t fileBytes = fileSizeL > 0 ? static_cast<uint64_t>(fileSizeL) : 0;
+    auto inFile = [fileBytes](uint64_t offset, uint64_t count, uint64_t elem)
+    { return offset <= fileBytes && count <= (fileBytes - offset) / elem; };
+    if (!inFile(hdr.chunkIndexOffset, hdr.chunkIndexCount, sizeof(ChunkIndexEntry)) ||
+        !inFile(hdr.tilesetTableOffset, hdr.tilesetCount, sizeof(TilesetRef)) ||
+        !inFile(hdr.objectLayerOffset, hdr.objectLayerCount, sizeof(DObjectLayer)))
+    {
+        fs->CloseFile(f);
+        DEKI_LOG_ERROR("Tilemap::Load: '%s' is damaged (a table runs past the end of the file)", dtilemapPath);
+        return nullptr;
+    }
+
     auto* tm = new Tilemap();
     tm->m_MHeader = hdr;
     tm->m_absolutePath = dtilemapPath;
+    auto fail = [&](const char* what) -> Tilemap*
+    {
+        fs->CloseFile(f);
+        delete tm;
+        DEKI_LOG_ERROR("Tilemap::Load: '%s' is damaged (%s)", dtilemapPath, what);
+        return nullptr;
+    };
+    auto readAt = [&](uint64_t offset, void* into, uint64_t bytes)
+    {
+        fs->SeekFile(f, static_cast<long>(offset), Deki::IFileSystem::SeekOrigin::BEGIN);
+        return fs->ReadFile(f, into, static_cast<size_t>(bytes)) == static_cast<size_t>(bytes);
+    };
 
     if (hdr.chunkIndexCount > 0)
     {
         tm->m_MIndex.resize(hdr.chunkIndexCount);
-        fs->SeekFile(f, static_cast<long>(hdr.chunkIndexOffset),
-                     Deki::IFileSystem::SeekOrigin::BEGIN);
-        fs->ReadFile(f, tm->m_MIndex.data(), sizeof(ChunkIndexEntry) * hdr.chunkIndexCount);
+        if (!readAt(hdr.chunkIndexOffset, tm->m_MIndex.data(), uint64_t(sizeof(ChunkIndexEntry)) * hdr.chunkIndexCount))
+            return fail("short chunk index");
 
         // Sort by (layerIndex, chunkY, chunkX) so streamer + query paths can
         // do O(log N) binary search. Idempotent for already-sorted bakes.
@@ -81,9 +120,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (hdr.tilesetCount > 0)
     {
         tm->m_MTilesets.resize(hdr.tilesetCount);
-        fs->SeekFile(f, static_cast<long>(hdr.tilesetTableOffset),
-                     Deki::IFileSystem::SeekOrigin::BEGIN);
-        fs->ReadFile(f, tm->m_MTilesets.data(), sizeof(TilesetRef) * hdr.tilesetCount);
+        if (!readAt(hdr.tilesetTableOffset, tm->m_MTilesets.data(), uint64_t(sizeof(TilesetRef)) * hdr.tilesetCount))
+            return fail("short tileset table");
 
         // Sort by firstGid so ResolveTilesetWithIndex can binary-search the
         // hot-path lookup. The baker conventionally writes ascending, but
@@ -96,26 +134,32 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (hdr.objectLayerCount > 0)
     {
         tm->m_objectLayers.resize(hdr.objectLayerCount);
-        fs->SeekFile(f, static_cast<long>(hdr.objectLayerOffset),
-                     Deki::IFileSystem::SeekOrigin::BEGIN);
-        fs->ReadFile(f, tm->m_objectLayers.data(), sizeof(DObjectLayer) * hdr.objectLayerCount);
+        if (!readAt(hdr.objectLayerOffset, tm->m_objectLayers.data(),
+                    uint64_t(sizeof(DObjectLayer)) * hdr.objectLayerCount))
+            return fail("short object layer table");
 
         // Walk every layer and pull its object range. The baker writes
-        // contiguous object blobs but we don't assume contiguity here â€” each
+        // contiguous object blobs but we don't assume contiguity here — each
         // layer carries its own offset.
-        uint32_t total = 0;
-        for (const auto& L : tm->m_objectLayers) total += L.objectCount;
+        uint64_t total = 0;
+        for (const auto& L : tm->m_objectLayers)
+        {
+            if (!inFile(L.objectOffset, L.objectCount, sizeof(DTilemapObject)))
+                return fail("an object layer runs past the end of the file");
+            total += L.objectCount;
+        }
+        if (total > fileBytes / sizeof(DTilemapObject))
+            return fail("more objects than the file can hold");
         if (total > 0)
         {
-            tm->m_MObjects.resize(total);
-            uint32_t cursor = 0;
+            tm->m_MObjects.resize(static_cast<size_t>(total));
+            size_t cursor = 0;
             for (const auto& L : tm->m_objectLayers)
             {
                 if (L.objectCount == 0) continue;
-                fs->SeekFile(f, static_cast<long>(L.objectOffset),
-                             Deki::IFileSystem::SeekOrigin::BEGIN);
-                fs->ReadFile(f, tm->m_MObjects.data() + cursor,
-                             sizeof(DTilemapObject) * L.objectCount);
+                if (!readAt(L.objectOffset, tm->m_MObjects.data() + cursor,
+                            uint64_t(sizeof(DTilemapObject)) * L.objectCount))
+                    return fail("short object table");
                 cursor += L.objectCount;
             }
         }
@@ -123,7 +167,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
 
     // Polygon points + properties + string pool live in trailing segments
     // produced by the baker. We just slurp the rest of the file into a tail
-    // buffer â€” but that requires segment offsets. The header doesn't expose
+    // buffer — but that requires segment offsets. The header doesn't expose
     // them, so the baker is contracted to write polygon points immediately
     // after the object table, properties after that, and the string pool last.
     //
@@ -131,27 +175,24 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     // their offsets inside DTilemapObject entries; they must be reachable from
     // those offsets. We allocate a tail blob of (file_size - tail_start) and
     // expose accessors via offsets relative to file start.
-    const long fileSize = fs->GetFileSize(f);
-
+    //
     // Heuristic tail start: end of object table, or end of chunk index if no
     // objects, or end of header if neither. The baker always writes the
     // string pool last so we read from the highest known offset to EOF.
-    uint32_t tailStart = sizeof(DTilemapHeader);
-    if (hdr.chunkIndexOffset + hdr.chunkIndexCount * sizeof(ChunkIndexEntry) > tailStart)
-        tailStart = hdr.chunkIndexOffset + hdr.chunkIndexCount * sizeof(ChunkIndexEntry);
-    if (hdr.tilesetTableOffset + hdr.tilesetCount * sizeof(TilesetRef) > tailStart)
-        tailStart = hdr.tilesetTableOffset + hdr.tilesetCount * sizeof(TilesetRef);
-    if (hdr.objectLayerOffset + hdr.objectLayerCount * sizeof(DObjectLayer) > tailStart)
-        tailStart = hdr.objectLayerOffset + hdr.objectLayerCount * sizeof(DObjectLayer);
+    // (Every end below is inside the file: the tables were checked above.)
+    uint64_t tailStart = sizeof(DTilemapHeader);
+    tailStart = std::max(tailStart, uint64_t(hdr.chunkIndexOffset) + uint64_t(hdr.chunkIndexCount) * sizeof(ChunkIndexEntry));
+    tailStart = std::max(tailStart, uint64_t(hdr.tilesetTableOffset) + uint64_t(hdr.tilesetCount) * sizeof(TilesetRef));
+    tailStart = std::max(tailStart, uint64_t(hdr.objectLayerOffset) + uint64_t(hdr.objectLayerCount) * sizeof(DObjectLayer));
 
     // Conservative: load entire file tail into the string pool (it includes
     // polygon points + properties + strings). Object accessors index into it.
-    if (static_cast<long>(tailStart) < fileSize)
+    if (tailStart < fileBytes)
     {
-        long tailLen = fileSize - static_cast<long>(tailStart);
+        const uint64_t tailLen = fileBytes - tailStart;
         tm->m_stringPool.resize(static_cast<size_t>(tailLen));
-        fs->SeekFile(f, static_cast<long>(tailStart), Deki::IFileSystem::SeekOrigin::BEGIN);
-        fs->ReadFile(f, tm->m_stringPool.data(), static_cast<size_t>(tailLen));
+        if (!readAt(tailStart, tm->m_stringPool.data(), tailLen))
+            return fail("short string pool");
     }
 
     fs->CloseFile(f);
