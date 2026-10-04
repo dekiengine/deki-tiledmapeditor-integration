@@ -157,7 +157,7 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         if (allLoaded && limit > 0)
         {
             cache.gidLimit = limit;
-            cache.gidLut.assign(limit, TileLUT{ kUnresolved, 0, 0 });
+            cache.gidLut.assign(limit, TileLUT{ kUnresolved, 0, 0, 0, 0 });
         }
     }
 }
@@ -172,8 +172,8 @@ void ToStoredRect(const Deki2D::Sprite* atlas, int sx, int sy, int sw, int sh,
 {
     x = atlas->SourceToStoredX(sx);
     y = atlas->SourceToStoredY(sy);
-    w = std::max(1, atlas->SourceToStoredX(sx + sw) - x);
-    h = std::max(1, atlas->SourceToStoredY(sy + sh) - y);
+    w = std::max<int32_t>(1, atlas->SourceToStoredX(sx + sw) - x);
+    h = std::max<int32_t>(1, atlas->SourceToStoredY(sy + sh) - y);
 }
 }  // namespace
 

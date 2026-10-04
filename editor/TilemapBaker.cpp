@@ -337,9 +337,15 @@ bool WriteDtilemap(const TmjMap& map,
             else if (!o.polylinePoints.empty()) shape = 3;   // Polyline
             row.shape = shape;
 
-            row.pointCount  = static_cast<uint32_t>(
-                (shape == 2 ? o.polygonPoints.size() : o.polylinePoints.size()) / 2);
-            row.pointOffset = 0;        // patched after the polygon blob is written
+            // An index into the point pool, in points. The points were never
+            // written before, though pointCount said how many there were.
+            const auto& points = shape == 2 ? o.polygonPoints : o.polylinePoints;
+            row.pointCount  = static_cast<uint32_t>(points.size() / 2);
+            row.pointOffset = static_cast<uint32_t>(polyPoints.size() / 2);
+            if (shape == 2 || shape == 3)
+                polyPoints.insert(polyPoints.end(), points.begin(), points.begin() + row.pointCount * 2);
+            else
+                row.pointCount = 0;
 
             row.propertyOffset = static_cast<uint32_t>(propRows.size());
             row.propertyCount  = static_cast<uint32_t>(o.properties.size());
@@ -382,12 +388,14 @@ bool WriteDtilemap(const TmjMap& map,
         std::fseek(f, 0, SEEK_END);
     }
 
-    // Trailing pools (polygon points, properties, strings) — written contiguously
-    // so Tilemap::Load can slurp them as a single tail blob keyed by string-pool
-    // base.
-    AppendBlob(f, polyPoints.data(), polyPoints.size());
-    AppendBlob(f, propRows.data(),   propRows.size());
-    AppendBlob(f, stringPool.data(), stringPool.size());
+    // Trailing pools, named in the header. The string pool must stay last:
+    // the loader reads it to the end of the file.
+    hdr.pointPoolOffset     = AppendBlob(f, polyPoints.data(), polyPoints.size());
+    hdr.pointPoolCount      = static_cast<uint32_t>(polyPoints.size() / 2);
+    hdr.propertyTableOffset = AppendBlob(f, propRows.data(), propRows.size());
+    hdr.propertyCount       = static_cast<uint32_t>(propRows.size());
+    hdr.stringPoolOffset    = AppendBlob(f, stringPool.data(), stringPool.size());
+    hdr.flags |= kTilemapHasPools;
 
     // Rewrite header with patched offsets/counts.
     std::fseek(f, 0, SEEK_SET);

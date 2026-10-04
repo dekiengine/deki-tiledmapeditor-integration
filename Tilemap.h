@@ -32,10 +32,19 @@ struct DTilemapHeader
     uint32_t objectLayerOffset;
     uint32_t objectLayerCount;
     uint32_t backgroundColor;   // RGBA8
-    uint32_t flags;             // bit0 = infinite
-    uint32_t pad[5];
+    uint32_t flags;             // bit0 = infinite, bit1 = kTilemapHasPools
+    // Where the per-object pools are; valid when flags has kTilemapHasPools.
+    // Maps baked before that leave them zero and the loader finds the pools
+    // from where the baker put them.
+    uint32_t pointPoolOffset;   // int32_t[2 * pointPoolCount], (x, y) pairs
+    uint32_t pointPoolCount;    // points
+    uint32_t propertyTableOffset;  // DTilemapProperty[propertyCount]
+    uint32_t propertyCount;
+    uint32_t stringPoolOffset;  // runs to the end of the file
 };
 static_assert(sizeof(DTilemapHeader) == 80, "DTilemapHeader layout drift");
+
+constexpr uint32_t kTilemapHasPools = 1u << 1;
 
 struct ChunkIndexEntry
 {
@@ -82,9 +91,9 @@ struct DTilemapObject
     int32_t  x, y;             // pixels
     int32_t  width, height;
     float    rotation;         // degrees, Tiled convention (converted to radians at spawn time)
-    uint32_t pointOffset;      // file offset to int32_t[2*pointCount] (polygons)
+    uint32_t pointOffset;      // first point in PolygonPoints(), in points (polygons, polylines)
     uint32_t pointCount;
-    uint32_t propertyOffset;   // file offset to property k/v pool entry
+    uint32_t propertyOffset;   // first entry in Properties()
     uint32_t propertyCount;
     char     name[32];
     char     type[32];         // Tiled's object class
@@ -185,11 +194,20 @@ public:
         outHeightTiles = m_boundsH;
         return true;
     }
+    // Every object's properties, an object's being the propertyCount entries
+    // from its propertyOffset. Names and string values are GetString offsets.
     const std::vector<DTilemapProperty>& Properties()   const { return m_MProperties;    }
+    // Every polygon and polyline point as (x, y) pairs: an object's are the
+    // pointCount pairs from pair pointOffset. Empty for maps baked before
+    // the points were written.
     const std::vector<int32_t>&         PolygonPoints() const { return m_polygonPoints; }
     const std::string&                  StringPool()    const { return m_stringPool;    }
 
-    // Lookup a string from the pool by offset (returns empty if out-of-range).
+    // The properties of one object, or nullptr (and outCount 0) when it has
+    // none or they are not in the file.
+    const DTilemapProperty* ObjectProperties(const DTilemapObject& obj, uint32_t& outCount) const;
+
+    // A string from the pool by its offset (empty if out of range).
     std::string GetString(uint32_t offset) const;
 
     // Internal — not intended for game code.

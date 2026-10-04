@@ -165,35 +165,58 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         }
     }
 
-    // Polygon points + properties + string pool live in trailing segments
-    // produced by the baker. We just slurp the rest of the file into a tail
-    // buffer — but that requires segment offsets. The header doesn't expose
-    // them, so the baker is contracted to write polygon points immediately
-    // after the object table, properties after that, and the string pool last.
-    //
-    // For v1, polygon points and properties are loaded by the baker writing
-    // their offsets inside DTilemapObject entries; they must be reachable from
-    // those offsets. We allocate a tail blob of (file_size - tail_start) and
-    // expose accessors via offsets relative to file start.
-    //
-    // Heuristic tail start: end of object table, or end of chunk index if no
-    // objects, or end of header if neither. The baker always writes the
-    // string pool last so we read from the highest known offset to EOF.
-    // (Every end below is inside the file: the tables were checked above.)
-    uint64_t tailStart = sizeof(DTilemapHeader);
-    tailStart = std::max(tailStart, uint64_t(hdr.chunkIndexOffset) + uint64_t(hdr.chunkIndexCount) * sizeof(ChunkIndexEntry));
-    tailStart = std::max(tailStart, uint64_t(hdr.tilesetTableOffset) + uint64_t(hdr.tilesetCount) * sizeof(TilesetRef));
-    tailStart = std::max(tailStart, uint64_t(hdr.objectLayerOffset) + uint64_t(hdr.objectLayerCount) * sizeof(DObjectLayer));
-
-    // Conservative: load entire file tail into the string pool (it includes
-    // polygon points + properties + strings). Object accessors index into it.
-    if (tailStart < fileBytes)
+    // The per-object pools: polygon points, properties, and the string pool
+    // their names and values point into. They were never loaded, so every
+    // object property (scene_guid for the spawner among them) read as absent.
+    // A damaged pool is dropped rather than failing the map: the tiles do not
+    // need it.
+    uint64_t pointOffset = 0, pointCount = 0, propOffset = 0, propCount = 0, stringOffset = fileBytes;
+    if (hdr.flags & kTilemapHasPools)
     {
-        const uint64_t tailLen = fileBytes - tailStart;
-        tm->m_stringPool.resize(static_cast<size_t>(tailLen));
-        if (!readAt(tailStart, tm->m_stringPool.data(), tailLen))
-            return fail("short string pool");
+        pointOffset  = hdr.pointPoolOffset;
+        pointCount   = hdr.pointPoolCount;
+        propOffset   = hdr.propertyTableOffset;
+        propCount    = hdr.propertyCount;
+        stringOffset = hdr.stringPoolOffset;
     }
+    else if (!tm->m_MObjects.empty())
+    {
+        // Baked before the header named them. The baker wrote the object
+        // list, then the points (always none), the properties, and the
+        // strings last; an object's propertyOffset is its index among them.
+        uint64_t objectsEnd = 0;
+        for (const auto& L : tm->m_objectLayers)
+            objectsEnd = std::max(objectsEnd, uint64_t(L.objectOffset) + uint64_t(L.objectCount) * sizeof(DTilemapObject));
+        for (const auto& o : tm->m_MObjects)
+            propCount = std::max(propCount, uint64_t(o.propertyOffset) + o.propertyCount);
+        propOffset   = objectsEnd;
+        stringOffset = propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty))
+                           ? propOffset + propCount * sizeof(DTilemapProperty)
+                           : fileBytes;
+    }
+
+    if (pointCount > 0 && inFile(pointOffset, pointCount, 2 * sizeof(int32_t)))
+    {
+        tm->m_polygonPoints.resize(static_cast<size_t>(pointCount * 2));
+        if (!readAt(pointOffset, tm->m_polygonPoints.data(), pointCount * 2 * sizeof(int32_t)))
+            tm->m_polygonPoints.clear();
+    }
+    if (propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty)))
+    {
+        tm->m_MProperties.resize(static_cast<size_t>(propCount));
+        if (!readAt(propOffset, tm->m_MProperties.data(), propCount * sizeof(DTilemapProperty)))
+            tm->m_MProperties.clear();
+    }
+    if (!tm->m_MProperties.empty() && stringOffset < fileBytes)
+    {
+        const uint64_t stringBytes = fileBytes - stringOffset;
+        tm->m_stringPool.resize(static_cast<size_t>(stringBytes));
+        if (!readAt(stringOffset, tm->m_stringPool.data(), stringBytes))
+            tm->m_stringPool.clear();
+    }
+    if (propCount > 0 && tm->m_MProperties.size() < propCount)
+        DEKI_LOG_WARNING("Tilemap::Load: '%s' has damaged object properties; the objects load without them",
+                         dtilemapPath);
 
     fs->CloseFile(f);
 
@@ -265,14 +288,18 @@ void Tilemap::QueryVisibleChunks(int32_t layerIdx,
     }
 }
 
+const DTilemapProperty* Tilemap::ObjectProperties(const DTilemapObject& obj, uint32_t& outCount) const
+{
+    outCount = 0;
+    if (obj.propertyCount == 0 || uint64_t(obj.propertyOffset) + obj.propertyCount > m_MProperties.size())
+        return nullptr;
+    outCount = obj.propertyCount;
+    return &m_MProperties[obj.propertyOffset];
+}
+
 std::string Tilemap::GetString(uint32_t offset) const
 {
-    // offsets in DTilemapProperty / DTilemapObject are file-absolute. m_stringPool
-    // begins at tailStart computed in Load, so callers must subtract that base.
-    // For v1 we expect the baker to write all string-pool offsets relative to
-    // the *same* tail base (string pool start). The safer path: store the
-    // tail base too and subtract here. We approximate by treating offsets as
-    // absolute and clamping.
+    // Offsets are from the start of the string pool, as the baker counts them.
     if (offset >= m_stringPool.size()) return {};
     const char* p = m_stringPool.data() + offset;
     size_t maxLen = m_stringPool.size() - offset;

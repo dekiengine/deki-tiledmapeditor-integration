@@ -8,6 +8,30 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Fixed
+- **Builds for ESP32 boards again** (0.17.0 did not): the Max Size change
+  called `std::max` with an `int` and an `int32_t`, which is `long` on Xtensa,
+  and left two members of the tile lookup uninitialised, an error there.
+- **Object properties load.** The baker wrote every object's properties, but
+  the loader never read them back, so `Properties()` was always empty and a
+  `TilemapObjectSpawner` never found an object's `scene_guid`. The map header
+  now says where the properties, points and strings are; maps baked before
+  this are read from where the old baker put them, so they keep their
+  properties without a rebake. New: `Tilemap::ObjectProperties(object, count)`.
+- **Polygon and polyline points are written.** Objects had a point count but
+  the points themselves were never baked. `DTilemapObject::pointOffset` is now
+  the object's first point in `PolygonPoints()`. Maps baked before this have
+  no points until they are baked again.
+- A map no longer reads its whole object list into memory twice.
+- Corrupt map and tileset files are refused instead of crashing: every table
+  is checked against the file's size, the per-layer object counts can no
+  longer wrap and overflow the object table, chunk sides must be 1 to 1024
+  (zero divided by zero in the collider, a huge one overflowed the chunk
+  buffer on 32-bit boards), and a tileset's animation frame counts can no
+  longer wrap.
+
 ## 0.17.0
 
 ### Changed

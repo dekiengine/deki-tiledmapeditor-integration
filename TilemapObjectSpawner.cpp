@@ -20,16 +20,11 @@ const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(
     const DekiTiledMap::Tilemap& tm,
     const DekiTiledMap::DTilemapObject& obj)
 {
-    if (obj.propertyCount == 0) return nullptr;
-    const auto& props = tm.Properties();
-    if (props.empty()) return nullptr;
-    // propertyOffset is treated as a property-array index baked by the editor.
-    if (obj.propertyOffset + obj.propertyCount > props.size())
-        return nullptr;
-
-    for (uint32_t i = 0; i < obj.propertyCount; ++i)
+    uint32_t count = 0;
+    const DekiTiledMap::DTilemapProperty* props = tm.ObjectProperties(obj, count);
+    for (uint32_t i = 0; i < count; ++i)
     {
-        const auto& p = props[obj.propertyOffset + i];
+        const auto& p = props[i];
         if (p.type != static_cast<uint32_t>(DekiTiledMap::DPropertyType::String))
             continue;
         std::string name = tm.GetString(p.nameOffset);
