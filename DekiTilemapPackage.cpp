@@ -1,7 +1,4 @@
-/**
- * @file DekiTilemapPackage.cpp
- * @brief Package entry point for deki-tiledmap DLL
- */
+// Package entry point for the deki-tiledmap DLL.
 
 #include "DekiTilemapPackage.h"
 #include <deki/interop/Plugin.h>
@@ -100,7 +97,7 @@ extern "C"
     }
 #endif  // DEKI_PLUGIN_EXPORTS
 
-    // Package-specific feature API (linked-DLL access without name conflicts)
+    // This package's own exports, named so linked DLLs do not clash.
 
     DEKI_TILEDMAP_API const char* DekiTilemapGetName(void)
     {
@@ -111,8 +108,8 @@ extern "C"
 
 #else  // !DEKI_EDITOR — runtime-only build
 
-// On non-editor targets, components register themselves via static
-// initializers and there is no plugin export surface to expose.
+// Outside the editor, components register through static initializers and
+// there are no plugin exports.
 
 #endif  // DEKI_EDITOR
 }  // namespace DekiTiledMap

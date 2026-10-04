@@ -26,11 +26,10 @@ namespace
 
 bool s_SyncHandlerRegistered = false;
 
-// Look up the GUID assigned to an arbitrary asset path. Returns empty if the
-// file does not exist on disk; otherwise reads/creates the .data sidecar so the
-// lookup does not depend on directory iteration order — m_Assets is only
-// populated as ProcessAsset visits each file, and a .tmj can be visited before
-// its referenced .tsj/.png.
+// The GUID of any asset path, or empty if the file does not exist. Reads or
+// creates the .data sidecar, so the answer does not depend on the order files
+// are visited: the pipeline learns of each file only as ProcessAsset reaches
+// it, and a .tmj can come before the .tsj and .png it uses.
 std::string GuidForRelativePath(DekiEditor::AssetPipeline* pipeline, const std::string& rel)
 {
     fs::path abs = fs::path(pipeline->GetAbsolutePath(rel));
@@ -51,8 +50,7 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    // Resolve the atlas image's GUID. The image is referenced relative to the .tsj
-    // file location.
+    // The atlas image's GUID. Its path is relative to the .tsj.
     fs::path tsjPath = ctx.absolutePath;
     fs::path imagePath = (tsjPath.parent_path() / ts.imageRelative).lexically_normal();
     fs::path imageRel = fs::relative(imagePath, ctx.projectPath);
@@ -74,12 +72,11 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    // Belt-and-suspenders: also register the GUID -> path entry directly with
-    // AssetManager. EditorProjectManager::OpenProject does this in its
-    // post-ImportAllAssets loop, but only the *first* time the project opens.
-    // Hot-reloading the package DLL re-runs our cache handler without re-running
-    // OpenProject — without this call, AssetRef::Get() can't resolve the cache
-    // path until the editor restarts.
+    // Register the GUID with the AssetManager here too.
+    // EditorProjectManager::OpenProject does it after importing, but only when
+    // the project opens; hot reloading the package runs this handler again
+    // without OpenProject, and AssetRef::Get() would not find the cache path
+    // until the editor restarts.
     Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
 
     DEKI_LOG_EDITOR("TilesetSync: baked '%s' -> %s (atlas=%s)", ctx.absolutePath.c_str(), ctx.guid.c_str(),
@@ -97,9 +94,8 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
-    // For each external tileset reference, ensure the .tsj has been imported
-    // and pull its GUID. Do NOT recursively sync — AssetPipeline schedules
-    // .tsj handlers itself when those files exist in the project.
+    // Each external tileset's GUID, from its .tsj. No recursive sync here:
+    // the AssetPipeline runs the .tsj handlers itself.
     fs::path tmjPath = ctx.absolutePath;
     std::vector<BakedTilesetRef> baked;
     std::vector<DekiEditor::SubAssetInfo> subs;
@@ -110,9 +106,9 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         fs::path tsjRel = fs::relative(tsjAbs, ctx.projectPath);
         std::string tsjRelStr = tsjRel.generic_string();
 
-        // .tsx (XML) tilesets aren't supported by this package — JSON only.
-        // Tiled defaults to .tsx even when maps are .tmj, so this is the most
-        // common bake failure. Give the user the exact fix.
+        // Only JSON tilesets (.tsj) are supported, not .tsx (XML). Tiled
+        // defaults to .tsx even for .tmj maps, so this is the most common
+        // bake failure; the error gives the exact fix.
         std::string ext = tsjAbs.extension().string();
         for (char& c : ext)
         {
@@ -140,8 +136,7 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
 
         baked.push_back({ tref.firstGid, tsGuid });
 
-        // Register a sub-asset so the asset browser shows the tileset under
-        // the map.
+        // A sub-asset, so the asset browser shows the tileset under the map.
         DekiEditor::SubAssetInfo s;
         s.guid = tsGuid;
         s.parentGuid = ctx.guid;
@@ -161,15 +156,11 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
 
     ctx.pipeline->RegisterSubAssets(ctx.guid, subs);
 
-    // Belt-and-suspenders: register the GUID -> path entry directly. See the
-    // matching comment in HandleTilesetCache for why this is needed despite
-    // EditorProjectManager's post-import loop. Also register the export-path
-    // key so AssetManager::Load<Tilemap>("path/to/test-map") works the same
-    // way Deki2D::Sprite/Deki2D::BitmapFont do.
+    // Register the GUID here too; see the same call in HandleTilesetCache.
     Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
 
-    // Update .data sidecar to record the resolved tileset GUIDs (for tooling /
-    // hot-reload diff).
+    // Record the tileset GUIDs in the .data sidecar, for tools and for
+    // comparing on hot reload.
     fs::path dataPath = ctx.absolutePath + std::string(".data");
     json sidecar;
     if (fs::exists(dataPath))
@@ -214,11 +205,10 @@ void RegisterTilemapSyncHandlers()
     DekiEditor::AssetPipeline::OnStarted(
         [](DekiEditor::AssetPipeline* p)
         {
-            // Cache handlers (not sync handlers): returning AssetCacheResult::Cached
-            // sets info.hasCachedVersion=true, which makes EditorProjectManager's
-            // post-import RegisterGuid loop see the asset and wire the GUID -> path
-            // entry that AssetRef::Get() needs at runtime. Sync handlers can't do
-            // this — they run after hasCachedVersion is already final.
+            // Cache handlers, not sync handlers: returning AssetCacheResult::Cached
+            // sets info.hasCachedVersion, so EditorProjectManager's post-import
+            // loop registers the GUID that AssetRef::Get() needs at runtime. Sync
+            // handlers run after hasCachedVersion is final.
             p->RegisterCacheHandler(".tsj", HandleTilesetCache);
             p->RegisterCacheHandler(".tmj", HandleTilemapCache);
         });

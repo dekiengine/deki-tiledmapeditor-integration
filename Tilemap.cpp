@@ -23,12 +23,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         return nullptr;
     }
 
-    // Through the engine filesystem, never stdio. The path the asset manager
-    // hands us carries the cache directory, and on a device and in the
-    // simulator that is the "S:/" mount — a prefix only IFileSystem knows how
-    // to resolve. This used to be std::fopen, so a tilemap loaded in the editor
-    // (native cache path) and nowhere else, while the chunk streamer set up at
-    // the bottom of this function had always read through the filesystem.
+    // Through the engine filesystem, never stdio: on a device and in the
+    // simulator the path starts with the "S:/" mount, which only IFileSystem
+    // resolves.
     Deki::IFileSystem* fs = Deki::FileSystem::GetFileSystemForPath(dtilemapPath);
     if (!fs)
     {
@@ -57,9 +54,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         return nullptr;
     }
 
-    // Chunk sides come from the file too. Zero divided by zero in the
-    // collider (a panic on Xtensa); a huge one wrapped the streamer's chunk
-    // buffer size on 32 bits, and its fill loop wrote far past the buffer.
+    // Chunk sides come from the file too, so check them. Zero would divide by
+    // zero in the collider (a panic on Xtensa); a huge one would wrap the
+    // streamer's buffer size on 32 bits and its fill loop would overrun.
     if (hdr.chunkWidth == 0 || hdr.chunkHeight == 0 || hdr.chunkWidth > 1024 || hdr.chunkHeight > 1024)
     {
         fs->CloseFile(f);
@@ -69,9 +66,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     }
 
     // Every count and offset below comes from the file, so each table is
-    // checked against the file's size first, in 64 bits. Unchecked, a corrupt
-    // map overflowed the object table (the per-layer counts wrapped their
-    // uint32 sum), and a huge count made resize() abort on the device.
+    // checked against the file's size first, in 64 bits. Otherwise a corrupt
+    // map could overflow the object table (per-layer counts wrapping their
+    // uint32 sum), or a huge count could make resize() abort on the device.
     const long fileSizeL = fs->GetFileSize(f);
     const uint64_t fileBytes = fileSizeL > 0 ? static_cast<uint64_t>(fileSizeL) : 0;
     auto inFile = [fileBytes](uint64_t offset, uint64_t count, uint64_t elem)
@@ -109,8 +106,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
             return fail("short chunk index");
         }
 
-        // Sort by (layerIndex, chunkY, chunkX) so streamer + query paths can
-        // do O(log N) binary search. Idempotent for already-sorted bakes.
+        // Sorted by (layerIndex, chunkY, chunkX) so the streamer and queries
+        // can binary-search. Already-sorted bakes stay as they are.
         std::sort(tm->m_MIndex.begin(), tm->m_MIndex.end(),
                   [](const ChunkIndexEntry& a, const ChunkIndexEntry& b)
                   {
@@ -134,9 +131,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
             return fail("short tileset table");
         }
 
-        // Sort by firstGid so ResolveTilesetWithIndex can binary-search the
-        // hot-path lookup. The baker conventionally writes ascending, but
-        // sorting here makes the invariant explicit.
+        // Sorted by firstGid so ResolveTilesetWithIndex can binary-search. The
+        // baker writes them in order, but the lookup must not depend on it.
         std::sort(tm->m_MTilesets.begin(), tm->m_MTilesets.end(),
                   [](const TilesetRef& a, const TilesetRef& b) { return a.firstGid < b.firstGid; });
     }
@@ -150,9 +146,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
             return fail("short object layer table");
         }
 
-        // Walk every layer and pull its object range. The baker writes
-        // contiguous object blobs but we don't assume contiguity here � each
-        // layer carries its own offset.
+        // Each layer's objects, read from its own offset. The baker writes
+        // them one after another, but this does not rely on it.
         uint64_t total = 0;
         for (const auto& l : tm->m_ObjectLayers)
         {
@@ -187,10 +182,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     }
 
     // The per-object pools: polygon points, properties, and the string pool
-    // their names and values point into. They were never loaded, so every
-    // object property (scene_guid for the spawner among them) read as absent.
-    // A damaged pool is dropped rather than failing the map: the tiles do not
-    // need it.
+    // their names and values point into. Object properties (the spawner's
+    // scene_guid among them) are read from these. A damaged pool is dropped
+    // rather than failing the map, since the tiles do not need it.
     uint64_t pointOffset = 0, pointCount = 0, propOffset = 0, propCount = 0, stringOffset = fileBytes;
     if (hdr.flags & kTilemapHasPools)
     {
@@ -202,9 +196,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     }
     else if (!tm->m_MObjects.empty())
     {
-        // Baked before the header named them. The baker wrote the object
-        // list, then the points (always none), the properties, and the
-        // strings last; an object's propertyOffset is its index among them.
+        // An older map whose header does not name the pools. The baker wrote
+        // the object list, then the points (always none), the properties, and
+        // the strings last; an object's propertyOffset is its index among them.
         uint64_t objectsEnd = 0;
         for (const auto& l : tm->m_ObjectLayers)
         {
@@ -258,8 +252,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     // filesystem this function read the header with.
     tm->m_MStreamer = new TilemapStreamer(fs, dtilemapPath, tm->m_MHeader, tm->m_MIndex.data(), tm->m_MIndex.size());
 
-    // Both are pure functions of the data just loaded; the render pass reads
-    // them every frame, so resolve them once here.
+    // Both depend only on the data just loaded, and the render pass reads them
+    // every frame, so they are worked out once here.
     tm->m_HasOrigin = tm->ComputeOrigin(tm->m_OriginX, tm->m_OriginY);
     tm->m_HasBounds = tm->ComputeAuthoredBounds(tm->m_BoundsMinX, tm->m_BoundsMinY, tm->m_BoundsW, tm->m_BoundsH);
     return tm;
@@ -279,8 +273,8 @@ const TilesetRef* Tilemap::ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLo
         return nullptr;
     }
 
-    // m_MTilesets is sorted by firstGid (Load), so the matching entry is the
-    // last one with firstGid <= idx — i.e. (upper_bound - 1).
+    // m_MTilesets is sorted by firstGid (see Load), so the match is the last
+    // entry with firstGid <= idx, which is upper_bound - 1.
     auto it = std::upper_bound(m_MTilesets.begin(), m_MTilesets.end(), idx,
                                [](uint32_t v, const TilesetRef& t) { return v < t.firstGid; });
     if (it == m_MTilesets.begin())
@@ -302,9 +296,9 @@ void Tilemap::QueryVisibleChunks(int32_t layerIdx, int32_t chunkMinX, int32_t ch
         return;
     }
 
-    // The index is sorted by (layerIndex, chunkY, chunkX). Bracket the
-    // requested layer + Y range with two binary searches, then linear-walk
-    // the (typically small) bracketed slice and filter by X.
+    // The index is sorted by (layerIndex, chunkY, chunkX). Two binary searches
+    // bracket the layer and Y range, then the (usually small) slice between is
+    // walked and filtered by X.
     const auto cmpLess = [](const ChunkIndexEntry& e, std::pair<int32_t, int32_t> key)
     {
         if (static_cast<int32_t>(e.layerIndex) != key.first)
@@ -353,9 +347,9 @@ std::string Tilemap::GetString(uint32_t offset) const
 
 bool Tilemap::ComputeOrigin(float& outX, float& outY) const
 {
-    // DTilemapObject::name is an inlined char[32], not a string-pool offset,
-    // so compare directly. strncmp is safe even if the field happens to fill
-    // the full 32 bytes without a terminator.
+    // DTilemapObject::name is an inline char[32], not a string-pool offset, so
+    // compare it directly. strncmp is safe even when the name fills all 32
+    // bytes with no terminator.
     for (const auto& obj : m_MObjects)
     {
         if (std::strncmp(obj.name, "origin", sizeof(obj.name)) == 0)

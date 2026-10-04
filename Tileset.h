@@ -29,15 +29,15 @@ struct DTilesetHeader
     uint32_t collisionCount;
     uint32_t propertyTableOffset;
     uint32_t propertyCount;
-    // Tiled "transparentcolor" chroma key. High bit (0x80000000) is the active
-    // flag, low 24 bits hold packed RGB (R in bits 0-7, G in 8-15, B in 16-23
-    // — matches ParseTiledColor's low 24 bits). 0 = no key. Older .dtileset
-    // files written before this field have pad=0 here, which decodes as "off".
+    // Tiled "transparentcolor" chroma key. The high bit (0x80000000) turns it
+    // on; the low 24 bits are RGB (R in bits 0-7, G in 8-15, B in 16-23, as in
+    // ParseTiledColor's low 24 bits). 0 = no key. Older .dtileset files have
+    // 0 here, which reads as off.
     uint32_t transparentColorFlag;
 };
 static_assert(sizeof(DTilesetHeader) == 88, "DTilesetHeader layout drift");
 
-// Per-tile animation: tileGids[localId] -> {duration_ms, frames[]}
+// Per-tile animation: a tile's local id, and its frames with durations.
 struct DTileAnimationFrame
 {
     uint32_t localId;
@@ -77,7 +77,8 @@ class Tileset
 public:
     static constexpr const char* kAssetTypeName = "Tileset";
 
-    // Loads header + index tables. Atlas is loaded lazily through AssetRef.
+    /// Loads the header and tables. The atlas loads on first use, through
+    /// AssetRef.
     static Tileset* Load(const char* dtilesetPath);
 
     ~Tileset();
@@ -89,14 +90,14 @@ public:
     uint16_t Rows() const { return m_MHeader.rows; }
     uint32_t TileCount() const { return m_MHeader.tileCount; }
 
-    // Chroma-key (Tiled "transparentcolor"). RGB-only; renderer skips matching
-    // pixels regardless of the atlas's own alpha channel (or lack thereof).
+    /// Chroma key (Tiled "transparentcolor"), RGB only. The renderer skips
+    /// matching pixels whatever the atlas's own alpha.
     bool HasTransparentColor() const { return (m_MHeader.transparentColorFlag & 0x80000000u) != 0; }
     uint8_t TransparentR() const { return m_MHeader.transparentColorFlag & 0xFFu; }
     uint8_t TransparentG() const { return (m_MHeader.transparentColorFlag >> 8) & 0xFFu; }
     uint8_t TransparentB() const { return (m_MHeader.transparentColorFlag >> 16) & 0xFFu; }
 
-    // Compute the source rect inside the atlas for a tile local id.
+    /// The rect in the atlas of a tile, by local id.
     void GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const;
 
     const DTileAnimation* GetAnimation(uint32_t localId) const;

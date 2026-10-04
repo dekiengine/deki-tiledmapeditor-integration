@@ -18,10 +18,9 @@ Tileset* Tileset::Load(const char* dtilesetPath)
         return nullptr;
     }
 
-    // Through the engine filesystem, never stdio: the asset manager prefixes
-    // the cache directory, which is the "S:/" mount on a device and in the
-    // simulator, and only IFileSystem resolves that prefix. As std::fopen this
-    // loaded in the editor and failed everywhere else.
+    // Through the engine filesystem, never stdio: on a device and in the
+    // simulator the path starts with the "S:/" mount, which only IFileSystem
+    // resolves.
     Deki::IFileSystem* fs = Deki::FileSystem::GetFileSystemForPath(dtilesetPath);
     if (!fs)
     {
@@ -50,9 +49,9 @@ Tileset* Tileset::Load(const char* dtilesetPath)
         return nullptr;
     }
 
-    // Counts and offsets come from the file: each table is checked against
-    // its size, in 64 bits, as Tilemap::Load does. A huge count made resize()
-    // abort on the device, and the frame total could wrap.
+    // Counts and offsets come from the file, so each table is checked against
+    // its size, in 64 bits, as Tilemap::Load does. Otherwise a huge count could
+    // make resize() abort on the device, and the frame total could wrap.
     const long fileSizeL = fs->GetFileSize(f);
     const uint64_t fileBytes = fileSizeL > 0 ? static_cast<uint64_t>(fileSizeL) : 0;
     auto inFile = [fileBytes](uint64_t offset, uint64_t count, uint64_t elem)
@@ -91,8 +90,8 @@ Tileset* Tileset::Load(const char* dtilesetPath)
             return fail("short animation table");
         }
 
-        // Pull the frames blob: we trust the baker to lay frames contiguously
-        // immediately after the animation table.
+        // The frames, which the baker writes in one block right after the
+        // animation table.
         uint64_t totalFrames = 0;
         for (const auto& a : ts->m_MAnims)
         {
@@ -184,8 +183,8 @@ const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) 
     return &m_AnimFrames[idx];
 }
 
-// REGISTER_ASSET_TYPE concatenates the type name into an identifier, so it
-// can't accept a qualified name. Call inside the namespace.
+// REGISTER_ASSET_TYPE pastes the type name into an identifier, so it cannot
+// take a qualified name; it is called inside the namespace.
 REGISTER_ASSET_TYPE(Tileset, Tileset::Load)
 
 }  // namespace DekiTiledMap

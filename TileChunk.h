@@ -30,8 +30,9 @@ inline bool GidFlipD(uint32_t gid)
     return (gid & kGidFlipDiagonal) != 0;
 }
 
-// One resident chunk's tile data. tileGids points into a buffer owned by the
-// streamer (free-list allocated, lifetime managed by LRU eviction).
+// One loaded chunk's tile data. tileGids points into a buffer the streamer
+// owns (from its free list; freed when the chunk is evicted as least recently
+// used).
 struct TileChunk
 {
     int32_t chunkX;

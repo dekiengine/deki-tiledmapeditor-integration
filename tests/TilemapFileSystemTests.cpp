@@ -1,18 +1,14 @@
 // The loaders must read through the engine filesystem, not stdio.
 //
-// The asset manager hands a loader the cache directory joined to the asset's
+// The asset manager gives a loader the cache directory joined to the asset's
 // path, and that directory is the "S:/" mount on a device and in the desktop
-// simulator. Only IFileSystem knows how to resolve that prefix: to the SD card
-// on a board, to ./storage/ beside the executable in a simulator. Raw
-// std::fopen sees "S:/..." as a drive that does not exist and fails.
-//
-// Both loaders used std::fopen, so a tilemap loaded in the editor — where the
-// cache directory is a real native path — and nowhere else. The chunk streamer
-// set up at the end of Tilemap::Load had always read through the filesystem, so
-// one function used both routes.
+// simulator. Only IFileSystem resolves that prefix: to the SD card on a board,
+// to ./storage/ beside the executable in a simulator. std::fopen sees "S:/..."
+// as a drive that does not exist and fails. In the editor the cache directory
+// is a native path, so stdio would only fail outside it.
 //
 // These tests serve the file from an in-memory filesystem mounted at "S:/",
-// which is exactly the case stdio cannot satisfy.
+// which stdio cannot read.
 
 #include <gtest/gtest.h>
 
@@ -28,9 +24,9 @@
 
 namespace
 {
-// Serves one file, by exact path, out of a byte vector. Records whether it was
-// asked for anything, so a test can tell "read through the filesystem" from
-// "happened to work".
+// Serves one file, by exact path, from a byte vector. Records whether it was
+// asked for anything, so a test can tell a read through the filesystem from
+// one that worked some other way.
 class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
@@ -198,9 +194,9 @@ TEST_F(MountedAtS, EveryHandleIsClosedByTheTimeTheMapIsGone)
     DekiTiledMap::Tilemap* map = DekiTiledMap::Tilemap::Load("S:/maps/level.dtilemap");
     ASSERT_NE(map, nullptr);
 
-    // Two opens, deliberately: Load reads the header and closes, then hands the
-    // path to the streamer, which keeps its own handle open for chunk reads
-    // until the map is destroyed.
+    // Two opens: Load reads the header and closes, then gives the path to the
+    // streamer, which keeps its own handle open for chunk reads until the map
+    // is destroyed.
     EXPECT_EQ(Fs().opens, 2);
     EXPECT_EQ(Fs().closes, 1) << "the header handle is closed before Load returns";
 

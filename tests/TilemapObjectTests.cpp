@@ -1,11 +1,9 @@
-// Map objects carry what Tiled gave them: properties, and the points of a
+// Map objects keep what Tiled gave them: properties, and the points of a
 // polygon or polyline.
 //
-// The baker wrote every property, but the loader never read them back: the
-// header did not say where they were, so Properties() was always empty and
-// the spawner's scene_guid never matched. Polygon points were counted but
-// never written at all. These tests bake a map with the editor's baker, load
-// it the way a device does, and read the objects back.
+// These tests bake a map with the editor's baker, load it as a device does,
+// and read the objects back: Properties() must hold every property (the
+// spawner's scene_guid depends on it), and polygon points must be stored.
 //
 // Also here: a tileset whose animation frame counts add up past 32 bits is
 // refused instead of being read into a buffer sized from the wrapped total.
@@ -305,9 +303,8 @@ TEST_F(ObjectsFromS, PolygonAndPolylinePointsLoad)
     delete map;
 }
 
-// A map baked before the header named its pools: same layout, no flag, the
-// pool fields zero (they were padding). Its properties are found from where
-// that baker put them.
+// An older map whose header does not name its pools: same layout, no flag,
+// the pool fields zero. Its properties are found where that baker put them.
 TEST_F(ObjectsFromS, AMapBakedBeforeThePoolOffsetsKeepsItsProperties)
 {
     std::vector<uint8_t> bytes = Bake(MapWithObjects(false));

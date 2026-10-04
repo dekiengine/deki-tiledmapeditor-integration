@@ -14,8 +14,7 @@ namespace DekiTiledMap
 namespace
 {
 
-// Walk the property pool entries that belong to a single object and look for
-// the well-known "scene_guid" string property.
+// The object's "scene_guid" string property, or nullptr.
 const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(const DekiTiledMap::Tilemap& tm,
                                                             const DekiTiledMap::DTilemapObject& obj)
 {
@@ -90,19 +89,19 @@ void TilemapObjectSpawner::Awake()
             {
                 continue;
             }
-            // Tiled stores rotation in degrees; engine convention is radians.
+            // Tiled stores degrees; the engine uses radians.
             spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
             owner->AddChild(spawned);
             m_MSpawned.push_back(spawned);
             continue;
         }
 
-        // No scene_guid — bare Deki::Object with transform only. Deki2D::SpriteComponent
-        // synthesis for tile objects is a follow-up.
+        // No scene_guid: an empty Deki::Object with the transform. Tile objects
+        // do not get a Deki2D::SpriteComponent yet.
         Deki::Object* spawned = new Deki::Object();
         spawned->SetX(wx);
         spawned->SetY(wy);
-        // Tiled stores rotation in degrees; engine convention is radians.
+        // Tiled stores degrees; the engine uses radians.
         spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
         if (obj.name[0])
         {

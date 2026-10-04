@@ -26,18 +26,17 @@ namespace DekiTiledMap
 namespace
 {
 
-// Per-frame IO budget for chunk reads. 8 KiB/frame ≈ 8 chunks at the default
-// 16x16 chunk size. Conservative for ESP32 SD reads.
+// Chunk read budget per frame: 8 KiB, about 8 chunks at the default 16x16
+// chunk size. Kept low for ESP32 SD reads.
 constexpr size_t kIOByteBudgetPerFrame = 8 * 1024;
 
-// Build a Tileset Source descriptor referencing the atlas's pixel buffer
-// directly (no copy). Each tile is rendered by pointing the Source at the
-// tile's slice with stride = atlas row bytes — QuadBlit walks rows by stride
-// so adjacent atlas tiles never bleed in. Tileset chroma-key (Tiled
-// "transparentcolor") becomes a per-pixel skip inside QuadBlit; for RGB565
-// atlases the key is pre-quantized to 5/6/5 precision so the compare matches
-// the value QuadBlit extracts from source bytes. Returns false if the atlas
-// isn't loaded yet.
+// A Source that points at the tileset atlas's pixels, without copying. Each
+// tile is drawn by pointing the Source at the tile's slice with stride = atlas
+// row bytes, so QuadBlit walks rows by stride and neighbouring tiles never
+// bleed in. The tileset's chroma key (Tiled "transparentcolor") becomes a
+// per-pixel skip in QuadBlit; for RGB565 atlases the key is reduced to 5/6/5
+// precision so it matches what QuadBlit reads. Returns false if the atlas is
+// not loaded yet.
 bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
 {
     if (!ts)
@@ -68,9 +67,8 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
         uint8_t kr = ts->TransparentR();
         uint8_t kg = ts->TransparentG();
         uint8_t kb = ts->TransparentB();
-        // Quantize to RGB565 precision for RGB565/RGB565A8 atlases: PNGs
-        // imported into 5/6/5 lose low bits, so an exact 8-bit compare
-        // against the authored key would never match.
+        // RGB565 and RGB565A8 atlases lose the low bits on import, so the key
+        // is reduced to the same precision or it would never match.
         if (outSrc.isRGB565)
         {
             DekiPixel::QuantizeRGB565(kr, kg, kb);
@@ -108,9 +106,9 @@ TilemapRenderPass::TilesetCache& TilemapRenderPass::GetCache(Tilemap* tm)
     cache.destW.assign(refs.size(), 0);
     cache.destH.assign(refs.size(), 0);
     cache.scratch.assign(refs.size(), QuadBlit::Source{});
-    // Seed the epoch so the very first RefreshCache doesn't immediately wipe
-    // the freshly-initialised vectors. A bump from any later UnloadAll /
-    // InvalidateAsset will be picked up because it advances the epoch.
+    // Start at the current epoch so the first RefreshCache does not wipe the
+    // new vectors. A later UnloadAll or InvalidateAsset moves the epoch and is
+    // noticed.
     if (auto* mgr = Deki::AssetManager::Get())
     {
         cache.epoch = mgr->GetEpoch();
@@ -126,10 +124,10 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         return;
     }
 
-    // The cached Source.pixels are raw pointers into atlas memory owned by
-    // AssetManager. UnloadAll / InvalidateAsset / hot-reload free that memory
-    // and bump the global epoch. If our epoch is stale, drop every cached
-    // Tileset* + Source so the loop below re-resolves through AssetManager.
+    // The cached Source.pixels point into atlas memory the AssetManager owns.
+    // UnloadAll, InvalidateAsset and hot reload free that memory and move the
+    // global epoch. When it moved, drop every cached Tileset* and Source so the
+    // loop below resolves them again.
     const uint64_t curEpoch = mgr->GetEpoch();
     if (cache.epoch != curEpoch)
     {
@@ -147,9 +145,8 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
     const auto& refs = tm->Tilesets();
     for (size_t i = 0; i < refs.size(); ++i)
     {
-        // Re-resolve any tileset whose atlas hasn't been ready yet. Once
-        // ready, the cached Source stays valid until the epoch bump above
-        // invalidates it.
+        // Resolve again any tileset whose atlas was not ready. Once ready, the
+        // cached Source stays valid until the epoch moves.
         Tileset* ts = cache.tilesets[i];
         if (!ts)
         {
@@ -303,49 +300,47 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         return;
     }
 
-    // Tilemap's source pixels per world meter. All tile-pixel quantities
-    // below are converted to meters by dividing by tilePPM, so the math
-    // composes cleanly with the owner transform (already meters) and camera
-    // (already pixels-per-meter).
+    // The map's pixels per world meter. Map-pixel values below are divided by
+    // tilePPM to get meters, to match the owner's transform (meters) and the
+    // camera (pixels per meter).
     const float tilePPM = (tc->pixelsPerMeter > 0.0f) ? tc->pixelsPerMeter : 1.0f;
     const float invTilePPM = 1.0f / tilePPM;
 
-    // What world-meter coordinate maps to the GameObject's world position?
-    //   Finite map:        the map's center — keeps the whole rect on the owner.
-    //   Infinite + origin: a Tiled object named "origin" — author places it
-    //                      wherever they want world (0, 0) to be.
-    //   Infinite, no origin: Tiled (0, 0), strict coord mapping (back-compat).
-    // Y is flipped here because Tiled stores rows top-to-bottom (Y+ down) and
-    // the engine is Y-up, so Tiled row 0 ends up at engine Y = +originOffsetY.
+    // Which map point sits on the owner's world position:
+    //   Finite map:           the map's centre.
+    //   Infinite with origin: a Tiled object named "origin", placed wherever
+    //                         world (0, 0) should be.
+    //   Infinite, no origin:  Tiled (0, 0).
+    // Y is flipped: Tiled rows run top to bottom (Y down) and the engine is
+    // Y up, so Tiled row 0 lands at engine Y = +originOffsetY.
     const float originX = (obj->GetWorldX());
     const float originY = (obj->GetWorldY());
     float originOffsetX = 0.0f;
     float originOffsetY = 0.0f;
     if (!tm->IsInfinite())
     {
-        // Source-pixel half-extents converted to meters.
+        // Half the map's size, in meters.
         originOffsetX = 0.5f * static_cast<float>(tm->MapWidth()) * static_cast<float>(tw) * invTilePPM;
         originOffsetY = 0.5f * static_cast<float>(tm->MapHeight()) * static_cast<float>(th) * invTilePPM;
     }
     else
     {
-        // FindOrigin returns Tiled pixels — convert to meters.
+        // FindOrigin returns Tiled pixels; convert to meters.
         tm->FindOrigin(originOffsetX, originOffsetY);
         originOffsetX *= invTilePPM;
         originOffsetY *= invTilePPM;
     }
 
-    // Camera visible rect, expressed in tile-pixel coords (Y+ down) for chunk
-    // selection. Camera/visible sizes are meters; convert via tilePPM.
-    // Visible size = screen / ppm (DekiRendering::CameraComponent::GetVisibleWidth); the
-    // camera position is the unsnapped one, so it still comes from the camera
-    // (the snapshot's is pixel-snapped when the camera asks for that).
+    // The camera's visible rect in map pixels (Y down), to pick chunks. Sizes
+    // are meters, converted with tilePPM. Visible size = screen / ppm
+    // (DekiRendering::CameraComponent::GetVisibleWidth). The position comes
+    // from the camera, not the snapshot, which may be pixel-snapped.
     const float visW = (ctx.cam.ppm > 0.0f) ? (static_cast<float>(screenW) / ctx.cam.ppm) : 0.0f;
     const float visH = (ctx.cam.ppm > 0.0f) ? (static_cast<float>(screenH) / ctx.cam.ppm) : 0.0f;
     const float camX = ctx.camera->GetPositionX();
     const float camY = ctx.camera->GetPositionY();
 
-    // Switch to tile-pixel space (meters * tilePPM) for chunk math.
+    // Map pixels (meters * tilePPM) for the chunk math.
     const float tiledMinX = ((camX - originX) + originOffsetX - visW * 0.5f) * tilePPM;
     const float tiledMaxX = ((camX - originX) + originOffsetX + visW * 0.5f) * tilePPM;
     const float tiledMinY = (originOffsetY - ((camY - originY) + visH * 0.5f)) * tilePPM;
@@ -364,10 +359,9 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         return;
     }
 
-    // Resolve wrap periods. auto_wrap pulls them from authored bounds;
-    // otherwise use the manual wrapPeriodX/y fields (0 disables an axis).
-    // Period is interpreted as tiles and floor-divided to chunks — sub-chunk
-    // remainders are silently dropped, so size strips on chunk boundaries.
+    // Wrap periods: wrapPeriodX/Y when above 0, else the map's bounds, for
+    // each axis that loops. A period is in tiles and rounded down to whole
+    // chunks, so make repeats a multiple of the chunk size.
     int periodTilesX = 0;
     int periodTilesY = 0;
     int originTileX = 0;
@@ -414,9 +408,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         return r < 0 ? r + n : r;
     };
 
-    // For streaming, only request authored chunks (those inside the period
-    // window when wrapping; otherwise the unwrapped visible rect). Repeated
-    // tiles reuse the same resident chunk.
+    // Request only chunks that exist in the map: those in the period when
+    // wrapping, else the visible rect. Repeats reuse the same loaded chunk.
     int reqMinX = chunkMinX, reqMaxX = chunkMaxX;
     int reqMinY = chunkMinY, reqMaxY = chunkMaxY;
     if (wrapX)
@@ -448,7 +441,7 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         }
     }
 
-    // Request + pump for every visible layer this frame.
+    // Request and load chunks for every visible layer.
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
     {
         if (((tc->visibleLayerMask >> layer) & 1) == 0)
@@ -457,8 +450,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         }
         if (wrapX || wrapY)
         {
-            // Request may straddle the period boundary; split into up to two
-            // ranges per axis so each piece lands inside [0, period).
+            // The request may cross the period boundary, so split it into up
+            // to two ranges per axis, each inside [0, period).
             const int periodEndX = originChunksX + periodChunksX;
             const int periodEndY = originChunksY + periodChunksY;
             const int xs[2] = { reqMinX, originChunksX };
@@ -490,10 +483,10 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
     }
     streamer->Pump(kIOByteBudgetPerFrame);
 
-    // Resolved tilesets + per-tileset Source descriptors. Built once per
-    // Tilemap and reused across frames; entries with not-yet-loaded atlases
-    // are retried each frame. The whole table is dropped when the asset
-    // epoch moves: its Tilemap* keys are asset pointers.
+    // Resolved tilesets and their Sources, built once per Tilemap and kept
+    // across frames; entries whose atlas has not loaded are tried each frame.
+    // The whole table is dropped when the asset epoch moves, since its
+    // Tilemap* keys are asset pointers.
     if (auto* mgr = Deki::AssetManager::Get())
     {
         const uint64_t epoch = mgr->GetEpoch();
@@ -506,9 +499,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
     TilesetCache& cache = GetCache(tm);
     RefreshCache(tm, cache);
 
-    // Precompute the unwrapped→authored chunk-coord mapping per axis once.
-    // Identity when no wrap on that axis. Avoids a modulo+lambda call per
-    // visible cell inside the inner loops.
+    // Map each visible chunk coordinate to the map's chunk once per axis
+    // (unchanged without wrap), instead of a modulo per cell in the loops.
     if (wrapX || wrapY)
     {
         const int spanX = chunkMaxX - chunkMinX + 1;
@@ -533,16 +525,16 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
     const uint8_t tintA = tc->tintColor.a;
     const bool pixelSnap = tc->pixelSnap;
 
-    // Everything below maps through the frame's camera snapshot: the same
-    // arithmetic as DekiRendering::CameraComponent::WorldToScreen, no virtual call per tile.
+    // Everything below maps through the frame's camera snapshot: the same math
+    // as DekiRendering::CameraComponent::WorldToScreen, without a virtual call
+    // per tile.
     const DekiRendering::FrameCamera& cam = ctx.cam;
 
-    // Source tile pixels -> world meters via tilePPM, then world meters ->
-    // screen pixels via camera.PPM. Net scale is (camera.PPM / tilePPM); when
-    // both match, source 1:1 to screen. Every tile of a tileset has the same
-    // destination size, so it is computed once per tileset per frame, and the
-    // per-tileset scratch Source is seeded once here; tiles only move its
-    // pixel pointer and flip flags.
+    // Map pixels / tilePPM = meters; * camera PPM = screen pixels. The scale is
+    // camera PPM / tilePPM, 1:1 when they match. Every tile of a tileset has
+    // the same drawn size, so it is worked out once per tileset per frame, and
+    // the tileset's scratch Source is set up here; tiles change only its pixel
+    // pointer and flip flags.
     const float scale = cam.ppm * invTilePPM;
     int32_t maxDestW = 0, maxDestH = 0;
     for (size_t i = 0; i < cache.sources.size(); ++i)
@@ -556,14 +548,14 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         cache.destH[i] = static_cast<int32_t>(std::floor(static_cast<float>(ts->TileHeight()) * scale));
         cache.scratch[i] = cache.sources[i];
         // Width and height are set per tile (a shrunk atlas's tiles can differ
-        // by a pixel); scratch.stride stays at the atlas row width.
+        // by a pixel); scratch.stride stays the atlas row width.
         maxDestW = std::max(maxDestW, cache.destW[i]);
         maxDestH = std::max(maxDestH, cache.destH[i]);
     }
 
-    // The rectangle BlitScaled can actually write: target ∩ current clip.
-    // A tile (or a whole chunk) outside it is dropped before any Source work,
-    // exactly the tiles BlitScaled would have clipped to nothing.
+    // The rect BlitScaled can write: the target within the current clip. A
+    // tile or chunk outside it is skipped before any Source work; BlitScaled
+    // would clip it away anyway.
     const QuadBlit::ClipRect clip = QuadBlit::GetCurrentClipRect();
     const int32_t clipL = std::max<int32_t>(0, clip.left);
     const int32_t clipT = std::max<int32_t>(0, clip.top);
@@ -619,8 +611,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
             const int chunkOriginX = d.drawX * cw * tw;
             const int chunkOriginY = d.drawY * ch * th;
 
-            // Chunk screen box, conservative (largest tile, 2 px for the
-            // snap rounding): skip padding chunks that cannot touch the clip.
+            // The chunk's screen box, with margin (largest tile, 2 px for snap
+            // rounding): skip padding chunks that cannot touch the clip.
             {
                 float fx0, fy0;
                 cam.WorldToScreen(originX + static_cast<float>(chunkOriginX) * invTilePPM - originOffsetX,
@@ -655,11 +647,10 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                         continue;
                     }
 
-                    // Tiled pixel coords of this tile's top-left, converted to
-                    // engine world meters (Y-up, centered on owner). The world
-                    // point we hand to WorldToScreen is the engine-top-left of
-                    // the tile — i.e. the corner with the *highest* engine Y,
-                    // which BlitScaled expects as its (destX, destY).
+                    // The tile's top-left in Tiled pixels, converted to world
+                    // meters (Y up, centred on the owner). WorldToScreen gets
+                    // the tile's top-left in engine terms, the corner with the
+                    // highest Y, which BlitScaled takes as (destX, destY).
                     const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw) * invTilePPM;
                     const float tiledTileY = static_cast<float>(chunkOriginY + ty * th) * invTilePPM;
                     const float wx = originX + tiledTileX - originOffsetX;
@@ -685,13 +676,11 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                         continue;  // BlitScaled would clip this to nothing
                     }
 
-                    // Point the scratch Source at this tile's slice of the atlas;
-                    // stride keeps QuadBlit walking the atlas's full row width so
-                    // adjacent tiles never bleed in. Chroma-key (when set on the
-                    // tileset) is honored by QuadBlit per-pixel without any copy.
-                    // Tiled's flip flags go on the Source: a negative size used
-                    // to be passed instead, which BlitScaled rejects, so every
-                    // flipped tile silently vanished.
+                    // Point the scratch Source at this tile's slice of the
+                    // atlas; the stride keeps QuadBlit on the atlas's full row
+                    // width, so neighbouring tiles never bleed in. QuadBlit
+                    // applies the tileset's chroma key per pixel. Tiled's flip
+                    // flags go on the Source; BlitScaled rejects a negative size.
                     const QuadBlit::Source& base = cache.sources[tsIdx];
                     QuadBlit::Source& sub = cache.scratch[tsIdx];
                     sub.pixels = base.pixels + sy * base.stride + sx * base.bytesPerPixel;
@@ -711,11 +700,10 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
 
 }  // namespace DekiTiledMap
 
-// Self-registration with autoAttach=true so DekiRenderingInit attaches the
-// pass to the active DekiRendering::Standard2DRenderer whenever the deki-tilemap package is
-// loaded. The project's .rpipeline doesn't need to know about "tilemap"; it
-// can still mention it explicitly to control ordering relative to other
-// passes (e.g. clip2d) if needed.
+// Registers with autoAttach=true, so DekiRenderingInit attaches the pass to
+// the active DekiRendering::Standard2DRenderer whenever this package is
+// loaded. The project's .rpipeline need not mention "tilemap", but can, to
+// order it against other passes (clip2d, say).
 namespace
 {
 struct TilemapRenderPassRegistrar
@@ -727,9 +715,8 @@ struct TilemapRenderPassRegistrar
         info.autoAttach = true;
         DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::kRegistryName, info);
     }
-    // Unregister on DLL unload so the std::function factory (whose target
-    // lives in this package's code) doesn't outlive the DLL and crash
-    // deki-rendering's static-registry teardown.
+    // Unregister on DLL unload, so the factory (code in this package) does
+    // not outlive the DLL and crash deki-rendering's registry teardown.
     ~TilemapRenderPassRegistrar()
     {
         DekiRendering::DekiRenderPassRegistry::Unregister(DekiTiledMap::TilemapRenderPass::kRegistryName);

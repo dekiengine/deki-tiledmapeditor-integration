@@ -21,21 +21,19 @@ public:
     DEKI_TOOLTIP("A map exported from Tiled.")
     Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
 
-    // Bitmask of layers to draw. Default: all layers.
+    // Bitmask of layers to draw.
     DEKI_EXPORT
     DEKI_TOOLTIP("Which of the map's layers to draw, one bit per layer. All bits set draws everything.")
     int32_t visibleLayerMask = 0x7FFFFFFF;
 
-    // Number of chunks loaded past the visible viewport edge (per side).
+    // Chunks loaded past each edge of the view.
     DEKI_EXPORT
     DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at "
                  "the edge while scrolling.")
     int32_t chunkPadding = 1;
 
-    // How much decoded chunk data the map may hold. Applied to the map's
-    // streamer when the asset resolves; until this existed nothing ever called
-    // SetMemoryBudget, so every target ran on the 256 KiB default — the figure
-    // chosen for an ESP32 — including desktop builds with memory to spare.
+    // How much decoded chunk data the map may hold, set on the map's streamer
+    // when the asset resolves. 256 KiB suits an ESP32; desktops can use more.
     //
     // KiB is in the name because there is no memory PhysicalUnit to carry it.
     DEKI_EXPORT
@@ -46,23 +44,22 @@ public:
     DEKI_RANGE(16.0f, 262144.0f)
     int32_t chunkCacheKiB = 256;
 
-    // Tint applied to every drawn tile. White = no tint.
+    // Tint for every drawn tile; white is none.
     DEKI_EXPORT
     DEKI_TOOLTIP("Multiplied into every tile. White leaves the map alone.")
     Deki::Color tintColor;
 
-    // Source pixels per world meter for this tilemap. The renderer treats
-    // each tile pixel as 1/pixelsPerMeter meters of world space. When
-    // pixelsPerMeter equals camera.pixelsPerMeter and project PPM, tiles
-    // render 1:1 with their source. Default 16 matches the project default.
+    // Map pixels per world meter: each tile pixel is 1/pixelsPerMeter meters.
+    // When it equals the camera's and the project's pixels per meter, tiles
+    // draw 1:1. The default 16 matches the project default.
     DEKI_EXPORT
     DEKI_TOOLTIP(
         "How many of the map's pixels make one meter. This is what lines the map up with everything else in the scene.")
     DEKI_RANGE(1.0f, 256.0f)
     float pixelsPerMeter = 16.0f;
 
-    // Loop the map on each axis. When enabled, wrap_period controls the
-    // strip size: 0 = auto (use authored bounds), >0 = explicit tile count.
+    // Loop the map on each axis. wrapPeriodX/Y set the repeat size: 0 uses
+    // the map's bounds, more is a tile count.
     DEKI_EXPORT
     DEKI_TOOLTIP("Repeat the map horizontally, so scrolling past the edge wraps round.")
     bool loopX = false;
@@ -83,7 +80,7 @@ public:
 
     TilemapComponent();
 
-    // Returns false: TilemapRenderSystem renders chunks itself, not as a single quad.
+    /// Returns false: TilemapRenderSystem draws the chunks itself, not as one quad.
     bool RenderContent(const Deki::Object* owner, QuadBlit::Source& outSource, float& outPivotX, float& outPivotY,
                        uint8_t& outTintR, uint8_t& outTintG, uint8_t& outTintB, uint8_t& outTintA) override;
 

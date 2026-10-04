@@ -5,7 +5,7 @@
 namespace DekiTiledMap
 {
 
-// Registers the .tmj / .tsj asset-browser inspector. Idempotent.
+/// Registers the inspector for .tmj and .tsj files. Safe to call again.
 void RegisterTilemapInspector();
 
 }  // namespace DekiTiledMap

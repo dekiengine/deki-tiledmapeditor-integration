@@ -5,8 +5,8 @@
 namespace DekiTiledMap
 {
 
-// Registers .tmj/.tsj sync handlers with AssetPipeline. Idempotent —
-// safe to call multiple times (only the first call subscribes).
+/// Registers the .tmj and .tsj sync handlers with the AssetPipeline. Safe to
+/// call again; only the first call subscribes.
 void RegisterTilemapSyncHandlers();
 
 }  // namespace DekiTiledMap

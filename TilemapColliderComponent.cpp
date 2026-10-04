@@ -23,7 +23,7 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         return false;
     }
 
-    // World coords are in tile-pixels matching Tiled's coordinate system.
+    // World coordinates are in map pixels, as in Tiled.
     const int origTileX = static_cast<int>(worldX) / tw;
     const int origTileY = static_cast<int>(worldY) / th;
     int tileX = origTileX;
@@ -31,8 +31,8 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     const int cw = tm->ChunkWidth();
     const int ch = tm->ChunkHeight();
 
-    // Resolve wrap periods per axis. loopX/y off → no wrap on that axis.
-    // On with period 0 → auto from authored bounds; with period >0 → explicit.
+    // The wrap period per axis: none when that loop is off, the map's bounds
+    // when the period is 0, else the given tile count.
     int periodX = 0;
     int periodY = 0;
     int originX = 0;
@@ -168,7 +168,7 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         }
         return false;
     }
-    // Polygon collision: bounding-box test only in v1.
+    // Polygon collision tests only the bounding box.
     if (px >= col->x && px <= col->x + col->width && py >= col->y && py <= col->y + col->height)
     {
         if (outLocalId)

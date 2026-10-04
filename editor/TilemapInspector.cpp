@@ -48,12 +48,10 @@ void RegisterTilemapInspector()
     }
     s_InspectorRegistered = true;
 
-    // The editor's FileInspector registry isn't exposed via a stable C++ header
-    // for package use yet. v1 ships the OpenInTiled helper as a public symbol
-    // that the project's component custom-editor can call from its inspector
-    // panel. Future revisions will subscribe directly once the registry API
-    // is available.
-    (void)&OpenInTiled;  // silence unused-function warning
+    // The editor's FileInspector registry has no stable header for packages
+    // yet, so nothing is registered here. OpenInTiled is a public helper a
+    // project's custom editor can call from its inspector.
+    (void)&OpenInTiled;  // no unused-function warning
 }
 
 }  // namespace DekiTiledMap

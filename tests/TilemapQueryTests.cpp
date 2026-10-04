@@ -1,14 +1,12 @@
-// The map's query surface: resolving a global tile id to its tileset, and
-// bracketing the chunk index by layer and rectangle.
+// The map's queries: finding a global tile id's tileset, and finding the
+// chunks in a layer and rectangle.
 //
-// Both are binary searches over tables the loader sorts, and both run per frame
-// while a map is drawn. Nothing exercised either until now: this package had no
-// test target at all, so the first coverage it gets should be the two functions
-// a wrong answer would show up in as tiles from the wrong sheet, or chunks that
-// never appear.
+// Both are binary searches over tables the loader sorts, and both run every
+// frame while a map is drawn. A wrong answer shows up as tiles from the wrong
+// sheet, or chunks that never appear.
 //
 // Fixtures are built in memory and served through a filesystem mounted at
-// "S:/", the same way a device sees its SD card.
+// "S:/", as a device sees its SD card.
 
 #include <gtest/gtest.h>
 
@@ -31,7 +29,7 @@ using DekiTiledMap::TilesetRef;
 
 namespace
 {
-// Same one-file in-memory filesystem the loader tests use.
+// The same one-file in-memory filesystem the loader tests use.
 class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
@@ -224,8 +222,8 @@ TEST_F(MapFixture, AGidResolvesToTheTilesetItFallsIn)
 
 TEST_F(MapFixture, TheBoundaryGidBelongsToTheNewTileset)
 {
-    // The classic off-by-one: firstGid is inclusive, so 100 is the first tile
-    // of the second sheet, not the last of the first.
+    // firstGid is inclusive, so 100 is the first tile of the second sheet,
+    // not the last of the first.
     MapBuilder b;
     b.AddTileset("aaaa", 1);
     b.AddTileset("bbbb", 100);
@@ -269,9 +267,9 @@ TEST_F(MapFixture, AGidBelowEveryTilesetResolvesToNothing)
 
 TEST_F(MapFixture, FlipFlagsAreStrippedBeforeResolving)
 {
-    // Tiled packs horizontal/vertical/diagonal flip into the top bits. They are
-    // not part of the tile index, and a resolver that forgot to mask would send
-    // every flipped tile off the end of the table.
+    // Tiled packs the horizontal, vertical and diagonal flips into the top
+    // bits. They are not part of the tile index; without masking, every
+    // flipped tile would fall off the end of the table.
     MapBuilder b;
     b.AddTileset("aaaa", 1);
     b.AddTileset("bbbb", 100);
@@ -289,8 +287,8 @@ TEST_F(MapFixture, FlipFlagsAreStrippedBeforeResolving)
 
 TEST_F(MapFixture, TilesetsAreSortedEvenIfTheFileIsNot)
 {
-    // Load sorts the table so the binary search is valid. A baker writing them
-    // out of order must not produce wrong lookups.
+    // Load sorts the table so the binary search works. Tilesets written out of
+    // order must still resolve correctly.
     MapBuilder b;
     b.AddTileset("cccc", 200);
     b.AddTileset("aaaa", 1);
@@ -383,8 +381,8 @@ TEST_F(MapFixture, ARectOutsideTheMapReturnsNothing)
 
 TEST_F(MapFixture, NegativeChunkCoordinatesWork)
 {
-    // An infinite Tiled map is authored around the origin, so chunks at
-    // negative coordinates are ordinary, not an edge case.
+    // An infinite Tiled map is drawn around the origin, so chunks at negative
+    // coordinates are normal.
     MapBuilder b;
     b.AddChunk(0, -2, -2);
     b.AddChunk(0, -1, -1);

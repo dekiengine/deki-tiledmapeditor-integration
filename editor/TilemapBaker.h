@@ -15,15 +15,13 @@ struct BakedTilesetRef
     std::string guid;  // .dtileset GUID assigned by the sync handler
 };
 
-// Write a .dtileset binary for the given parsed TmjTileset.
-//   atlasGuid   — GUID of the baked .dtex texture for the tileset's image
-//   outAbsPath  — absolute output path (typically cache/<tilesetGuid>)
-// Returns true on success, false on IO error.
+/// Writes a .dtileset file for a parsed tileset. `atlasGuid` is the GUID of
+/// the baked .dtex of the tileset's image; `outAbsPath` is the absolute output
+/// path (usually cache/<tilesetGuid>). Returns false on an IO error.
 bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std::string& outAbsPath);
 
-// Write a .dtilemap binary for the given parsed TmjMap. Tileset references
-// must be resolved (firstGid + GUID) by the caller; baker doesn't do file IO
-// for tilesets.
+/// Writes a .dtilemap file for a parsed map. The caller resolves the tileset
+/// references (firstGid and GUID); the baker reads no tileset files.
 bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath);
 
 }  // namespace DekiTiledMap

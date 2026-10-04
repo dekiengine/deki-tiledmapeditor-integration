@@ -1,13 +1,9 @@
-/**
- * @file TilemapAssetTypes.cpp
- * @brief AssetTypeRegistry bindings for .tmj (Tilemap) and .tsj (Tileset).
- *
- * The actual baking is handled by TilemapSyncHandler via the asset-pipeline
- * sync-handler callback. These AssetTypeEditor subclasses only exist to map
- * extensions to type names so AssetPipeline::GetAssetTypeFromExtension and
- * IsAssetFile can resolve them through AssetTypeRegistry — same path every
- * other package uses.
- */
+// AssetTypeRegistry entries for .tmj (Tilemap) and .tsj (Tileset).
+//
+// TilemapSyncHandler does the baking, through the asset pipeline's cache
+// handlers. These AssetTypeEditor subclasses only map the extensions to type
+// names, so AssetPipeline::GetAssetTypeFromExtension and IsAssetFile find them
+// through AssetTypeRegistry, as for every other package.
 
 #ifdef DEKI_EDITOR
 

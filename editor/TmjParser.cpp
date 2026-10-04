@@ -35,7 +35,7 @@ bool ReadFile(const std::string& path, std::string& out, std::string& err)
     return true;
 }
 
-// Decode a base64 string into bytes. Returns false on malformed input.
+// Decodes a base64 string. Returns false on malformed input.
 bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
 {
     static const int8_t kLut[256] = {
@@ -81,7 +81,8 @@ bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
 
 uint32_t ParseTiledColor(const std::string& s)
 {
-    // Tiled writes "#RRGGBB" or "#AARRGGBB". We store RGBA8.
+    // Tiled writes "#RRGGBB" or "#AARRGGBB". Returned as RGBA8, R in the low
+    // byte.
     if (s.empty() || s[0] != '#')
     {
         return 0xFF000000u;
@@ -124,7 +125,7 @@ uint32_t ParseTiledColor(const std::string& s)
 bool DecodeLayerPayload(const json& jdata, const json& jlayer, size_t expectedTiles, std::vector<uint32_t>& out,
                         std::string& err)
 {
-    // CSV/JSON-array path (uncompressed): payload is a JSON array of ints.
+    // Uncompressed: a JSON array of ints.
     if (jdata.is_array())
     {
         out.reserve(jdata.size());
@@ -134,12 +135,11 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer, size_t expectedTi
         }
         return true;
     }
-    // Encoded string path. Honor "encoding" + "compression".
+    // A string, decoded by "encoding" and "compression".
     std::string encoding = jlayer.value("encoding", "");
     std::string comp = jlayer.value("compression", "");
     if (encoding == "csv" || encoding.empty())
     {
-        // CSV body
         const std::string& s = jdata.get_ref<const std::string&>();
         std::stringstream ss(s);
         std::string tok;
@@ -238,8 +238,8 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
     outMap.tileWidth = j.value("tilewidth", 0);
     outMap.tileHeight = j.value("tileheight", 0);
     outMap.infinite = j.value("infinite", false);
-    // Use json::object() (not json{}) for intermediate defaults — a default-constructed
-    // json is null, and calling .value() on null throws type_error.302.
+    // json::object(), not json{}, as the default: a default json is null, and
+    // .value() on null throws type_error.302.
     outMap.chunkWidth = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("width", 16);
     outMap.chunkHeight =
         j.value("editorsettings", json::object()).value("chunksize", json::object()).value("height", 16);
@@ -249,7 +249,7 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
         outMap.backgroundColor = ParseTiledColor(j["backgroundcolor"].get<std::string>());
     }
 
-    // Tilesets — external only (embedded rejected).
+    // Tilesets: external only; embedded ones are rejected.
     if (j.contains("tilesets") && j["tilesets"].is_array())
     {
         for (const auto& jt : j["tilesets"])
@@ -363,7 +363,7 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                 }
                 outMap.objectLayers.push_back(std::move(ol));
             }
-            // Group / image / other layer types: skipped silently in v1.
+            // Group, image and other layer types are skipped.
         }
     }
 

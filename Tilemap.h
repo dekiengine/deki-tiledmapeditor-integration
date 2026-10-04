@@ -34,8 +34,8 @@ struct DTilemapHeader
     uint32_t backgroundColor;  // RGBA8
     uint32_t flags;            // bit0 = infinite, bit1 = kTilemapHasPools
     // Where the per-object pools are; valid when flags has kTilemapHasPools.
-    // Maps baked before that leave them zero and the loader finds the pools
-    // from where the baker put them.
+    // Older maps leave them zero, and the loader finds the pools where the
+    // baker placed them.
     uint32_t pointPoolOffset;      // int32_t[2 * pointPoolCount], (x, y) pairs
     uint32_t pointPoolCount;       // points
     uint32_t propertyTableOffset;  // DTilemapProperty[propertyCount]
@@ -146,30 +146,30 @@ public:
 
     const std::vector<TilesetRef>& Tilesets() const { return m_MTilesets; }
 
-    // Resolve a global tile id to its tileset and local id. Returns nullptr if
-    // gid is 0 or unmapped.
+    /// The tileset and local id of a global tile id, or nullptr if gid is 0 or
+    /// in no tileset.
     const TilesetRef* ResolveTileset(uint32_t gid, uint32_t& outLocalId) const;
 
-    // Same as ResolveTileset but also returns the tileset's index in
-    // Tilesets() — saves the caller a linear search when iterating tiles.
-    // Returns nullptr (and leaves outIndex untouched) for unmapped gids.
+    /// Like ResolveTileset, and also gives the tileset's index in Tilesets(),
+    /// which saves a search per tile. Returns nullptr, leaving outIndex as it
+    /// was, for a gid in no tileset.
     const TilesetRef* ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLocalId, size_t& outIndex) const;
 
-    // Iterate the index for chunks intersecting the given chunk-coord rect on
-    // the given layer. Output entries are guaranteed sorted by (cy, cx).
+    /// The index entries of the chunks on a layer that intersect a rect in
+    /// chunk coordinates, sorted by (cy, cx).
     void QueryVisibleChunks(int32_t layerIdx, int32_t chunkMinX, int32_t chunkMinY, int32_t chunkMaxX,
                             int32_t chunkMaxY, std::vector<ChunkIndexEntry>& out) const;
 
     TilemapStreamer* Streamer() const { return m_MStreamer; }
 
-    // Object layers (loaded eagerly with the header).
+    /// Object layers, loaded with the header.
     const std::vector<DObjectLayer>& ObjectLayers() const { return m_ObjectLayers; }
     const std::vector<DTilemapObject>& Objects() const { return m_MObjects; }
 
-    // Tiled-pixel coordinate that should land on the owning GameObject. Set by
-    // adding an object named "origin" (any layer, point or rect) in Tiled.
-    // Returns false and leaves outX/outY untouched if no such object exists.
-    // Resolved once at load (the render pass asks every frame).
+    /// The point, in Tiled pixels, that sits on the owning object. Set by
+    /// adding an object named "origin" (any layer, point or rect) in Tiled.
+    /// Returns false, leaving outX/outY as they were, when there is none.
+    /// Found once at load, since the render pass asks every frame.
     bool FindOrigin(float& outX, float& outY) const
     {
         if (!m_HasOrigin)
@@ -181,10 +181,10 @@ public:
         return true;
     }
 
-    // Bounding box of authored chunks across all layers, in tile units.
-    // For finite maps this is just (MapWidth, MapHeight). For infinite maps
-    // it's derived from m_MIndex. Returns false if there are no chunks.
-    // Resolved once at load (the render pass asks every frame).
+    /// The bounding box of all layers' chunks, in tiles: (MapWidth,
+    /// MapHeight) for a finite map, from the chunk index for an infinite one.
+    /// Returns false if there are no chunks. Found once at load, since the
+    /// render pass asks every frame.
     bool GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY, int32_t& outWidthTiles,
                            int32_t& outHeightTiles) const
     {
@@ -198,23 +198,23 @@ public:
         outHeightTiles = m_BoundsH;
         return true;
     }
-    // Every object's properties, an object's being the propertyCount entries
-    // from its propertyOffset. Names and string values are GetString offsets.
+    /// Every object's properties; an object's are the propertyCount entries
+    /// from its propertyOffset. Names and string values are GetString offsets.
     const std::vector<DTilemapProperty>& Properties() const { return m_MProperties; }
-    // Every polygon and polyline point as (x, y) pairs: an object's are the
-    // pointCount pairs from pair pointOffset. Empty for maps baked before
-    // the points were written.
+    /// Every polygon and polyline point as (x, y) pairs; an object's are the
+    /// pointCount pairs from pair pointOffset. Empty for older maps that do
+    /// not store points.
     const std::vector<int32_t>& PolygonPoints() const { return m_PolygonPoints; }
     const std::string& StringPool() const { return m_StringPool; }
 
-    // The properties of one object, or nullptr (and outCount 0) when it has
-    // none or they are not in the file.
+    /// The properties of one object, or nullptr (and outCount 0) when it has
+    /// none or they are not in the file.
     const DTilemapProperty* ObjectProperties(const DTilemapObject& obj, uint32_t& outCount) const;
 
-    // A string from the pool by its offset (empty if out of range).
+    /// A string from the pool by its offset (empty if out of range).
     std::string GetString(uint32_t offset) const;
 
-    // Internal — not intended for game code.
+    // Internal, not for game code.
     const std::vector<ChunkIndexEntry>& Index() const { return m_MIndex; }
     const std::string& AbsolutePath() const { return m_AbsolutePath; }
 

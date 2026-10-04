@@ -16,7 +16,7 @@ namespace DekiTiledMap
 namespace
 {
 
-// Append helper that records the file offset of where data was written.
+// Appends `count` items and returns the file offset they were written at.
 template <typename T>
 uint32_t AppendBlob(FILE* f, const T* src, size_t count)
 {
@@ -65,15 +65,14 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
     hdr.rows = static_cast<uint16_t>(ts.rows);
     hdr.tileCount = static_cast<uint32_t>(ts.tileCount);
 
-    // Encode chroma key: high bit = active, low 24 bits = packed RGB. The
-    // alpha byte from ParseTiledColor (high byte of the RGBA packing) is
-    // dropped — we only ever match on RGB.
+    // Chroma key: the high bit turns it on, the low 24 bits are RGB. The alpha
+    // byte from ParseTiledColor is dropped, since only RGB is matched.
     hdr.transparentColorFlag = ts.hasTransparentColor ? (0x80000000u | (ts.transparentColor & 0x00FFFFFFu)) : 0u;
 
-    // Reserve header space, fill offsets later.
+    // Header first, written again with the offsets at the end.
     std::fwrite(&hdr, sizeof(hdr), 1, f);
 
-    // Build animation table + frames.
+    // Animation table and frames.
     std::vector<DTileAnimation> anims;
     std::vector<DTileAnimationFrame> frames;
     for (const auto& tile : ts.tiles)
@@ -84,7 +83,7 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
         }
         DTileAnimation a{};
         a.localId = tile.id;
-        a.frameOffset = 0;  // patched after we know the frames base
+        a.frameOffset = 0;  // filled in once the frames are written
         a.frameCount = static_cast<uint32_t>(tile.animation.size());
         a.pad = 0;
         anims.push_back(a);
@@ -94,7 +93,7 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
         }
     }
 
-    // Build collision table.
+    // Collision table.
     std::vector<DTileCollision> collisions;
     std::vector<int32_t> colPolyPoints;
     for (const auto& tile : ts.tiles)
@@ -111,7 +110,7 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
         c.width = static_cast<uint16_t>(tile.cw);
         c.height = static_cast<uint16_t>(tile.ch);
         c.pointCount = static_cast<uint16_t>(tile.collisionPolygon.size() / 2);
-        c.pointOffset = 0;  // patched once we know the polygon blob offset
+        c.pointOffset = 0;  // filled in once the polygon points are written
         collisions.push_back(c);
     }
 
@@ -119,7 +118,7 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
     hdr.animCount = static_cast<uint32_t>(anims.size());
     uint32_t framesBase = AppendBlob(f, frames.data(), frames.size());
 
-    // Patch animation frame offsets.
+    // Fill in the animation frame offsets.
     if (!anims.empty())
     {
         std::fseek(f, static_cast<long>(hdr.animTableOffset), SEEK_SET);
@@ -136,13 +135,12 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
     hdr.collisionTableOffset = AppendBlob(f, collisions.data(), collisions.size());
     hdr.collisionCount = static_cast<uint32_t>(collisions.size());
 
-    // Polygon points (currently unreferenced from collision rows in v1 — collision
-    // shapes are bounding-rect tested at runtime; storing the points keeps the
-    // file format forward-compatible).
+    // Polygon points. The runtime tests only collision bounding boxes and
+    // does not read them; they are stored so the format has them.
     hdr.propertyTableOffset = AppendBlob(f, colPolyPoints.data(), colPolyPoints.size());
     hdr.propertyCount = 0;
 
-    // Rewrite header with patched offsets.
+    // The header again, now with the offsets.
     std::fseek(f, 0, SEEK_SET);
     std::fwrite(&hdr, sizeof(hdr), 1, f);
 
@@ -152,8 +150,8 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
 
 bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath)
 {
-    // What Tilemap::Load accepts: a bigger chunk would bake fine and then be
-    // refused on every device.
+    // The limits Tilemap::Load accepts; a bigger chunk would bake fine and
+    // then be refused on every device.
     if (map.chunkWidth < 1 || map.chunkHeight < 1 || map.chunkWidth > 1024 || map.chunkHeight > 1024)
     {
         DEKI_LOG_ERROR("TilemapBaker: the map's chunk size is %dx%d tiles; 1 to 1024 each are supported. Change it "
@@ -198,8 +196,8 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     hdr.tilesetTableOffset = AppendBlob(f, tsRefs.data(), tsRefs.size());
     hdr.tilesetCount = static_cast<uint32_t>(tsRefs.size());
 
-    // Build chunk index + payloads. Single pass: write chunk payloads inline,
-    // remember each (offset, ChunkIndexEntry), then write index after.
+    // Chunk index and payloads: collect each chunk and its index entry, then
+    // write the payloads and the index after them.
     struct PendingChunk
     {
         ChunkIndexEntry entry;
@@ -214,13 +212,13 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
             return;
         }
 
-        // Pad/truncate to chunkW * chunkH for the on-disk payload.
+        // Padded or cut to chunkW * chunkH tiles.
         const size_t want = static_cast<size_t>(map.chunkWidth) * map.chunkHeight;
         std::vector<uint32_t> payload(want, 0);
         const size_t copy = std::min(want, tiles.size());
         std::memcpy(payload.data(), tiles.data(), copy * 4);
 
-        // Empty / uniform-fill compression heuristics.
+        // Empty and single-value chunks are stored without a full payload.
         bool empty = true, uniform = true;
         uint32_t first = payload[0];
         for (uint32_t v : payload)
@@ -253,7 +251,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         pc.entry = e;
         if (e.flags & ChunkFlagEmpty)
         {
-            // no payload bytes
+            // no payload
         }
         else if (e.flags & ChunkFlagUniformFill)
         {
@@ -273,7 +271,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         {
             for (const auto& chunk : l.chunks)
             {
-                // Tiled chunk coords are in *tiles*; convert to chunk-grid coords.
+                // Tiled chunk coordinates are in tiles; convert to chunk units.
                 if (map.chunkWidth <= 0 || map.chunkHeight <= 0)
                 {
                     continue;
@@ -285,7 +283,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         }
         else
         {
-            // Slice the finite layer into chunks.
+            // Cut the finite layer into chunks.
             const int w = l.width, h = l.height;
             const int cw = map.chunkWidth, ch = map.chunkHeight;
             const int cxN = (w + cw - 1) / cw;
@@ -314,7 +312,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         }
     }
 
-    // Write payloads, fix entry.payloadOffset.
+    // Payloads, setting each entry's payloadOffset.
     for (auto& pc : pending)
     {
         if (pc.payload.empty())
@@ -327,7 +325,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         }
     }
 
-    // Write chunk index.
+    // Chunk index.
     std::vector<ChunkIndexEntry> indexRows;
     indexRows.reserve(pending.size());
     for (auto& pc : pending)
@@ -337,7 +335,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     hdr.chunkIndexOffset = AppendBlob(f, indexRows.data(), indexRows.size());
     hdr.chunkIndexCount = static_cast<uint32_t>(indexRows.size());
 
-    // Write object layer table + flat object list.
+    // Object layer table and the flat object list.
     std::vector<DObjectLayer> olRows;
     std::vector<DTilemapObject> objRows;
     std::vector<int32_t> polyPoints;
@@ -356,7 +354,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     {
         DObjectLayer l{};
         CopyName32(l.name, ol.name);
-        l.objectOffset = 0;  // patched after we know objects file offset
+        l.objectOffset = 0;  // set once the objects are written
         l.objectCount = static_cast<uint32_t>(ol.objects.size());
         olRows.push_back(l);
 
@@ -393,8 +391,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
             }
             row.shape = shape;
 
-            // An index into the point pool, in points. The points were never
-            // written before, though pointCount said how many there were.
+            // An index into the point pool, counted in points.
             const auto& points = shape == 2 ? o.polygonPoints : o.polylinePoints;
             row.pointCount = static_cast<uint32_t>(points.size() / 2);
             row.pointOffset = static_cast<uint32_t>(polyPoints.size() / 2);
@@ -439,21 +436,21 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
 
             objRows.push_back(row);
         }
-        // Patch this layer's objectOffset later (we don't know it yet).
-        olRows.back().objectOffset = firstObjIdx;  // temporarily store the index
+        // The file offset is not known yet, so hold the object index for now.
+        olRows.back().objectOffset = firstObjIdx;
     }
 
     hdr.objectLayerOffset = AppendBlob(f, olRows.data(), olRows.size());
     hdr.objectLayerCount = static_cast<uint32_t>(olRows.size());
 
-    // Now write the flat object list. Patch each layer's objectOffset to the
-    // file offset of its first object.
+    // The flat object list; then each layer's objectOffset becomes the file
+    // offset of its first object.
     if (!objRows.empty())
     {
         const uint32_t objBlobOffset = static_cast<uint32_t>(std::ftell(f));
         std::fwrite(objRows.data(), sizeof(DTilemapObject), objRows.size(), f);
 
-        // Patch layer rows.
+        // Rewrite the layer rows.
         std::fseek(f, static_cast<long>(hdr.objectLayerOffset), SEEK_SET);
         for (auto& row : olRows)
         {
@@ -473,7 +470,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     hdr.stringPoolOffset = AppendBlob(f, stringPool.data(), stringPool.size());
     hdr.flags |= kTilemapHasPools;
 
-    // Rewrite header with patched offsets/counts.
+    // The header again, now with the offsets and counts.
     std::fseek(f, 0, SEEK_SET);
     std::fwrite(&hdr, sizeof(hdr), 1, f);
 

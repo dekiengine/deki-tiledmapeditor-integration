@@ -1,10 +1,8 @@
-// Chunk streaming: what actually gets read off storage while a map scrolls,
-// and what is thrown away when the cache is full.
+// Chunk streaming: what is read from storage while a map scrolls, and what is
+// dropped when the cache is full.
 //
 // The streamer keeps decoded chunks in memory up to a budget and drops the
-// least recently drawn ones past it. That budget had no caller until now —
-// every target ran on the 256 KiB default chosen for an ESP32 — so the eviction
-// path had never been exercised by anything.
+// least recently drawn ones past it.
 //
 // The fixtures build a real .dtilemap in memory, payloads included, and serve
 // it through a filesystem mounted at "S:/".

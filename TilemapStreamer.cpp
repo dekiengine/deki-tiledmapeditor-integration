@@ -50,9 +50,9 @@ const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t
     const auto* begin = m_MIndex;
     const auto* end = m_MIndex + m_IndexCount;
 
-    // Spatial-locality cache: RequestRect scans in (cy, cx) order, so the next
-    // probe usually wants the entry right after the previous hit. Check the
-    // cached pointer and its successor before paying for a fresh binary search.
+    // RequestRect scans in (cy, cx) order, so the next lookup usually wants the
+    // entry right after the last hit. Try the last hit and the one after it
+    // before a binary search.
     if (m_LastFound && m_LastFound >= begin && m_LastFound < end)
     {
         if (m_LastFound->layerIndex == layer16 && m_LastFound->chunkY == cy && m_LastFound->chunkX == cx)
@@ -67,8 +67,8 @@ const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t
         }
     }
 
-    // m_MIndex is sorted by (layerIndex, chunkY, chunkX) at load time
-    // (Tilemap::Load), so binary search lands on the exact entry.
+    // Tilemap::Load sorts m_MIndex by (layerIndex, chunkY, chunkX), so a
+    // binary search finds the exact entry.
     ChunkIndexEntry key{};
     key.chunkX = cx;
     key.chunkY = cy;
@@ -113,7 +113,7 @@ void TilemapStreamer::RequestRect(int32_t layerIdx, int32_t chunkMinX, int32_t c
             const ChunkIndexEntry* e = FindIndexEntry(layerIdx, cx, cy);
             if (!e)
             {
-                continue;  // index says nothing here — treat as empty
+                continue;  // not in the index: empty
             }
             if (m_PendingSet.insert(key).second)
             {
@@ -144,7 +144,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     rc.chunk.height = m_MHeader.chunkHeight;
     rc.chunk.flags = entry.flags;
     rc.bytes = m_ChunkBytes;
-    // Through the engine: a streamed map chunk is a large read-mostly blob.
+    // From the engine's external memory: a chunk is a large, mostly read blob.
     rc.owned = static_cast<uint32_t*>(Deki::Memory::Allocate(m_ChunkBytes, Deki::Memory::External));
     if (!rc.owned)
     {

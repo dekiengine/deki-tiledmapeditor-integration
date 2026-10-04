@@ -13,9 +13,9 @@
 namespace DekiTiledMap
 {
 
-// LRU chunk pager backed by Deki::IFileSystem. Holds a single open file handle
-// to the .dtilemap and seeks into it to load chunks on demand. Driven by
-// TilemapRenderSystem each frame.
+// Loads a tilemap's chunks on demand and drops the least recently used ones
+// to stay within a memory budget. Keeps one Deki::IFileSystem handle open on
+// the .dtilemap. TilemapRenderSystem drives it each frame.
 class TilemapStreamer
 {
 public:
@@ -24,22 +24,21 @@ public:
 
     ~TilemapStreamer();
 
-    // Mark a chunk-coord rect as needed on the given layer (no IO yet).
+    /// Marks a rect of chunks on a layer as needed; no IO yet.
     void RequestRect(int32_t layerIdx, int32_t chunkMinX, int32_t chunkMinY, int32_t chunkMaxX, int32_t chunkMaxY);
 
-    // Drain pending requests, doing at most `byteBudget` bytes of IO this call.
+    /// Loads pending chunks, reading at most `byteBudget` bytes this call.
     void Pump(size_t byteBudget);
 
-    // Get a resident chunk, or nullptr if not loaded yet.
+    /// A loaded chunk, or nullptr if it is not loaded.
     const TileChunk* Get(int32_t layerIdx, int32_t chunkX, int32_t chunkY);
 
-    // Mark a chunk as recently used (caller does this when it draws a chunk).
+    /// Marks a chunk as recently used; call it when drawing the chunk.
     void TouchLRU(int32_t layerIdx, int32_t chunkX, int32_t chunkY);
 
-    // Get + TouchLRU with one hash lookup. `frame` is any per-frame serial:
-    // the LRU node is relinked at most once per frame per chunk, so a chunk
-    // drawn by several tilemap objects (or wrapped several times) costs one
-    // list splice instead of one per draw.
+    /// Get and TouchLRU with one hash lookup. `frame` is any per-frame serial:
+    /// the chunk moves in the LRU list at most once per frame, so a chunk drawn
+    /// by several tilemaps (or wrapped several times) costs one list splice.
     const TileChunk* GetAndTouch(int32_t layerIdx, int32_t chunkX, int32_t chunkY, uint32_t frame);
 
     void SetMemoryBudget(size_t bytes);
@@ -87,16 +86,15 @@ private:
     const ChunkIndexEntry* m_MIndex;
     size_t m_IndexCount;
 
-    // Last successful FindIndexEntry result. RequestRect walks chunks in
-    // (cy, cx) order so the next call usually wants the entry adjacent in the
-    // sorted index — try the cache and the entry immediately after it before
-    // falling back to a fresh binary search.
+    // The last FindIndexEntry result. RequestRect walks chunks in (cy, cx)
+    // order, so the next call usually wants the next entry in the sorted index;
+    // this one and the one after it are tried before a binary search.
     mutable const ChunkIndexEntry* m_LastFound = nullptr;
 
     std::unordered_map<Key, ResidentChunk, KeyHash> m_MResident;
     std::list<Key> m_MLru;                          // back = newest
     std::list<Key> m_MPending;                      // load queue (FIFO)
-    std::unordered_set<Key, KeyHash> m_PendingSet;  // O(1) dedupe for m_MPending
+    std::unordered_set<Key, KeyHash> m_PendingSet;  // fast duplicate check for m_MPending
     size_t m_ResidentBytes = 0;
     size_t m_BudgetBytes = 256 * 1024;
     size_t m_ChunkBytes = 0;
