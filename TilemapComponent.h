@@ -17,7 +17,6 @@ DEKI_FORMER_NAME("TilemapComponent")
 class TilemapComponent : public DekiRendering::RendererComponent
 {
 public:
-
     DEKI_EXPORT
     DEKI_TOOLTIP("A map exported from Tiled.")
     Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
@@ -29,7 +28,8 @@ public:
 
     // Number of chunks loaded past the visible viewport edge (per side).
     DEKI_EXPORT
-    DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at the edge while scrolling.")
+    DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at "
+                 "the edge while scrolling.")
     int32_t chunkPadding = 1;
 
     // How much decoded chunk data the map may hold. Applied to the map's
@@ -56,7 +56,8 @@ public:
     // pixelsPerMeter equals camera.pixelsPerMeter and project PPM, tiles
     // render 1:1 with their source. Default 16 matches the project default.
     DEKI_EXPORT
-    DEKI_TOOLTIP("How many of the map's pixels make one meter. This is what lines the map up with everything else in the scene.")
+    DEKI_TOOLTIP(
+        "How many of the map's pixels make one meter. This is what lines the map up with everything else in the scene.")
     DEKI_RANGE(1.0f, 256.0f)
     float pixelsPerMeter = 16.0f;
 
@@ -83,18 +84,11 @@ public:
     TilemapComponent();
 
     // Returns false: TilemapRenderSystem renders chunks itself, not as a single quad.
-    bool RenderContent(const Deki::Object* owner,
-                       QuadBlit::Source& outSource,
-                       float& outPivotX,
-                       float& outPivotY,
-                       uint8_t& outTintR,
-                       uint8_t& outTintG,
-                       uint8_t& outTintB,
-                       uint8_t& outTintA) override;
+    bool RenderContent(const Deki::Object* owner, QuadBlit::Source& outSource, float& outPivotX, float& outPivotY,
+                       uint8_t& outTintR, uint8_t& outTintG, uint8_t& outTintB, uint8_t& outTintA) override;
 
     void OnAssetRefResolved(const char* propertyName, void* asset, const char* guid) override;
     void UnloadAssets() override;
 };
 
 }  // namespace DekiTiledMap
-

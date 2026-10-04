@@ -19,7 +19,9 @@ Tilemap::~Tilemap()
 Tilemap* Tilemap::Load(const char* dtilemapPath)
 {
     if (!dtilemapPath)
+    {
         return nullptr;
+    }
 
     // Through the engine filesystem, never stdio. The path the asset manager
     // hands us carries the cache directory, and on a device and in the
@@ -34,8 +36,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         return nullptr;
     }
 
-    Deki::IFileSystem::FileHandle f =
-        fs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
+    Deki::IFileSystem::FileHandle f = fs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
     if (!f)
     {
         DEKI_LOG_ERROR("Tilemap::Load: cannot open '%s'", dtilemapPath);
@@ -104,15 +105,23 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     {
         tm->m_MIndex.resize(hdr.chunkIndexCount);
         if (!readAt(hdr.chunkIndexOffset, tm->m_MIndex.data(), uint64_t(sizeof(ChunkIndexEntry)) * hdr.chunkIndexCount))
+        {
             return fail("short chunk index");
+        }
 
         // Sort by (layerIndex, chunkY, chunkX) so streamer + query paths can
         // do O(log N) binary search. Idempotent for already-sorted bakes.
         std::sort(tm->m_MIndex.begin(), tm->m_MIndex.end(),
                   [](const ChunkIndexEntry& a, const ChunkIndexEntry& b)
                   {
-                      if (a.layerIndex != b.layerIndex) return a.layerIndex < b.layerIndex;
-                      if (a.chunkY     != b.chunkY)     return a.chunkY     < b.chunkY;
+                      if (a.layerIndex != b.layerIndex)
+                      {
+                          return a.layerIndex < b.layerIndex;
+                      }
+                      if (a.chunkY != b.chunkY)
+                      {
+                          return a.chunkY < b.chunkY;
+                      }
                       return a.chunkX < b.chunkX;
                   });
     }
@@ -121,14 +130,15 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     {
         tm->m_MTilesets.resize(hdr.tilesetCount);
         if (!readAt(hdr.tilesetTableOffset, tm->m_MTilesets.data(), uint64_t(sizeof(TilesetRef)) * hdr.tilesetCount))
+        {
             return fail("short tileset table");
+        }
 
         // Sort by firstGid so ResolveTilesetWithIndex can binary-search the
         // hot-path lookup. The baker conventionally writes ascending, but
         // sorting here makes the invariant explicit.
         std::sort(tm->m_MTilesets.begin(), tm->m_MTilesets.end(),
-                  [](const TilesetRef& a, const TilesetRef& b)
-                  { return a.firstGid < b.firstGid; });
+                  [](const TilesetRef& a, const TilesetRef& b) { return a.firstGid < b.firstGid; });
     }
 
     if (hdr.objectLayerCount > 0)
@@ -136,7 +146,9 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         tm->m_objectLayers.resize(hdr.objectLayerCount);
         if (!readAt(hdr.objectLayerOffset, tm->m_objectLayers.data(),
                     uint64_t(sizeof(DObjectLayer)) * hdr.objectLayerCount))
+        {
             return fail("short object layer table");
+        }
 
         // Walk every layer and pull its object range. The baker writes
         // contiguous object blobs but we don't assume contiguity here — each
@@ -145,21 +157,30 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         for (const auto& L : tm->m_objectLayers)
         {
             if (!inFile(L.objectOffset, L.objectCount, sizeof(DTilemapObject)))
+            {
                 return fail("an object layer runs past the end of the file");
+            }
             total += L.objectCount;
         }
         if (total > fileBytes / sizeof(DTilemapObject))
+        {
             return fail("more objects than the file can hold");
+        }
         if (total > 0)
         {
             tm->m_MObjects.resize(static_cast<size_t>(total));
             size_t cursor = 0;
             for (const auto& L : tm->m_objectLayers)
             {
-                if (L.objectCount == 0) continue;
+                if (L.objectCount == 0)
+                {
+                    continue;
+                }
                 if (!readAt(L.objectOffset, tm->m_MObjects.data() + cursor,
                             uint64_t(sizeof(DTilemapObject)) * L.objectCount))
+                {
                     return fail("short object table");
+                }
                 cursor += L.objectCount;
             }
         }
@@ -173,10 +194,10 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     uint64_t pointOffset = 0, pointCount = 0, propOffset = 0, propCount = 0, stringOffset = fileBytes;
     if (hdr.flags & kTilemapHasPools)
     {
-        pointOffset  = hdr.pointPoolOffset;
-        pointCount   = hdr.pointPoolCount;
-        propOffset   = hdr.propertyTableOffset;
-        propCount    = hdr.propertyCount;
+        pointOffset = hdr.pointPoolOffset;
+        pointCount = hdr.pointPoolCount;
+        propOffset = hdr.propertyTableOffset;
+        propCount = hdr.propertyCount;
         stringOffset = hdr.stringPoolOffset;
     }
     else if (!tm->m_MObjects.empty())
@@ -186,10 +207,15 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         // strings last; an object's propertyOffset is its index among them.
         uint64_t objectsEnd = 0;
         for (const auto& L : tm->m_objectLayers)
-            objectsEnd = std::max(objectsEnd, uint64_t(L.objectOffset) + uint64_t(L.objectCount) * sizeof(DTilemapObject));
+        {
+            objectsEnd =
+                std::max(objectsEnd, uint64_t(L.objectOffset) + uint64_t(L.objectCount) * sizeof(DTilemapObject));
+        }
         for (const auto& o : tm->m_MObjects)
+        {
             propCount = std::max(propCount, uint64_t(o.propertyOffset) + o.propertyCount);
-        propOffset   = objectsEnd;
+        }
+        propOffset = objectsEnd;
         stringOffset = propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty))
                            ? propOffset + propCount * sizeof(DTilemapProperty)
                            : fileBytes;
@@ -199,37 +225,43 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     {
         tm->m_polygonPoints.resize(static_cast<size_t>(pointCount * 2));
         if (!readAt(pointOffset, tm->m_polygonPoints.data(), pointCount * 2 * sizeof(int32_t)))
+        {
             tm->m_polygonPoints.clear();
+        }
     }
     if (propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty)))
     {
         tm->m_MProperties.resize(static_cast<size_t>(propCount));
         if (!readAt(propOffset, tm->m_MProperties.data(), propCount * sizeof(DTilemapProperty)))
+        {
             tm->m_MProperties.clear();
+        }
     }
     if (!tm->m_MProperties.empty() && stringOffset < fileBytes)
     {
         const uint64_t stringBytes = fileBytes - stringOffset;
         tm->m_stringPool.resize(static_cast<size_t>(stringBytes));
         if (!readAt(stringOffset, tm->m_stringPool.data(), stringBytes))
+        {
             tm->m_stringPool.clear();
+        }
     }
     if (propCount > 0 && tm->m_MProperties.size() < propCount)
+    {
         DEKI_LOG_WARNING("Tilemap::Load: '%s' has damaged object properties; the objects load without them",
                          dtilemapPath);
+    }
 
     fs->CloseFile(f);
 
     // The streamer keeps its own handle for chunk reads, on the same
     // filesystem this function read the header with.
-    tm->m_MStreamer = new TilemapStreamer(fs, dtilemapPath, tm->m_MHeader,
-                                         tm->m_MIndex.data(), tm->m_MIndex.size());
+    tm->m_MStreamer = new TilemapStreamer(fs, dtilemapPath, tm->m_MHeader, tm->m_MIndex.data(), tm->m_MIndex.size());
 
     // Both are pure functions of the data just loaded; the render pass reads
     // them every frame, so resolve them once here.
     tm->m_hasOrigin = tm->ComputeOrigin(tm->m_originX, tm->m_originY);
-    tm->m_hasBounds = tm->ComputeAuthoredBounds(tm->m_boundsMinX, tm->m_boundsMinY,
-                                                tm->m_boundsW, tm->m_boundsH);
+    tm->m_hasBounds = tm->ComputeAuthoredBounds(tm->m_boundsMinX, tm->m_boundsMinY, tm->m_boundsW, tm->m_boundsH);
     return tm;
 }
 
@@ -239,51 +271,58 @@ const TilesetRef* Tilemap::ResolveTileset(uint32_t gid, uint32_t& outLocalId) co
     return ResolveTilesetWithIndex(gid, outLocalId, unused);
 }
 
-const TilesetRef* Tilemap::ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLocalId,
-                                                   size_t& outIndex) const
+const TilesetRef* Tilemap::ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLocalId, size_t& outIndex) const
 {
     const uint32_t idx = gid & GID_INDEX_MASK;
-    if (idx == 0) return nullptr;
+    if (idx == 0)
+    {
+        return nullptr;
+    }
 
     // m_MTilesets is sorted by firstGid (Load), so the matching entry is the
     // last one with firstGid <= idx â€” i.e. (upper_bound - 1).
     auto it = std::upper_bound(m_MTilesets.begin(), m_MTilesets.end(), idx,
-                               [](uint32_t v, const TilesetRef& t)
-                               { return v < t.firstGid; });
-    if (it == m_MTilesets.begin()) return nullptr;
+                               [](uint32_t v, const TilesetRef& t) { return v < t.firstGid; });
+    if (it == m_MTilesets.begin())
+    {
+        return nullptr;
+    }
     --it;
     outLocalId = idx - it->firstGid;
-    outIndex   = static_cast<size_t>(it - m_MTilesets.begin());
+    outIndex = static_cast<size_t>(it - m_MTilesets.begin());
     return &(*it);
 }
 
-void Tilemap::QueryVisibleChunks(int32_t layerIdx,
-                                 int32_t chunkMinX, int32_t chunkMinY,
-                                 int32_t chunkMaxX, int32_t chunkMaxY,
-                                 std::vector<ChunkIndexEntry>& out) const
+void Tilemap::QueryVisibleChunks(int32_t layerIdx, int32_t chunkMinX, int32_t chunkMinY, int32_t chunkMaxX,
+                                 int32_t chunkMaxY, std::vector<ChunkIndexEntry>& out) const
 {
     out.clear();
-    if (m_MIndex.empty()) return;
+    if (m_MIndex.empty())
+    {
+        return;
+    }
 
     // The index is sorted by (layerIndex, chunkY, chunkX). Bracket the
     // requested layer + Y range with two binary searches, then linear-walk
     // the (typically small) bracketed slice and filter by X.
-    const auto cmpLess =
-        [](const ChunkIndexEntry& e, std::pair<int32_t, int32_t> key)
+    const auto cmpLess = [](const ChunkIndexEntry& e, std::pair<int32_t, int32_t> key)
+    {
+        if (static_cast<int32_t>(e.layerIndex) != key.first)
         {
-            if (static_cast<int32_t>(e.layerIndex) != key.first)
-                return static_cast<int32_t>(e.layerIndex) < key.first;
-            return e.chunkY < key.second;
-        };
+            return static_cast<int32_t>(e.layerIndex) < key.first;
+        }
+        return e.chunkY < key.second;
+    };
 
-    auto lo = std::lower_bound(m_MIndex.begin(), m_MIndex.end(),
-                               std::make_pair(layerIdx, chunkMinY), cmpLess);
-    auto hi = std::lower_bound(m_MIndex.begin(), m_MIndex.end(),
-                               std::make_pair(layerIdx, chunkMaxY + 1), cmpLess);
+    auto lo = std::lower_bound(m_MIndex.begin(), m_MIndex.end(), std::make_pair(layerIdx, chunkMinY), cmpLess);
+    auto hi = std::lower_bound(m_MIndex.begin(), m_MIndex.end(), std::make_pair(layerIdx, chunkMaxY + 1), cmpLess);
 
     for (auto it = lo; it != hi; ++it)
     {
-        if (it->chunkX < chunkMinX || it->chunkX > chunkMaxX) continue;
+        if (it->chunkX < chunkMinX || it->chunkX > chunkMaxX)
+        {
+            continue;
+        }
         out.push_back(*it);
     }
 }
@@ -292,7 +331,9 @@ const DTilemapProperty* Tilemap::ObjectProperties(const DTilemapObject& obj, uin
 {
     outCount = 0;
     if (obj.propertyCount == 0 || uint64_t(obj.propertyOffset) + obj.propertyCount > m_MProperties.size())
+    {
         return nullptr;
+    }
     outCount = obj.propertyCount;
     return &m_MProperties[obj.propertyOffset];
 }
@@ -300,7 +341,10 @@ const DTilemapProperty* Tilemap::ObjectProperties(const DTilemapObject& obj, uin
 std::string Tilemap::GetString(uint32_t offset) const
 {
     // Offsets are from the start of the string pool, as the baker counts them.
-    if (offset >= m_stringPool.size()) return {};
+    if (offset >= m_stringPool.size())
+    {
+        return {};
+    }
     const char* p = m_stringPool.data() + offset;
     size_t maxLen = m_stringPool.size() - offset;
     size_t n = strnlen(p, maxLen);
@@ -324,35 +368,50 @@ bool Tilemap::ComputeOrigin(float& outX, float& outY) const
     return false;
 }
 
-bool Tilemap::ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY,
-                                    int32_t& outWidthTiles, int32_t& outHeightTiles) const
+bool Tilemap::ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY, int32_t& outWidthTiles,
+                                    int32_t& outHeightTiles) const
 {
     if (!IsInfinite())
     {
-        outMinTileX    = 0;
-        outMinTileY    = 0;
-        outWidthTiles  = static_cast<int32_t>(m_MHeader.mapWidth);
+        outMinTileX = 0;
+        outMinTileY = 0;
+        outWidthTiles = static_cast<int32_t>(m_MHeader.mapWidth);
         outHeightTiles = static_cast<int32_t>(m_MHeader.mapHeight);
         return outWidthTiles > 0 && outHeightTiles > 0;
     }
-    if (m_MIndex.empty()) return false;
+    if (m_MIndex.empty())
+    {
+        return false;
+    }
 
     int32_t minCx = m_MIndex[0].chunkX, maxCx = m_MIndex[0].chunkX;
     int32_t minCy = m_MIndex[0].chunkY, maxCy = m_MIndex[0].chunkY;
     for (const auto& e : m_MIndex)
     {
-        if (e.chunkX < minCx) minCx = e.chunkX;
-        if (e.chunkX > maxCx) maxCx = e.chunkX;
-        if (e.chunkY < minCy) minCy = e.chunkY;
-        if (e.chunkY > maxCy) maxCy = e.chunkY;
+        if (e.chunkX < minCx)
+        {
+            minCx = e.chunkX;
+        }
+        if (e.chunkX > maxCx)
+        {
+            maxCx = e.chunkX;
+        }
+        if (e.chunkY < minCy)
+        {
+            minCy = e.chunkY;
+        }
+        if (e.chunkY > maxCy)
+        {
+            maxCy = e.chunkY;
+        }
     }
-    outMinTileX    = minCx * static_cast<int32_t>(m_MHeader.chunkWidth);
-    outMinTileY    = minCy * static_cast<int32_t>(m_MHeader.chunkHeight);
-    outWidthTiles  = (maxCx - minCx + 1) * static_cast<int32_t>(m_MHeader.chunkWidth);
+    outMinTileX = minCx * static_cast<int32_t>(m_MHeader.chunkWidth);
+    outMinTileY = minCy * static_cast<int32_t>(m_MHeader.chunkHeight);
+    outWidthTiles = (maxCx - minCx + 1) * static_cast<int32_t>(m_MHeader.chunkWidth);
     outHeightTiles = (maxCy - minCy + 1) * static_cast<int32_t>(m_MHeader.chunkHeight);
     return true;
 }
 
 REGISTER_ASSET_TYPE(Tilemap, Tilemap::Load)
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap

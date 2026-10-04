@@ -35,7 +35,9 @@ std::string GuidForRelativePath(DekiEditor::AssetPipeline* pipeline, const std::
 {
     fs::path abs = fs::path(pipeline->GetAbsolutePath(rel));
     if (!fs::exists(abs))
+    {
         return std::string();
+    }
     return pipeline->GetOrCreateAssetGuid(rel);
 }
 
@@ -53,21 +55,22 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
     // file location.
     fs::path tsjPath = ctx.absolutePath;
     fs::path imagePath = (tsjPath.parent_path() / ts.imageRelative).lexically_normal();
-    fs::path imageRel  = fs::relative(imagePath, ctx.projectPath);
+    fs::path imageRel = fs::relative(imagePath, ctx.projectPath);
     std::string imageRelStr = imageRel.generic_string();
 
     std::string atlasGuid = GuidForRelativePath(ctx.pipeline, imageRelStr);
     if (atlasGuid.empty())
     {
         DEKI_LOG_ERROR("TilesetSync: tileset image '%s' has not been imported by the editor yet "
-                       "(referenced from '%s')", imageRelStr.c_str(), ctx.absolutePath.c_str());
+                       "(referenced from '%s')",
+                       imageRelStr.c_str(), ctx.absolutePath.c_str());
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
     if (!WriteDtileset(ts, atlasGuid, ctx.cachePath))
     {
-        DEKI_LOG_ERROR("TilesetSync: bake failed for '%s' (cache path '%s')",
-                       ctx.absolutePath.c_str(), ctx.cachePath.c_str());
+        DEKI_LOG_ERROR("TilesetSync: bake failed for '%s' (cache path '%s')", ctx.absolutePath.c_str(),
+                       ctx.cachePath.c_str());
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
@@ -79,8 +82,8 @@ DekiEditor::AssetCacheResult HandleTilesetCache(const DekiEditor::AssetCacheCont
     // path until the editor restarts.
     Deki::AssetManager::Get()->RegisterGuid(ctx.guid, ctx.guid);
 
-    DEKI_LOG_EDITOR("TilesetSync: baked '%s' -> %s (atlas=%s)",
-                    ctx.absolutePath.c_str(), ctx.guid.c_str(), atlasGuid.c_str());
+    DEKI_LOG_EDITOR("TilesetSync: baked '%s' -> %s (atlas=%s)", ctx.absolutePath.c_str(), ctx.guid.c_str(),
+                    atlasGuid.c_str());
     return DekiEditor::AssetCacheResult::Cached;
 }
 
@@ -111,47 +114,48 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         // Tiled defaults to .tsx even when maps are .tmj, so this is the most
         // common bake failure. Give the user the exact fix.
         std::string ext = tsjAbs.extension().string();
-        for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char& c : ext)
+        {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
         if (ext == ".tsx")
         {
-            DEKI_LOG_ERROR(
-                "TilemapSync: '%s' references XML tileset '%s'. The deki-tilemap package is "
-                "JSON-only. In Tiled: open the .tsx, File > Export As > Tiled JSON Tileset (.tsj), "
-                "then update the map's tileset reference to the .tsj file. To stop hitting this: "
-                "Edit > Preferences > General > Store tilesets as > JSON.",
-                ctx.absolutePath.c_str(), tref.source.c_str());
+            DEKI_LOG_ERROR("TilemapSync: '%s' references XML tileset '%s'. The deki-tilemap package is "
+                           "JSON-only. In Tiled: open the .tsx, File > Export As > Tiled JSON Tileset (.tsj), "
+                           "then update the map's tileset reference to the .tsj file. To stop hitting this: "
+                           "Edit > Preferences > General > Store tilesets as > JSON.",
+                           ctx.absolutePath.c_str(), tref.source.c_str());
             return DekiEditor::AssetCacheResult::NotCached;
         }
 
         std::string tsGuid = GuidForRelativePath(ctx.pipeline, tsjRelStr);
         if (tsGuid.empty())
         {
-            DEKI_LOG_ERROR(
-                "TilemapSync: external tileset '%s' (referenced from '%s') has no GUID — "
-                "the .tsj file must live somewhere under the project's assets/ folder so the "
-                "editor can import it.",
-                tsjRelStr.c_str(), ctx.absolutePath.c_str());
+            DEKI_LOG_ERROR("TilemapSync: external tileset '%s' (referenced from '%s') has no GUID — "
+                           "the .tsj file must live somewhere under the project's assets/ folder so the "
+                           "editor can import it.",
+                           tsjRelStr.c_str(), ctx.absolutePath.c_str());
             return DekiEditor::AssetCacheResult::NotCached;
         }
 
-        baked.push_back({tref.firstGid, tsGuid});
+        baked.push_back({ tref.firstGid, tsGuid });
 
         // Register a sub-asset so the asset browser shows the tileset under
         // the map.
         DekiEditor::SubAssetInfo s;
-        s.guid          = tsGuid;
-        s.parentGuid    = ctx.guid;
+        s.guid = tsGuid;
+        s.parentGuid = ctx.guid;
         s.subAssetIndex = subIdx++;
-        s.name          = tsjAbs.stem().string();
-        s.depth         = 0;
-        s.hasPreview    = true;
+        s.name = tsjAbs.stem().string();
+        s.depth = 0;
+        s.hasPreview = true;
         subs.push_back(s);
     }
 
     if (!WriteDtilemap(map, baked, ctx.cachePath))
     {
-        DEKI_LOG_ERROR("TilemapSync: bake failed for '%s' (cache path '%s')",
-                       ctx.absolutePath.c_str(), ctx.cachePath.c_str());
+        DEKI_LOG_ERROR("TilemapSync: bake failed for '%s' (cache path '%s')", ctx.absolutePath.c_str(),
+                       ctx.cachePath.c_str());
         return DekiEditor::AssetCacheResult::NotCached;
     }
 
@@ -171,42 +175,55 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
     if (fs::exists(dataPath))
     {
         std::ifstream in(dataPath);
-        try { sidecar = json::parse(in); } catch (...) { sidecar = json{}; }
+        try
+        {
+            sidecar = json::parse(in);
+        }
+        catch (...)
+        {
+            sidecar = json{};
+        }
     }
     sidecar["baked"] = true;
     json& tilesets = sidecar["tilesets"];
     tilesets = json::object();
     for (const auto& b : baked)
-        tilesets[std::to_string(b.firstGid)] = json{{"guid", b.guid}};
+    {
+        tilesets[std::to_string(b.firstGid)] = json{ { "guid", b.guid } };
+    }
     {
         std::ofstream out(dataPath);
         out << sidecar.dump(2);
     }
 
-    DEKI_LOG_EDITOR("TilemapSync: baked '%s' -> %s (%zu tilesets, %zu layers)",
-                    ctx.absolutePath.c_str(), ctx.guid.c_str(),
-                    baked.size(), map.tileLayers.size());
+    DEKI_LOG_EDITOR("TilemapSync: baked '%s' -> %s (%zu tilesets, %zu layers)", ctx.absolutePath.c_str(),
+                    ctx.guid.c_str(), baked.size(), map.tileLayers.size());
     return DekiEditor::AssetCacheResult::Cached;
 }
 
-} // namespace
+}  // namespace
 
 void RegisterTilemapSyncHandlers()
 {
-    if (s_SyncHandlerRegistered) return;
+    if (s_SyncHandlerRegistered)
+    {
+        return;
+    }
     s_SyncHandlerRegistered = true;
 
-    DekiEditor::AssetPipeline::OnStarted([](DekiEditor::AssetPipeline* p) {
-        // Cache handlers (not sync handlers): returning AssetCacheResult::Cached
-        // sets info.hasCachedVersion=true, which makes EditorProjectManager's
-        // post-import RegisterGuid loop see the asset and wire the GUID -> path
-        // entry that AssetRef::Get() needs at runtime. Sync handlers can't do
-        // this — they run after hasCachedVersion is already final.
-        p->RegisterCacheHandler(".tsj", HandleTilesetCache);
-        p->RegisterCacheHandler(".tmj", HandleTilemapCache);
-    });
+    DekiEditor::AssetPipeline::OnStarted(
+        [](DekiEditor::AssetPipeline* p)
+        {
+            // Cache handlers (not sync handlers): returning AssetCacheResult::Cached
+            // sets info.hasCachedVersion=true, which makes EditorProjectManager's
+            // post-import RegisterGuid loop see the asset and wire the GUID -> path
+            // entry that AssetRef::Get() needs at runtime. Sync handlers can't do
+            // this — they run after hasCachedVersion is already final.
+            p->RegisterCacheHandler(".tsj", HandleTilesetCache);
+            p->RegisterCacheHandler(".tmj", HandleTilemapCache);
+        });
 }
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap
 
-#endif // DEKI_EDITOR
+#endif  // DEKI_EDITOR

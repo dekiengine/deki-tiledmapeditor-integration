@@ -11,11 +11,17 @@ namespace DekiTiledMap
 bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* outLocalId)
 {
     DekiTiledMap::Tilemap* tm = tilemap.Get();
-    if (!tm) return false;
+    if (!tm)
+    {
+        return false;
+    }
 
     const int tw = tm->TileWidth();
     const int th = tm->TileHeight();
-    if (tw <= 0 || th <= 0) return false;
+    if (tw <= 0 || th <= 0)
+    {
+        return false;
+    }
 
     // World coords are in tile-pixels matching Tiled's coordinate system.
     const int origTileX = static_cast<int>(worldX) / tw;
@@ -37,20 +43,44 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
         const bool haveBounds = tm->GetAuthoredBounds(bx, by, bw, bh);
         if (loopX)
         {
-            if (wrapPeriodX > 0)   periodX = wrapPeriodX;
-            else if (haveBounds)     { periodX = bw; originX = bx; }
+            if (wrapPeriodX > 0)
+            {
+                periodX = wrapPeriodX;
+            }
+            else if (haveBounds)
+            {
+                periodX = bw;
+                originX = bx;
+            }
         }
         if (loopY)
         {
-            if (wrapPeriodY > 0)   periodY = wrapPeriodY;
-            else if (haveBounds)     { periodY = bh; originY = by; }
+            if (wrapPeriodY > 0)
+            {
+                periodY = wrapPeriodY;
+            }
+            else if (haveBounds)
+            {
+                periodY = bh;
+                originY = by;
+            }
         }
     }
 
     // Wrap into the authored period so queries past the edge fold back.
-    auto wrapMod = [](int v, int n) { int r = v % n; return r < 0 ? r + n : r; };
-    if (periodX > 0) tileX = originX + wrapMod(tileX - originX, periodX);
-    if (periodY > 0) tileY = originY + wrapMod(tileY - originY, periodY);
+    auto wrapMod = [](int v, int n)
+    {
+        int r = v % n;
+        return r < 0 ? r + n : r;
+    };
+    if (periodX > 0)
+    {
+        tileX = originX + wrapMod(tileX - originX, periodX);
+    }
+    if (periodY > 0)
+    {
+        tileY = originY + wrapMod(tileY - originY, periodY);
+    }
 
     const int chunkX = (tileX < 0) ? -((-tileX + cw - 1) / cw) : tileX / cw;
     const int chunkY = (tileY < 0) ? -((-tileY + ch - 1) / ch) : tileY / ch;
@@ -73,20 +103,32 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     }
 
     const uint32_t gid = chunk->tileGids[withinY * cw + withinX];
-    if (DekiTiledMap::GidIndex(gid) == 0) return false;
+    if (DekiTiledMap::GidIndex(gid) == 0)
+    {
+        return false;
+    }
 
     uint32_t localId = 0;
     const DekiTiledMap::TilesetRef* tref = tm->ResolveTileset(gid, localId);
-    if (!tref) return false;
+    if (!tref)
+    {
+        return false;
+    }
 
     auto* tileset = Deki::AssetManager::Get()
-        ? static_cast<DekiTiledMap::Tileset*>(
-              Deki::AssetManager::Get()->LoadByGuidAndType(tref->guid, DekiTiledMap::Tileset::AssetTypeName))
-        : nullptr;
-    if (!tileset) return false;
+                        ? static_cast<DekiTiledMap::Tileset*>(Deki::AssetManager::Get()->LoadByGuidAndType(
+                              tref->guid, DekiTiledMap::Tileset::AssetTypeName))
+                        : nullptr;
+    if (!tileset)
+    {
+        return false;
+    }
 
     const DekiTiledMap::DTileCollision* col = tileset->GetCollision(localId);
-    if (!col) return false;
+    if (!col)
+    {
+        return false;
+    }
 
     // Local point inside the tile.
     const float px = worldX - origTileX * tw;
@@ -94,35 +136,45 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
 
     if (col->shape == static_cast<uint32_t>(DekiTiledMap::DTileCollisionShape::Rect))
     {
-        if (px >= col->x && px <= col->x + col->width &&
-            py >= col->y && py <= col->y + col->height)
+        if (px >= col->x && px <= col->x + col->width && py >= col->y && py <= col->y + col->height)
         {
-            if (outLocalId) *outLocalId = localId;
+            if (outLocalId)
+            {
+                *outLocalId = localId;
+            }
             return true;
         }
         return false;
     }
     if (col->shape == static_cast<uint32_t>(DekiTiledMap::DTileCollisionShape::Ellipse))
     {
-        const float rx = col->width  * 0.5f;
+        const float rx = col->width * 0.5f;
         const float ry = col->height * 0.5f;
-        if (rx <= 0.0f || ry <= 0.0f) return false;
+        if (rx <= 0.0f || ry <= 0.0f)
+        {
+            return false;
+        }
         const float cx = col->x + rx;
         const float cy = col->y + ry;
         const float dx = (px - cx) / rx;
         const float dy = (py - cy) / ry;
         if (dx * dx + dy * dy <= 1.0f)
         {
-            if (outLocalId) *outLocalId = localId;
+            if (outLocalId)
+            {
+                *outLocalId = localId;
+            }
             return true;
         }
         return false;
     }
     // Polygon collision: bounding-box test only in v1.
-    if (px >= col->x && px <= col->x + col->width &&
-        py >= col->y && py <= col->y + col->height)
+    if (px >= col->x && px <= col->x + col->width && py >= col->y && py <= col->y + col->height)
     {
-        if (outLocalId) *outLocalId = localId;
+        if (outLocalId)
+        {
+            *outLocalId = localId;
+        }
         return true;
     }
     return false;

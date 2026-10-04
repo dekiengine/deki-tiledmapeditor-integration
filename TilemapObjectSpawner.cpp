@@ -16,9 +16,8 @@ namespace
 
 // Walk the property pool entries that belong to a single object and look for
 // the well-known "scene_guid" string property.
-const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(
-    const DekiTiledMap::Tilemap& tm,
-    const DekiTiledMap::DTilemapObject& obj)
+const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(const DekiTiledMap::Tilemap& tm,
+                                                            const DekiTiledMap::DTilemapObject& obj)
 {
     uint32_t count = 0;
     const DekiTiledMap::DTilemapProperty* props = tm.ObjectProperties(obj, count);
@@ -26,15 +25,19 @@ const DekiTiledMap::DTilemapProperty* FindSceneGuidProperty(
     {
         const auto& p = props[i];
         if (p.type != static_cast<uint32_t>(DekiTiledMap::DPropertyType::String))
+        {
             continue;
+        }
         std::string name = tm.GetString(p.nameOffset);
         if (name == "scene_guid")
+        {
             return &p;
+        }
     }
     return nullptr;
 }
 
-} // namespace
+}  // namespace
 
 void TilemapObjectSpawner::Awake()
 {
@@ -46,7 +49,10 @@ void TilemapObjectSpawner::Awake()
     }
 
     Deki::Object* owner = GetOwner();
-    if (!owner) return;
+    if (!owner)
+    {
+        return;
+    }
     Deki::Scene* targetScene = owner->GetOwnerScene();
     if (!targetScene)
     {
@@ -72,16 +78,18 @@ void TilemapObjectSpawner::Awake()
                 DEKI_LOG_ERROR("TilemapObjectSpawner: object %u has empty scene_guid", obj.id);
                 continue;
             }
-            Deki::Scene* scene = mgr ? static_cast<Deki::Scene*>(
-                mgr->LoadByGuidAndType(guid, Deki::Scene::AssetTypeName)) : nullptr;
+            Deki::Scene* scene =
+                mgr ? static_cast<Deki::Scene*>(mgr->LoadByGuidAndType(guid, Deki::Scene::AssetTypeName)) : nullptr;
             if (!scene)
             {
-                DEKI_LOG_ERROR("TilemapObjectSpawner: scene '%s' not found for object %u",
-                               guid.c_str(), obj.id);
+                DEKI_LOG_ERROR("TilemapObjectSpawner: scene '%s' not found for object %u", guid.c_str(), obj.id);
                 continue;
             }
             Deki::Object* spawned = scene->Instantiate(targetScene, wx, wy);
-            if (!spawned) continue;
+            if (!spawned)
+            {
+                continue;
+            }
             // Tiled stores rotation in degrees; engine convention is radians.
             spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
             owner->AddChild(spawned);
@@ -96,7 +104,10 @@ void TilemapObjectSpawner::Awake()
         spawned->SetY(wy);
         // Tiled stores rotation in degrees; engine convention is radians.
         spawned->SetRotation(obj.rotation * Deki::Math::kDegToRad);
-        if (obj.name[0]) spawned->SetName(obj.name);
+        if (obj.name[0])
+        {
+            spawned->SetName(obj.name);
+        }
         owner->AddChild(spawned);
         m_MSpawned.push_back(spawned);
     }

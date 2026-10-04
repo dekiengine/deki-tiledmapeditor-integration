@@ -1,13 +1,13 @@
 #pragma once
 
 #ifdef _WIN32
-    #if defined(DEKI_TILEDMAP_EXPORTS) || defined(DEKI_PLUGIN_EXPORTS)
-        #define DEKI_TILEDMAP_API __declspec(dllexport)
-    #else
-        #define DEKI_TILEDMAP_API __declspec(dllimport)
-    #endif
+#if defined(DEKI_TILEDMAP_EXPORTS) || defined(DEKI_PLUGIN_EXPORTS)
+#define DEKI_TILEDMAP_API __declspec(dllexport)
 #else
-    #define DEKI_TILEDMAP_API __attribute__((visibility("default")))
+#define DEKI_TILEDMAP_API __declspec(dllimport)
+#endif
+#else
+#define DEKI_TILEDMAP_API __attribute__((visibility("default")))
 #endif
 
 #ifdef DEKI_PACKAGE_TILEDMAP
@@ -33,4 +33,4 @@
 #endif
 #endif
 
-#endif // DEKI_PACKAGE_TILEDMAP
+#endif  // DEKI_PACKAGE_TILEDMAP

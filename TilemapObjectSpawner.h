@@ -8,7 +8,10 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/reflection/Property.h>
 
-namespace Deki { class Object; }
+namespace Deki
+{
+class Object;
+}
 
 namespace DekiTiledMap
 {
@@ -27,7 +30,6 @@ DEKI_FORMER_NAME("TilemapObjectSpawner")
 class TilemapObjectSpawner : public Deki::Component
 {
 public:
-
     DEKI_EXPORT
     DEKI_TOOLTIP("The map whose object layer is read. Each object placed in Tiled becomes an object in the scene.")
     Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
@@ -47,4 +49,3 @@ private:
 };
 
 }  // namespace DekiTiledMap
-

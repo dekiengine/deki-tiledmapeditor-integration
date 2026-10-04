@@ -36,21 +36,28 @@ class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
     MemoryFileSystem(std::string path, std::vector<uint8_t> bytes)
-        : m_Path(std::move(path)), m_Bytes(std::move(bytes))
+        : m_Path(std::move(path)),
+          m_Bytes(std::move(bytes))
     {
     }
     bool Initialize() override { return true; }
     void Shutdown() override {}
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
-        if (mode != OpenMode::READ_BINARY || !path || m_Path != path) return nullptr;
+        if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        {
+            return nullptr;
+        }
         m_Cursor = 0;
         return reinterpret_cast<FileHandle>(this);
     }
     void CloseFile(FileHandle) override {}
     size_t ReadFile(FileHandle, void* buffer, size_t size) override
     {
-        if (m_Cursor >= m_Bytes.size()) return 0;
+        if (m_Cursor >= m_Bytes.size())
+        {
+            return 0;
+        }
         const size_t n = std::min(size, m_Bytes.size() - m_Cursor);
         std::memcpy(buffer, m_Bytes.data() + m_Cursor, n);
         m_Cursor += n;
@@ -60,11 +67,23 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT) base = static_cast<long>(m_Cursor);
-        else if (origin == SeekOrigin::END) base = static_cast<long>(m_Bytes.size());
+        if (origin == SeekOrigin::CURRENT)
+        {
+            base = static_cast<long>(m_Cursor);
+        }
+        else if (origin == SeekOrigin::END)
+        {
+            base = static_cast<long>(m_Bytes.size());
+        }
         long t = base + offset;
-        if (t < 0) t = 0;
-        if (t > static_cast<long>(m_Bytes.size())) t = static_cast<long>(m_Bytes.size());
+        if (t < 0)
+        {
+            t = 0;
+        }
+        if (t > static_cast<long>(m_Bytes.size()))
+        {
+            t = static_cast<long>(m_Bytes.size());
+        }
         m_Cursor = static_cast<size_t>(t);
         return t;
     }
@@ -73,7 +92,10 @@ public:
     bool FileExists(const char* path) override { return path && m_Path == path; }
     bool ConvertPath(const char* v, char* out, size_t cap) override
     {
-        if (!v || !out) return false;
+        if (!v || !out)
+        {
+            return false;
+        }
         std::snprintf(out, cap, "%s", v);
         return true;
     }
@@ -135,14 +157,18 @@ struct MapBuilder
         std::vector<uint8_t> out(cursor);
         std::memcpy(out.data(), &h, sizeof(h));
         if (!chunks.empty())
-            std::memcpy(out.data() + h.chunkIndexOffset, chunks.data(),
-                        chunks.size() * sizeof(ChunkIndexEntry));
+        {
+            std::memcpy(out.data() + h.chunkIndexOffset, chunks.data(), chunks.size() * sizeof(ChunkIndexEntry));
+        }
         if (!tilesets.empty())
-            std::memcpy(out.data() + h.tilesetTableOffset, tilesets.data(),
-                        tilesets.size() * sizeof(TilesetRef));
+        {
+            std::memcpy(out.data() + h.tilesetTableOffset, tilesets.data(), tilesets.size() * sizeof(TilesetRef));
+        }
         if (!objectLayers.empty())
+        {
             std::memcpy(out.data() + h.objectLayerOffset, objectLayers.data(),
                         objectLayers.size() * sizeof(DObjectLayer));
+        }
         return out;
     }
 };
@@ -302,8 +328,12 @@ TEST_F(MapFixture, AVisibleRectReturnsOnlyTheChunksInside)
 {
     MapBuilder b;
     for (int32_t y = 0; y < 4; ++y)
+    {
         for (int32_t x = 0; x < 4; ++x)
+        {
             b.AddChunk(0, x, y);
+        }
+    }
     Tilemap* map = LoadFrom(b);
     ASSERT_NE(map, nullptr);
 
@@ -334,7 +364,9 @@ TEST_F(MapFixture, AQueryIsConfinedToItsLayer)
 
     ASSERT_EQ(out.size(), 2u);
     for (const auto& e : out)
+    {
         EXPECT_EQ(e.layerIndex, 1) << "layer 0's chunk must not leak in";
+    }
 }
 
 TEST_F(MapFixture, ARectOutsideTheMapReturnsNothing)

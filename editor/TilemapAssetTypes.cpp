@@ -15,14 +15,13 @@
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/AssetTypeRegistry.h>
 
-
 namespace DekiEditor
 {
 
 class TilemapAssetType : public AssetTypeEditor
 {
 public:
-    const char* GetTypeName() const override    { return "Tilemap"; }
+    const char* GetTypeName() const override { return "Tilemap"; }
     const char* GetDisplayName() const override { return "Tilemap"; }
     std::vector<std::string> GetExtensions() const override { return { ".tmj" }; }
 };
@@ -30,7 +29,7 @@ public:
 class TilesetAssetType : public AssetTypeEditor
 {
 public:
-    const char* GetTypeName() const override    { return "Tileset"; }
+    const char* GetTypeName() const override { return "Tileset"; }
     const char* GetDisplayName() const override { return "Tileset"; }
     std::vector<std::string> GetExtensions() const override { return { ".tsj" }; }
 };
@@ -38,7 +37,8 @@ public:
 REGISTER_EDITOR(TilemapAssetType)
 REGISTER_EDITOR(TilesetAssetType)
 
-namespace {
+namespace
+{
 struct TilemapCategoryRegistrar
 {
     TilemapCategoryRegistrar()
@@ -49,8 +49,8 @@ struct TilemapCategoryRegistrar
     }
 };
 static TilemapCategoryRegistrar s_TilemapCategoryRegistrar;
-}
+}  // namespace
 
-} // namespace DekiEditor
+}  // namespace DekiEditor
 
-#endif // DEKI_EDITOR
+#endif  // DEKI_EDITOR

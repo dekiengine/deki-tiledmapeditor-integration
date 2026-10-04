@@ -39,32 +39,35 @@ bool ReadFile(const std::string& path, std::string& out, std::string& err)
 bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
 {
     static const int8_t lut[256] = {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
-        52,53,54,55,56,57,58,59,60,61,-1,-1,-1, 0,-1,-1,
-        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
-        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
-        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
-        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55,
+        56, 57, 58, 59, 60, 61, -1, -1, -1, 0,  -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+        13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
     };
     out.clear();
     out.reserve(in.size() * 3 / 4);
     int bits = 0, vacc = 0;
     for (unsigned char c : in)
     {
-        if (c == ' ' || c == '\n' || c == '\r' || c == '\t') continue;
-        if (c == '=') break;
+        if (c == ' ' || c == '\n' || c == '\r' || c == '\t')
+        {
+            continue;
+        }
+        if (c == '=')
+        {
+            break;
+        }
         int8_t d = lut[c];
-        if (d < 0) return false;
+        if (d < 0)
+        {
+            return false;
+        }
         vacc = (vacc << 6) | d;
         bits += 6;
         if (bits >= 8)
@@ -79,12 +82,25 @@ bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
 uint32_t ParseTiledColor(const std::string& s)
 {
     // Tiled writes "#RRGGBB" or "#AARRGGBB". We store RGBA8.
-    if (s.empty() || s[0] != '#') return 0xFF000000u;
-    auto hex = [&](size_t i) -> uint32_t {
+    if (s.empty() || s[0] != '#')
+    {
+        return 0xFF000000u;
+    }
+    auto hex = [&](size_t i) -> uint32_t
+    {
         char c = s[i];
-        if (c >= '0' && c <= '9') return c - '0';
-        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
-        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+        if (c >= '0' && c <= '9')
+        {
+            return c - '0';
+        }
+        if (c >= 'a' && c <= 'f')
+        {
+            return 10 + (c - 'a');
+        }
+        if (c >= 'A' && c <= 'F')
+        {
+            return 10 + (c - 'A');
+        }
         return 0;
     };
     if (s.size() == 7)
@@ -105,21 +121,22 @@ uint32_t ParseTiledColor(const std::string& s)
     return 0xFF000000u;
 }
 
-bool DecodeLayerPayload(const json& jdata, const json& jlayer,
-                        size_t expectedTiles,
-                        std::vector<uint32_t>& out, std::string& err)
+bool DecodeLayerPayload(const json& jdata, const json& jlayer, size_t expectedTiles, std::vector<uint32_t>& out,
+                        std::string& err)
 {
     // CSV/JSON-array path (uncompressed): payload is a JSON array of ints.
     if (jdata.is_array())
     {
         out.reserve(jdata.size());
         for (const auto& v : jdata)
+        {
             out.push_back(v.get<uint32_t>());
+        }
         return true;
     }
     // Encoded string path. Honor "encoding" + "compression".
     std::string encoding = jlayer.value("encoding", "");
-    std::string comp     = jlayer.value("compression", "");
+    std::string comp = jlayer.value("compression", "");
     if (encoding == "csv" || encoding.empty())
     {
         // CSV body
@@ -128,7 +145,10 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer,
         std::string tok;
         while (std::getline(ss, tok, ','))
         {
-            if (tok.empty()) continue;
+            if (tok.empty())
+            {
+                continue;
+            }
             out.push_back(static_cast<uint32_t>(std::stoul(tok)));
         }
         return true;
@@ -163,44 +183,71 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer,
 
 void ParseProperties(const json& jprops, std::vector<TmjPropertyValue>& out)
 {
-    if (!jprops.is_array()) return;
+    if (!jprops.is_array())
+    {
+        return;
+    }
     for (const auto& p : jprops)
     {
         TmjPropertyValue v;
         v.name = p.value("name", "");
         v.type = p.value("type", "string");
-        if (v.type == "int")        v.ivalue = p.value("value", 0);
-        else if (v.type == "float") v.fvalue = p.value("value", 0.0f);
-        else if (v.type == "bool")  v.bvalue = p.value("value", false);
-        else                        v.svalue = p.value("value", std::string());
+        if (v.type == "int")
+        {
+            v.ivalue = p.value("value", 0);
+        }
+        else if (v.type == "float")
+        {
+            v.fvalue = p.value("value", 0.0f);
+        }
+        else if (v.type == "bool")
+        {
+            v.bvalue = p.value("value", false);
+        }
+        else
+        {
+            v.svalue = p.value("value", std::string());
+        }
         out.push_back(std::move(v));
     }
 }
 
-} // namespace
+}  // namespace
 
 bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& outError)
 {
     std::string raw;
     if (!ReadFile(tmjAbsPath, raw, outError))
+    {
         return false;
+    }
 
     json j;
-    try { j = json::parse(raw); }
-    catch (const std::exception& e) { outError = std::string("json parse: ") + e.what(); return false; }
+    try
+    {
+        j = json::parse(raw);
+    }
+    catch (const std::exception& e)
+    {
+        outError = std::string("json parse: ") + e.what();
+        return false;
+    }
 
-    outMap.width       = j.value("width",  0);
-    outMap.height      = j.value("height", 0);
-    outMap.tileWidth   = j.value("tilewidth",  0);
-    outMap.tileHeight  = j.value("tileheight", 0);
-    outMap.infinite    = j.value("infinite", false);
+    outMap.width = j.value("width", 0);
+    outMap.height = j.value("height", 0);
+    outMap.tileWidth = j.value("tilewidth", 0);
+    outMap.tileHeight = j.value("tileheight", 0);
+    outMap.infinite = j.value("infinite", false);
     // Use json::object() (not json{}) for intermediate defaults — a default-constructed
     // json is null, and calling .value() on null throws type_error.302.
-    outMap.chunkWidth  = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("width", 16);
-    outMap.chunkHeight = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("height", 16);
+    outMap.chunkWidth = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("width", 16);
+    outMap.chunkHeight =
+        j.value("editorsettings", json::object()).value("chunksize", json::object()).value("height", 16);
 
     if (j.contains("backgroundcolor"))
+    {
         outMap.backgroundColor = ParseTiledColor(j["backgroundcolor"].get<std::string>());
+    }
 
     // Tilesets — external only (embedded rejected).
     if (j.contains("tilesets") && j["tilesets"].is_array())
@@ -214,7 +261,7 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
             }
             TmjTilesetRef r;
             r.firstGid = jt.value("firstgid", 1u);
-            r.source   = jt["source"].get<std::string>();
+            r.source = jt["source"].get<std::string>();
             outMap.tilesets.push_back(std::move(r));
         }
     }
@@ -227,11 +274,11 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
             if (type == "tilelayer")
             {
                 TmjLayer L;
-                L.name    = jl.value("name", "");
-                L.id      = jl.value("id",   0);
+                L.name = jl.value("name", "");
+                L.id = jl.value("id", 0);
                 L.visible = jl.value("visible", true);
-                L.width   = jl.value("width",  outMap.width);
-                L.height  = jl.value("height", outMap.height);
+                L.width = jl.value("width", outMap.width);
+                L.height = jl.value("height", outMap.height);
 
                 if (outMap.infinite)
                 {
@@ -243,14 +290,15 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                     for (const auto& jc : jl["chunks"])
                     {
                         TmjChunk c;
-                        c.x      = jc.value("x", 0);
-                        c.y      = jc.value("y", 0);
-                        c.width  = jc.value("width",  outMap.chunkWidth);
+                        c.x = jc.value("x", 0);
+                        c.y = jc.value("y", 0);
+                        c.width = jc.value("width", outMap.chunkWidth);
                         c.height = jc.value("height", outMap.chunkHeight);
-                        if (!DecodeLayerPayload(jc["data"], jl,
-                                                static_cast<size_t>(c.width) * c.height,
-                                                c.data, outError))
+                        if (!DecodeLayerPayload(jc["data"], jl, static_cast<size_t>(c.width) * c.height, c.data,
+                                                outError))
+                        {
                             return false;
+                        }
                         L.chunks.push_back(std::move(c));
                     }
                 }
@@ -261,10 +309,10 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         outError = "finite tile layer missing 'data'";
                         return false;
                     }
-                    if (!DecodeLayerPayload(jl["data"], jl,
-                                            static_cast<size_t>(L.width) * L.height,
-                                            L.data, outError))
+                    if (!DecodeLayerPayload(jl["data"], jl, static_cast<size_t>(L.width) * L.height, L.data, outError))
+                    {
                         return false;
+                    }
                 }
 
                 outMap.tileLayers.push_back(std::move(L));
@@ -272,34 +320,44 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
             else if (type == "objectgroup")
             {
                 TmjObjectLayer OL;
-                OL.name    = jl.value("name", "");
-                OL.id      = jl.value("id",   0);
+                OL.name = jl.value("name", "");
+                OL.id = jl.value("id", 0);
                 OL.visible = jl.value("visible", true);
                 if (jl.contains("objects") && jl["objects"].is_array())
                 {
                     for (const auto& jo : jl["objects"])
                     {
                         TmjObject o;
-                        o.id       = jo.value("id", 0u);
-                        o.name     = jo.value("name", "");
-                        o.type     = jo.value("type", "");
-                        o.x        = static_cast<int32_t>(jo.value("x", 0.0));
-                        o.y        = static_cast<int32_t>(jo.value("y", 0.0));
-                        o.width    = static_cast<int32_t>(jo.value("width",  0.0));
-                        o.height   = static_cast<int32_t>(jo.value("height", 0.0));
+                        o.id = jo.value("id", 0u);
+                        o.name = jo.value("name", "");
+                        o.type = jo.value("type", "");
+                        o.x = static_cast<int32_t>(jo.value("x", 0.0));
+                        o.y = static_cast<int32_t>(jo.value("y", 0.0));
+                        o.width = static_cast<int32_t>(jo.value("width", 0.0));
+                        o.height = static_cast<int32_t>(jo.value("height", 0.0));
                         o.rotation = jo.value("rotation", 0.0f);
-                        o.gid      = jo.value("gid", 0u);
-                        o.ellipse  = jo.value("ellipse", false);
+                        o.gid = jo.value("gid", 0u);
+                        o.ellipse = jo.value("ellipse", false);
                         if (jo.contains("polygon") && jo["polygon"].is_array())
+                        {
                             for (const auto& p : jo["polygon"])
-                                { o.polygonPoints.push_back(static_cast<int32_t>(p.value("x", 0.0)));
-                                  o.polygonPoints.push_back(static_cast<int32_t>(p.value("y", 0.0))); }
+                            {
+                                o.polygonPoints.push_back(static_cast<int32_t>(p.value("x", 0.0)));
+                                o.polygonPoints.push_back(static_cast<int32_t>(p.value("y", 0.0)));
+                            }
+                        }
                         if (jo.contains("polyline") && jo["polyline"].is_array())
+                        {
                             for (const auto& p : jo["polyline"])
-                                { o.polylinePoints.push_back(static_cast<int32_t>(p.value("x", 0.0)));
-                                  o.polylinePoints.push_back(static_cast<int32_t>(p.value("y", 0.0))); }
+                            {
+                                o.polylinePoints.push_back(static_cast<int32_t>(p.value("x", 0.0)));
+                                o.polylinePoints.push_back(static_cast<int32_t>(p.value("y", 0.0)));
+                            }
+                        }
                         if (jo.contains("properties"))
+                        {
                             ParseProperties(jo["properties"], o.properties);
+                        }
                         OL.objects.push_back(std::move(o));
                     }
                 }
@@ -316,19 +374,30 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
 {
     std::string raw;
     if (!ReadFile(tsjAbsPath, raw, outError))
+    {
         return false;
+    }
 
     json j;
-    try { j = json::parse(raw); }
-    catch (const std::exception& e) { outError = std::string("json parse: ") + e.what(); return false; }
+    try
+    {
+        j = json::parse(raw);
+    }
+    catch (const std::exception& e)
+    {
+        outError = std::string("json parse: ") + e.what();
+        return false;
+    }
 
-    outTs.name       = j.value("name", "");
-    outTs.tileWidth  = j.value("tilewidth", 0);
+    outTs.name = j.value("name", "");
+    outTs.tileWidth = j.value("tilewidth", 0);
     outTs.tileHeight = j.value("tileheight", 0);
-    outTs.tileCount  = j.value("tilecount", 0);
-    outTs.columns    = j.value("columns", 0);
+    outTs.tileCount = j.value("tilecount", 0);
+    outTs.columns = j.value("columns", 0);
     if (outTs.columns > 0 && outTs.tileCount > 0)
+    {
         outTs.rows = (outTs.tileCount + outTs.columns - 1) / outTs.columns;
+    }
 
     if (!j.contains("image"))
     {
@@ -350,13 +419,15 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
             TmjTilesetTile t;
             t.id = jt.value("id", 0u);
             if (jt.contains("properties"))
+            {
                 ParseProperties(jt["properties"], t.properties);
+            }
             if (jt.contains("animation") && jt["animation"].is_array())
             {
                 for (const auto& jf : jt["animation"])
                 {
                     TmjTilesetTile::Frame f;
-                    f.tileId     = jf.value("tileid", 0u);
+                    f.tileId = jf.value("tileid", 0u);
                     f.durationMs = jf.value("duration", 0u);
                     t.animation.push_back(f);
                 }
@@ -370,19 +441,25 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
                     t.hasCollision = true;
                     t.cx = static_cast<int32_t>(o.value("x", 0.0));
                     t.cy = static_cast<int32_t>(o.value("y", 0.0));
-                    t.cw = static_cast<int32_t>(o.value("width",  0.0));
+                    t.cw = static_cast<int32_t>(o.value("width", 0.0));
                     t.ch = static_cast<int32_t>(o.value("height", 0.0));
                     if (o.value("ellipse", false))
-                        t.collisionShape = 1;     // DTileCollisionShape::Ellipse
+                    {
+                        t.collisionShape = 1;  // DTileCollisionShape::Ellipse
+                    }
                     else if (o.contains("polygon"))
                     {
-                        t.collisionShape = 2;     // Polygon
+                        t.collisionShape = 2;  // Polygon
                         for (const auto& p : o["polygon"])
-                            { t.collisionPolygon.push_back(static_cast<int32_t>(p.value("x", 0.0)));
-                              t.collisionPolygon.push_back(static_cast<int32_t>(p.value("y", 0.0))); }
+                        {
+                            t.collisionPolygon.push_back(static_cast<int32_t>(p.value("x", 0.0)));
+                            t.collisionPolygon.push_back(static_cast<int32_t>(p.value("y", 0.0)));
+                        }
                     }
                     else
-                        t.collisionShape = 0;     // Rect
+                    {
+                        t.collisionShape = 0;  // Rect
+                    }
                 }
             }
             outTs.tiles.push_back(std::move(t));
@@ -392,6 +469,6 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
     return true;
 }
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap
 
-#endif // DEKI_EDITOR
+#endif  // DEKI_EDITOR

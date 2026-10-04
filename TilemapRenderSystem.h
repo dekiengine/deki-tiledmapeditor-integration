@@ -51,24 +51,24 @@ private:
 
     struct TilesetCache
     {
-        std::vector<Tileset*>          tilesets;
-        std::vector<QuadBlit::Source>  sources;  // base atlas + chroma key (no per-tile data)
-        std::vector<bool>              ready;
+        std::vector<Tileset*> tilesets;
+        std::vector<QuadBlit::Source> sources;  // base atlas + chroma key (no per-tile data)
+        std::vector<bool> ready;
         // Per-frame per-tileset values: destination tile size at this camera
         // scale, and the Source each tile mutates in place (pixels + flips)
         // instead of copying the 72-byte base per tile.
-        std::vector<int32_t>           destW;
-        std::vector<int32_t>           destH;
-        std::vector<QuadBlit::Source>  scratch;
+        std::vector<int32_t> destW;
+        std::vector<int32_t> destH;
+        std::vector<QuadBlit::Source> scratch;
         // Gid lookup table, sized to the highest gid any tileset covers and
         // filled lazily. gidLimit == 0 until every tileset header is loaded.
-        std::vector<TileLUT>           gidLut;
-        uint32_t                       gidLimit = 0;
+        std::vector<TileLUT> gidLut;
+        uint32_t gidLimit = 0;
         // AssetManager epoch the source pointers were resolved against. When
         // the global epoch advances (UnloadAll / InvalidateAsset / hot-reload),
         // sources[].pixels can dangle into freed atlas memory; bumping triggers
         // a full re-resolve in RefreshCache.
-        uint64_t                       epoch = 0;
+        uint64_t epoch = 0;
     };
     std::vector<std::pair<Tilemap*, TilesetCache>> m_MCaches;
     // Epoch m_MCaches was built under. The Tilemap* keys are asset pointers, so
@@ -80,19 +80,24 @@ private:
 
     // Reused scratch — avoids heap traffic in Execute().
     std::vector<ChunkIndexEntry> m_visibleScratch;
-    struct VisChunk { int drawX; int drawY; int srcX; int srcY; };
-    std::vector<VisChunk>        m_drawsScratch;
-    std::vector<int>             m_srcChunkXLut;
-    std::vector<int>             m_srcChunkYLut;
+    struct VisChunk
+    {
+        int drawX;
+        int drawY;
+        int srcX;
+        int srcY;
+    };
+    std::vector<VisChunk> m_drawsScratch;
+    std::vector<int> m_srcChunkXLut;
+    std::vector<int> m_srcChunkYLut;
 
     TilesetCache& GetCache(Tilemap* tm);
-    void          RefreshCache(Tilemap* tm, TilesetCache& cache);
+    void RefreshCache(Tilemap* tm, TilesetCache& cache);
     // Resolve a gid (index bits only) to its tileset + rect in the atlas's
     // stored pixels, through the LUT when it exists. Returns false for gid 0,
     // unmapped gids and tilesets whose header or atlas has not loaded yet.
-    static bool   ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex,
-                              int32_t& outTsIdx, int32_t& outSx, int32_t& outSy,
-                              int32_t& outSw, int32_t& outSh);
+    static bool ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex, int32_t& outTsIdx,
+                            int32_t& outSx, int32_t& outSy, int32_t& outSw, int32_t& outSh);
 };
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap

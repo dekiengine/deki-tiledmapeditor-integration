@@ -6,17 +6,12 @@ namespace DekiTiledMap
 
 TilemapComponent::TilemapComponent()
 {
-    tintColor = {255, 255, 255, 255};
+    tintColor = { 255, 255, 255, 255 };
 }
 
-bool TilemapComponent::RenderContent(const Deki::Object* /*owner*/,
-                                     QuadBlit::Source& /*outSource*/,
-                                     float& /*outPivotX*/,
-                                     float& /*outPivotY*/,
-                                     uint8_t& outTintR,
-                                     uint8_t& outTintG,
-                                     uint8_t& outTintB,
-                                     uint8_t& outTintA)
+bool TilemapComponent::RenderContent(const Deki::Object* /*owner*/, QuadBlit::Source& /*outSource*/,
+                                     float& /*outPivotX*/, float& /*outPivotY*/, uint8_t& outTintR, uint8_t& outTintG,
+                                     uint8_t& outTintB, uint8_t& outTintA)
 {
     // Tilemap drawing happens in TilemapRenderSystem so we can iterate visible
     // chunks per layer. Returning false here prevents the standard renderer
@@ -25,9 +20,7 @@ bool TilemapComponent::RenderContent(const Deki::Object* /*owner*/,
     return false;
 }
 
-void TilemapComponent::OnAssetRefResolved(const char* /*propertyName*/,
-                                          void* /*asset*/,
-                                          const char* /*guid*/)
+void TilemapComponent::OnAssetRefResolved(const char* /*propertyName*/, void* /*asset*/, const char* /*guid*/)
 {
     // The Tilemap pointer itself is tracked by AssetRef, and TilemapRenderSystem
     // reads the live pointer each frame, so there is nothing to wire up for the
@@ -46,7 +39,9 @@ void TilemapComponent::OnAssetRefResolved(const char* /*propertyName*/,
             const int32_t kib = chunkCacheKiB > 0 ? chunkCacheKiB : 1;
             const size_t wanted = static_cast<size_t>(kib) * 1024u;
             if (wanted > streamer->MemoryBudget())
+            {
                 streamer->SetMemoryBudget(wanted);
+            }
         }
     }
 }

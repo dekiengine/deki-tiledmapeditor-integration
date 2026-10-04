@@ -36,21 +36,28 @@ class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
     MemoryFileSystem(std::string path, std::vector<uint8_t> bytes)
-        : m_Path(std::move(path)), m_Bytes(std::move(bytes))
+        : m_Path(std::move(path)),
+          m_Bytes(std::move(bytes))
     {
     }
     bool Initialize() override { return true; }
     void Shutdown() override {}
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
-        if (mode != OpenMode::READ_BINARY || !path || m_Path != path) return nullptr;
+        if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        {
+            return nullptr;
+        }
         m_Cursor = 0;
         return reinterpret_cast<FileHandle>(this);
     }
     void CloseFile(FileHandle) override {}
     size_t ReadFile(FileHandle, void* buffer, size_t size) override
     {
-        if (m_Cursor >= m_Bytes.size()) return 0;
+        if (m_Cursor >= m_Bytes.size())
+        {
+            return 0;
+        }
         const size_t n = std::min(size, m_Bytes.size() - m_Cursor);
         std::memcpy(buffer, m_Bytes.data() + m_Cursor, n);
         m_Cursor += n;
@@ -60,11 +67,23 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT) base = static_cast<long>(m_Cursor);
-        else if (origin == SeekOrigin::END) base = static_cast<long>(m_Bytes.size());
+        if (origin == SeekOrigin::CURRENT)
+        {
+            base = static_cast<long>(m_Cursor);
+        }
+        else if (origin == SeekOrigin::END)
+        {
+            base = static_cast<long>(m_Bytes.size());
+        }
         long target = base + offset;
-        if (target < 0) target = 0;
-        if (target > static_cast<long>(m_Bytes.size())) target = static_cast<long>(m_Bytes.size());
+        if (target < 0)
+        {
+            target = 0;
+        }
+        if (target > static_cast<long>(m_Bytes.size()))
+        {
+            target = static_cast<long>(m_Bytes.size());
+        }
         m_Cursor = static_cast<size_t>(target);
         return target;
     }
@@ -73,7 +92,10 @@ public:
     bool FileExists(const char* path) override { return path && m_Path == path; }
     bool ConvertPath(const char* virtualPath, char* out, size_t cap) override
     {
-        if (!virtualPath || !out) return false;
+        if (!virtualPath || !out)
+        {
+            return false;
+        }
         std::snprintf(out, cap, "%s", virtualPath);
         return true;
     }
@@ -129,7 +151,9 @@ TmjMap MapWithObjects(bool withPolygons)
     zone.id = 3;
     zone.name = "zone";
     if (withPolygons)
+    {
         zone.polygonPoints = { 0, 0, 10, 0, 10, 20 };
+    }
     TmjPropertyValue speed = Prop("speed", "float");
     speed.fvalue = 1.5f;
     TmjPropertyValue on = Prop("on", "bool");
@@ -168,8 +192,12 @@ DTilemapHeader& HeaderOf(std::vector<uint8_t>& bytes)
 const DTilemapObject* Find(const Tilemap& map, const char* name)
 {
     for (const auto& o : map.Objects())
+    {
         if (std::strncmp(o.name, name, sizeof(o.name)) == 0)
+        {
             return &o;
+        }
+    }
     return nullptr;
 }
 
@@ -178,8 +206,12 @@ const DTilemapProperty* FindProp(const Tilemap& map, const DTilemapObject& obj, 
     uint32_t count = 0;
     const DTilemapProperty* props = map.ObjectProperties(obj, count);
     for (uint32_t i = 0; i < count; ++i)
+    {
         if (map.GetString(props[i].nameOffset) == name)
+        {
             return &props[i];
+        }
+    }
     return nullptr;
 }
 

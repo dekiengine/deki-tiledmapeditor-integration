@@ -19,14 +19,14 @@ DEKI_FORMER_NAME("TilemapColliderComponent")
 class TilemapColliderComponent : public Deki::Component
 {
 public:
-
     DEKI_EXPORT
     DEKI_TOOLTIP("The map whose tiles become solid.")
     Deki::AssetRef<DekiTiledMap::Tilemap> tilemap;
 
     // Layer index to source collision from. Default: layer 0.
     DEKI_EXPORT
-    DEKI_TOOLTIP("Which layer of the map holds the collision tiles. A tile present on that layer is solid; an empty cell is not.")
+    DEKI_TOOLTIP("Which layer of the map holds the collision tiles. A tile present on that layer is solid; an empty "
+                 "cell is not.")
     int32_t collisionLayer = 0;
 
     // Loop collision on each axis. When enabled, wrap_period controls the
@@ -57,4 +57,3 @@ public:
 };
 
 }  // namespace DekiTiledMap
-

@@ -42,21 +42,28 @@ class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
     MemoryFileSystem(std::string path, std::vector<uint8_t> bytes)
-        : m_Path(std::move(path)), m_Bytes(std::move(bytes))
+        : m_Path(std::move(path)),
+          m_Bytes(std::move(bytes))
     {
     }
     bool Initialize() override { return true; }
     void Shutdown() override {}
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
-        if (mode != OpenMode::READ_BINARY || !path || m_Path != path) return nullptr;
+        if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        {
+            return nullptr;
+        }
         m_Cursor = 0;
         return reinterpret_cast<FileHandle>(this);
     }
     void CloseFile(FileHandle) override {}
     size_t ReadFile(FileHandle, void* buffer, size_t size) override
     {
-        if (m_Cursor >= m_Bytes.size()) return 0;
+        if (m_Cursor >= m_Bytes.size())
+        {
+            return 0;
+        }
         const size_t n = std::min(size, m_Bytes.size() - m_Cursor);
         std::memcpy(buffer, m_Bytes.data() + m_Cursor, n);
         m_Cursor += n;
@@ -67,11 +74,23 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT) base = static_cast<long>(m_Cursor);
-        else if (origin == SeekOrigin::END) base = static_cast<long>(m_Bytes.size());
+        if (origin == SeekOrigin::CURRENT)
+        {
+            base = static_cast<long>(m_Cursor);
+        }
+        else if (origin == SeekOrigin::END)
+        {
+            base = static_cast<long>(m_Bytes.size());
+        }
         long t = base + offset;
-        if (t < 0) t = 0;
-        if (t > static_cast<long>(m_Bytes.size())) t = static_cast<long>(m_Bytes.size());
+        if (t < 0)
+        {
+            t = 0;
+        }
+        if (t > static_cast<long>(m_Bytes.size()))
+        {
+            t = static_cast<long>(m_Bytes.size());
+        }
         m_Cursor = static_cast<size_t>(t);
         return t;
     }
@@ -80,7 +99,10 @@ public:
     bool FileExists(const char* path) override { return path && m_Path == path; }
     bool ConvertPath(const char* v, char* out, size_t cap) override
     {
-        if (!v || !out) return false;
+        if (!v || !out)
+        {
+            return false;
+        }
         std::snprintf(out, cap, "%s", v);
         return true;
     }
@@ -98,8 +120,7 @@ private:
 // reading one tile.
 uint32_t Gid(uint16_t layer, int32_t cx, int32_t cy)
 {
-    return 1u + static_cast<uint32_t>(layer) * 1000u +
-           static_cast<uint32_t>(cy) * 10u + static_cast<uint32_t>(cx);
+    return 1u + static_cast<uint32_t>(layer) * 1000u + static_cast<uint32_t>(cy) * 10u + static_cast<uint32_t>(cx);
 }
 
 struct StreamingMap
@@ -150,8 +171,7 @@ StreamingMap BuildMap(int32_t gridW, int32_t gridH, uint16_t layer = 0)
 
     m.bytes.resize(payloadCursor);
     std::memcpy(m.bytes.data(), &m.header, sizeof(m.header));
-    std::memcpy(m.bytes.data() + indexOffset, m.index.data(),
-                m.index.size() * sizeof(ChunkIndexEntry));
+    std::memcpy(m.bytes.data() + indexOffset, m.index.data(), m.index.size() * sizeof(ChunkIndexEntry));
     for (const auto& e : m.index)
     {
         std::vector<uint32_t> tiles(kTilesPerChunk, Gid(e.layerIndex, e.chunkX, e.chunkY));
@@ -177,8 +197,8 @@ protected:
     {
         m_Map = m;
         m_Fs = std::make_unique<MemoryFileSystem>("S:/s.dtilemap", m_Map.bytes);
-        m_Streamer = new TilemapStreamer(m_Fs.get(), "S:/s.dtilemap", m_Map.header,
-                                         m_Map.index.data(), m_Map.index.size());
+        m_Streamer =
+            new TilemapStreamer(m_Fs.get(), "S:/s.dtilemap", m_Map.header, m_Map.index.data(), m_Map.index.size());
         return m_Streamer;
     }
     void TearDown() override
@@ -196,7 +216,10 @@ private:
 };
 
 // Enough budget for `n` chunks and not one more.
-size_t BudgetFor(int n) { return kChunkBytes * static_cast<size_t>(n); }
+size_t BudgetFor(int n)
+{
+    return kChunkBytes * static_cast<size_t>(n);
+}
 }  // namespace
 
 TEST_F(Streaming, NothingIsResidentUntilPumped)
@@ -247,7 +270,10 @@ TEST_F(Streaming, AByteBudgetLimitsOneCallNotTheWholeQueue)
     EXPECT_GT(afterFirst, 0u);
     EXPECT_LE(afterFirst, kChunkBytes * 2) << "a byte budget must bound the IO per call";
 
-    for (int i = 0; i < 32; ++i) s->Pump(kChunkBytes);
+    for (int i = 0; i < 32; ++i)
+    {
+        s->Pump(kChunkBytes);
+    }
     EXPECT_GT(s->ResidentBytes(), afterFirst) << "later calls drain the rest of the queue";
 }
 
@@ -256,10 +282,12 @@ TEST_F(Streaming, ResidentBytesStaysUnderTheBudget)
     TilemapStreamer* s = Open(BuildMap(4, 4));
     s->SetMemoryBudget(BudgetFor(4));
     s->RequestRect(0, 0, 0, 3, 3);
-    for (int i = 0; i < 32; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 32; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
 
-    EXPECT_LE(s->ResidentBytes(), BudgetFor(4))
-        << "16 chunks were asked for with room for 4";
+    EXPECT_LE(s->ResidentBytes(), BudgetFor(4)) << "16 chunks were asked for with room for 4";
     EXPECT_GT(s->ResidentBytes(), 0u) << "something should be cached";
 }
 
@@ -268,12 +296,14 @@ TEST_F(Streaming, LoweringTheBudgetEvictsImmediately)
     TilemapStreamer* s = Open(BuildMap(4, 4));
     s->SetMemoryBudget(BudgetFor(16));
     s->RequestRect(0, 0, 0, 3, 3);
-    for (int i = 0; i < 32; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 32; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
     ASSERT_GT(s->ResidentBytes(), BudgetFor(2));
 
     s->SetMemoryBudget(BudgetFor(2));
-    EXPECT_LE(s->ResidentBytes(), BudgetFor(2))
-        << "a smaller budget must take effect at once, not at the next load";
+    EXPECT_LE(s->ResidentBytes(), BudgetFor(2)) << "a smaller budget must take effect at once, not at the next load";
 }
 
 TEST_F(Streaming, RaisingTheBudgetKeepsWhatIsAlreadyThere)
@@ -281,7 +311,10 @@ TEST_F(Streaming, RaisingTheBudgetKeepsWhatIsAlreadyThere)
     TilemapStreamer* s = Open(BuildMap(4, 4));
     s->SetMemoryBudget(BudgetFor(4));
     s->RequestRect(0, 0, 0, 3, 3);
-    for (int i = 0; i < 32; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 32; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
     const size_t before = s->ResidentBytes();
 
     s->SetMemoryBudget(BudgetFor(16));
@@ -294,7 +327,10 @@ TEST_F(Streaming, TheChunkDrawnMostRecentlySurvivesEviction)
     TilemapStreamer* s = Open(BuildMap(4, 1));  // four chunks in a row
     s->SetMemoryBudget(BudgetFor(4));
     s->RequestRect(0, 0, 0, 3, 0);
-    for (int i = 0; i < 16; ++i) s->Pump(BudgetFor(8));
+    for (int i = 0; i < 16; ++i)
+    {
+        s->Pump(BudgetFor(8));
+    }
     ASSERT_NE(s->Get(0, 0, 0), nullptr);
 
     // Draw chunk 0 again, making chunk 1 the oldest, then squeeze the cache.
@@ -309,12 +345,18 @@ TEST_F(Streaming, AResidentChunkIsNotReadTwice)
     TilemapStreamer* s = Open(BuildMap(2, 2));
     s->SetMemoryBudget(BudgetFor(16));
     s->RequestRect(0, 0, 0, 1, 1);
-    for (int i = 0; i < 8; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 8; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
     const size_t afterLoad = Fs().bytesRead;
     ASSERT_GT(afterLoad, 0u);
 
     s->RequestRect(0, 0, 0, 1, 1);
-    for (int i = 0; i < 8; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 8; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
 
     EXPECT_EQ(Fs().bytesRead, afterLoad) << "asking again for a cached chunk must not re-read it";
 }
@@ -324,7 +366,10 @@ TEST_F(Streaming, GetAndTouchReturnsTheSameChunkAsGet)
     TilemapStreamer* s = Open(BuildMap(2, 2));
     s->SetMemoryBudget(BudgetFor(16));
     s->RequestRect(0, 0, 0, 1, 1);
-    for (int i = 0; i < 8; ++i) s->Pump(BudgetFor(16));
+    for (int i = 0; i < 8; ++i)
+    {
+        s->Pump(BudgetFor(16));
+    }
 
     const TileChunk* a = s->Get(0, 1, 0);
     const TileChunk* b = s->GetAndTouch(0, 1, 0, 1);

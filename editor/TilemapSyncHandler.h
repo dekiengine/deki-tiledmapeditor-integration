@@ -9,6 +9,6 @@ namespace DekiTiledMap
 // safe to call multiple times (only the first call subscribes).
 void RegisterTilemapSyncHandlers();
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap
 
-#endif // DEKI_EDITOR
+#endif  // DEKI_EDITOR

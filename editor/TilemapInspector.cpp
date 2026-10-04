@@ -22,25 +22,30 @@ bool s_InspectorRegistered = false;
 void OpenInTiled(const std::string& absPath)
 {
 #ifdef _WIN32
-    HINSTANCE rc = ShellExecuteA(nullptr, "open", absPath.c_str(),
-                                  nullptr, nullptr, SW_SHOWNORMAL);
+    HINSTANCE rc = ShellExecuteA(nullptr, "open", absPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     if (reinterpret_cast<INT_PTR>(rc) <= 32)
     {
         DEKI_LOG_ERROR("TilemapInspector: failed to open '%s' in Tiled. Make sure Tiled is "
-                       "installed and registered as the .tmj handler.", absPath.c_str());
+                       "installed and registered as the .tmj handler.",
+                       absPath.c_str());
     }
 #else
     std::string cmd = "xdg-open '" + absPath + "' >/dev/null 2>&1 &";
     if (std::system(cmd.c_str()) != 0)
+    {
         DEKI_LOG_ERROR("TilemapInspector: xdg-open failed for '%s'", absPath.c_str());
+    }
 #endif
 }
 
-} // namespace
+}  // namespace
 
 void RegisterTilemapInspector()
 {
-    if (s_InspectorRegistered) return;
+    if (s_InspectorRegistered)
+    {
+        return;
+    }
     s_InspectorRegistered = true;
 
     // The editor's FileInspector registry isn't exposed via a stable C++ header
@@ -48,9 +53,9 @@ void RegisterTilemapInspector()
     // that the project's component custom-editor can call from its inspector
     // panel. Future revisions will subscribe directly once the registry API
     // is available.
-    (void)&OpenInTiled;     // silence unused-function warning
+    (void)&OpenInTiled;  // silence unused-function warning
 }
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap
 
-#endif // DEKI_EDITOR
+#endif  // DEKI_EDITOR

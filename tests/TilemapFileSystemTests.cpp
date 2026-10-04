@@ -35,7 +35,8 @@ class MemoryFileSystem : public Deki::IFileSystem
 {
 public:
     MemoryFileSystem(std::string path, std::vector<uint8_t> bytes)
-        : m_Path(std::move(path)), m_Bytes(std::move(bytes))
+        : m_Path(std::move(path)),
+          m_Bytes(std::move(bytes))
     {
     }
 
@@ -45,7 +46,9 @@ public:
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
         if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        {
             return nullptr;
+        }
         ++opens;
         m_Cursor = 0;
         return reinterpret_cast<FileHandle>(this);
@@ -54,7 +57,10 @@ public:
 
     size_t ReadFile(FileHandle, void* buffer, size_t size) override
     {
-        if (m_Cursor >= m_Bytes.size()) return 0;
+        if (m_Cursor >= m_Bytes.size())
+        {
+            return 0;
+        }
         const size_t n = std::min(size, m_Bytes.size() - m_Cursor);
         std::memcpy(buffer, m_Bytes.data() + m_Cursor, n);
         m_Cursor += n;
@@ -65,11 +71,23 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT) base = static_cast<long>(m_Cursor);
-        else if (origin == SeekOrigin::END) base = static_cast<long>(m_Bytes.size());
+        if (origin == SeekOrigin::CURRENT)
+        {
+            base = static_cast<long>(m_Cursor);
+        }
+        else if (origin == SeekOrigin::END)
+        {
+            base = static_cast<long>(m_Bytes.size());
+        }
         long target = base + offset;
-        if (target < 0) target = 0;
-        if (target > static_cast<long>(m_Bytes.size())) target = static_cast<long>(m_Bytes.size());
+        if (target < 0)
+        {
+            target = 0;
+        }
+        if (target > static_cast<long>(m_Bytes.size()))
+        {
+            target = static_cast<long>(m_Bytes.size());
+        }
         m_Cursor = static_cast<size_t>(target);
         return target;
     }
@@ -79,7 +97,10 @@ public:
 
     bool ConvertPath(const char* virtualPath, char* out, size_t cap) override
     {
-        if (!virtualPath || !out) return false;
+        if (!virtualPath || !out)
+        {
+            return false;
+        }
         std::snprintf(out, cap, "%s", virtualPath);
         return true;
     }

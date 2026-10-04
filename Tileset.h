@@ -14,10 +14,10 @@ namespace DekiTiledMap
 #pragma pack(push, 1)
 struct DTilesetHeader
 {
-    char     magic[4];          // 'D','T','S','1'
-    uint32_t version;           // 1
-    char     atlasGuid[37];     // GUID of baked .dtex tileset image
-    uint8_t  pad0[3];
+    char magic[4];       // 'D','T','S','1'
+    uint32_t version;    // 1
+    char atlasGuid[37];  // GUID of baked .dtex tileset image
+    uint8_t pad0[3];
     uint16_t tileWidth;
     uint16_t tileHeight;
     uint16_t columns;
@@ -47,7 +47,7 @@ struct DTileAnimationFrame
 struct DTileAnimation
 {
     uint32_t localId;
-    uint32_t frameOffset;   // file offset to DTileAnimationFrame[]
+    uint32_t frameOffset;  // file offset to DTileAnimationFrame[]
     uint32_t frameCount;
     uint32_t pad;
 };
@@ -55,7 +55,7 @@ struct DTileAnimation
 // Per-tile collision shape (single rect/ellipse/polygon).
 enum class DTileCollisionShape : uint32_t
 {
-    Rect    = 0,
+    Rect = 0,
     Ellipse = 1,
     Polygon = 2,
 };
@@ -63,10 +63,10 @@ enum class DTileCollisionShape : uint32_t
 struct DTileCollision
 {
     uint32_t localId;
-    uint32_t shape;        // DTileCollisionShape
-    int16_t  x, y;
+    uint32_t shape;  // DTileCollisionShape
+    int16_t x, y;
     uint16_t width, height;
-    uint16_t pointCount;   // 0 for rect/ellipse
+    uint16_t pointCount;  // 0 for rect/ellipse
     uint16_t pad;
     uint32_t pointOffset;  // file offset to int16_t[2*pointCount] for polygons
 };
@@ -82,19 +82,19 @@ public:
 
     ~Tileset();
 
-    Deki2D::Sprite*  Atlas() const;
-    uint16_t TileWidth()  const { return m_MHeader.tileWidth;  }
+    Deki2D::Sprite* Atlas() const;
+    uint16_t TileWidth() const { return m_MHeader.tileWidth; }
     uint16_t TileHeight() const { return m_MHeader.tileHeight; }
-    uint16_t Columns()    const { return m_MHeader.columns;    }
-    uint16_t Rows()       const { return m_MHeader.rows;       }
-    uint32_t TileCount()  const { return m_MHeader.tileCount;  }
+    uint16_t Columns() const { return m_MHeader.columns; }
+    uint16_t Rows() const { return m_MHeader.rows; }
+    uint32_t TileCount() const { return m_MHeader.tileCount; }
 
     // Chroma-key (Tiled "transparentcolor"). RGB-only; renderer skips matching
     // pixels regardless of the atlas's own alpha channel (or lack thereof).
-    bool    HasTransparentColor() const { return (m_MHeader.transparentColorFlag & 0x80000000u) != 0; }
-    uint8_t TransparentR()        const { return  m_MHeader.transparentColorFlag        & 0xFFu; }
-    uint8_t TransparentG()        const { return (m_MHeader.transparentColorFlag >>  8) & 0xFFu; }
-    uint8_t TransparentB()        const { return (m_MHeader.transparentColorFlag >> 16) & 0xFFu; }
+    bool HasTransparentColor() const { return (m_MHeader.transparentColorFlag & 0x80000000u) != 0; }
+    uint8_t TransparentR() const { return m_MHeader.transparentColorFlag & 0xFFu; }
+    uint8_t TransparentG() const { return (m_MHeader.transparentColorFlag >> 8) & 0xFFu; }
+    uint8_t TransparentB() const { return (m_MHeader.transparentColorFlag >> 16) & 0xFFu; }
 
     // Compute the source rect inside the atlas for a tile local id.
     void GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const;
@@ -108,9 +108,9 @@ private:
 
     DTilesetHeader m_MHeader{};
     mutable Deki::AssetRef<Deki2D::Sprite> m_MAtlas;
-    std::vector<DTileAnimation>      m_MAnims;
+    std::vector<DTileAnimation> m_MAnims;
     std::vector<DTileAnimationFrame> m_animFrames;
-    std::vector<DTileCollision>      m_MCollisions;
+    std::vector<DTileCollision> m_MCollisions;
 };
 
-} // namespace DekiTiledMap
+}  // namespace DekiTiledMap
