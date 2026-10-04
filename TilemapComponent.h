@@ -28,8 +28,8 @@ public:
 
     // Chunks loaded past each edge of the view.
     DEKI_EXPORT
-    DEKI_TOOLTIP("How much beyond the screen edge to keep drawn, in tiles. A little padding stops tiles popping in at "
-                 "the edge while scrolling.")
+    DEKI_TOOLTIP("How many chunks beyond the screen edge to keep loaded and drawn. A little padding stops tiles "
+                 "popping in at the edge while scrolling.")
     int32_t chunkPadding = 1;
 
     // How much decoded chunk data the map may hold, set on the map's streamer

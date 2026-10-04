@@ -16,6 +16,7 @@ alongside one that has them.
 - Renamed: `AssetTypeName` is `kAssetTypeName`, `GID_INDEX_MASK` and the other gid flags are `kGidIndexMask`, ..., `CHUNK_FLAG_EMPTY` is `ChunkFlagEmpty`.
 
 ### Fixed
+- The Chunk Padding tooltip says it counts chunks; it said tiles.
 - **Builds for ESP32 boards again** (0.17.0 did not): the Max Size change
   called `std::max` with an `int` and an `int32_t`, which is `long` on Xtensa,
   and left two members of the tile lookup uninitialised, an error there.
