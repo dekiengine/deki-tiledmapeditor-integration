@@ -17,9 +17,9 @@
 #include "editor/TilemapInspector.h"
 #endif
 
-extern void DekiTilemap_RegisterComponents();
-extern int DekiTilemap_GetAutoComponentCount();
-extern const Deki::ComponentMeta* DekiTilemap_GetAutoComponentMeta(int index);
+extern void DekiTilemapRegisterComponents();
+extern int DekiTilemapGetAutoComponentCount();
+extern const Deki::ComponentMeta* DekiTilemapGetAutoComponentMeta(int index);
 
 namespace DekiTiledMap
 {
@@ -38,20 +38,20 @@ using namespace DekiTiledMap;
 extern "C"
 {
 #ifndef DEKI_PLUGIN_EXPORTS
-    DEKI_TILEDMAP_API int DekiTilemap_EnsureRegistered(void)
+    DEKI_TILEDMAP_API int DekiTilemapEnsureRegistered(void)
     {
         if (s_Registered)
         {
-            return ::DekiTilemap_GetAutoComponentCount();
+            return ::DekiTilemapGetAutoComponentCount();
         }
         s_Registered = true;
 
-        ::DekiTilemap_RegisterComponents();
+        ::DekiTilemapRegisterComponents();
 
         DekiTiledMap::RegisterTilemapSyncHandlers();
         DekiTiledMap::RegisterTilemapInspector();
 
-        return ::DekiTilemap_GetAutoComponentCount();
+        return ::DekiTilemapGetAutoComponentCount();
     }
 #endif  // DEKI_PLUGIN_EXPORTS
 
@@ -60,12 +60,12 @@ extern "C"
 extern "C"
 {
 #ifndef DEKI_PLUGIN_EXPORTS
-    DEKI_PLUGIN_API const char* DekiPlugin_GetName(void)
+    DEKI_PLUGIN_API const char* DekiPluginGetName(void)
     {
         return "Deki Tiled Map Package";
     }
 
-    DEKI_PLUGIN_API const char* DekiPlugin_GetVersion(void)
+    DEKI_PLUGIN_API const char* DekiPluginGetVersion(void)
     {
 #ifdef DEKI_PACKAGE_VERSION
         return DEKI_PACKAGE_VERSION;
@@ -74,35 +74,35 @@ extern "C"
 #endif
     }
 
-    DEKI_PLUGIN_API int DekiPlugin_Init(void)
+    DEKI_PLUGIN_API int DekiPluginInit(void)
     {
         return 0;
     }
 
-    DEKI_PLUGIN_API void DekiPlugin_Shutdown(void)
+    DEKI_PLUGIN_API void DekiPluginShutdown(void)
     {
         s_Registered = false;
     }
 
-    DEKI_PLUGIN_API int DekiPlugin_GetComponentCount(void)
+    DEKI_PLUGIN_API int DekiPluginGetComponentCount(void)
     {
-        return ::DekiTilemap_GetAutoComponentCount();
+        return ::DekiTilemapGetAutoComponentCount();
     }
 
-    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPlugin_GetComponentMeta(int index)
+    DEKI_PLUGIN_API const Deki::ComponentMeta* DekiPluginGetComponentMeta(int index)
     {
-        return ::DekiTilemap_GetAutoComponentMeta(index);
+        return ::DekiTilemapGetAutoComponentMeta(index);
     }
 
-    DEKI_PLUGIN_API void DekiPlugin_RegisterComponents(void)
+    DEKI_PLUGIN_API void DekiPluginRegisterComponents(void)
     {
-        DekiTilemap_EnsureRegistered();
+        DekiTilemapEnsureRegistered();
     }
 #endif  // DEKI_PLUGIN_EXPORTS
 
     // Package-specific feature API (linked-DLL access without name conflicts)
 
-    DEKI_TILEDMAP_API const char* DekiTilemap_GetName(void)
+    DEKI_TILEDMAP_API const char* DekiTilemapGetName(void)
     {
         return "Tiled Map";
     }

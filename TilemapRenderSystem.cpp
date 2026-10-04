@@ -153,7 +153,7 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         Tileset* ts = cache.tilesets[i];
         if (!ts)
         {
-            ts = static_cast<Tileset*>(mgr->LoadByGuidAndType(refs[i].guid, Tileset::AssetTypeName));
+            ts = static_cast<Tileset*>(mgr->LoadByGuidAndType(refs[i].guid, Tileset::kAssetTypeName));
             cache.tilesets[i] = ts;
         }
         if (!cache.ready[i])
@@ -497,10 +497,10 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
     if (auto* mgr = Deki::AssetManager::Get())
     {
         const uint64_t epoch = mgr->GetEpoch();
-        if (epoch != m_cachesEpoch)
+        if (epoch != m_CachesEpoch)
         {
             m_MCaches.clear();
-            m_cachesEpoch = epoch;
+            m_CachesEpoch = epoch;
         }
     }
     TilesetCache& cache = GetCache(tm);
@@ -513,17 +513,17 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
     {
         const int spanX = chunkMaxX - chunkMinX + 1;
         const int spanY = chunkMaxY - chunkMinY + 1;
-        m_srcChunkXLut.resize(static_cast<size_t>(spanX));
-        m_srcChunkYLut.resize(static_cast<size_t>(spanY));
+        m_SrcChunkXLut.resize(static_cast<size_t>(spanX));
+        m_SrcChunkYLut.resize(static_cast<size_t>(spanY));
         for (int i = 0; i < spanX; ++i)
         {
             const int cx = chunkMinX + i;
-            m_srcChunkXLut[i] = wrapX ? originChunksX + wrap(cx - originChunksX, periodChunksX) : cx;
+            m_SrcChunkXLut[i] = wrapX ? originChunksX + wrap(cx - originChunksX, periodChunksX) : cx;
         }
         for (int i = 0; i < spanY; ++i)
         {
             const int cy = chunkMinY + i;
-            m_srcChunkYLut[i] = wrapY ? originChunksY + wrap(cy - originChunksY, periodChunksY) : cy;
+            m_SrcChunkYLut[i] = wrapY ? originChunksY + wrap(cy - originChunksY, periodChunksY) : cy;
         }
     }
 
@@ -574,10 +574,10 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
         return;
     }
 
-    ++m_frameSerial;
-    if (m_frameSerial == 0)
+    ++m_FrameSerial;
+    if (m_FrameSerial == 0)
     {
-        ++m_frameSerial;  // 0 means "never touched" in the streamer
+        ++m_FrameSerial;  // 0 means "never touched" in the streamer
     }
 
     for (uint32_t layer = 0; layer < tm->LayerCount(); ++layer)
@@ -587,34 +587,34 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
             continue;
         }
 
-        m_drawsScratch.clear();
+        m_DrawsScratch.clear();
 
         if (wrapX || wrapY)
         {
             const int spanX = chunkMaxX - chunkMinX + 1;
             const int spanY = chunkMaxY - chunkMinY + 1;
-            m_drawsScratch.reserve(static_cast<size_t>(spanX) * static_cast<size_t>(spanY));
+            m_DrawsScratch.reserve(static_cast<size_t>(spanX) * static_cast<size_t>(spanY));
             for (int iy = 0; iy < spanY; ++iy)
             {
                 for (int ix = 0; ix < spanX; ++ix)
                 {
-                    m_drawsScratch.push_back(
-                        { chunkMinX + ix, chunkMinY + iy, m_srcChunkXLut[ix], m_srcChunkYLut[iy] });
+                    m_DrawsScratch.push_back(
+                        { chunkMinX + ix, chunkMinY + iy, m_SrcChunkXLut[ix], m_SrcChunkYLut[iy] });
                 }
             }
         }
         else
         {
             tm->QueryVisibleChunks(static_cast<int32_t>(layer), chunkMinX, chunkMinY, chunkMaxX, chunkMaxY,
-                                   m_visibleScratch);
-            m_drawsScratch.reserve(m_visibleScratch.size());
-            for (const auto& entry : m_visibleScratch)
+                                   m_VisibleScratch);
+            m_DrawsScratch.reserve(m_VisibleScratch.size());
+            for (const auto& entry : m_VisibleScratch)
             {
-                m_drawsScratch.push_back({ entry.chunkX, entry.chunkY, entry.chunkX, entry.chunkY });
+                m_DrawsScratch.push_back({ entry.chunkX, entry.chunkY, entry.chunkX, entry.chunkY });
             }
         }
 
-        for (const auto& d : m_drawsScratch)
+        for (const auto& d : m_DrawsScratch)
         {
             const int chunkOriginX = d.drawX * cw * tw;
             const int chunkOriginY = d.drawY * ch * th;
@@ -634,7 +634,7 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                 }
             }
 
-            const TileChunk* chunk = streamer->GetAndTouch(static_cast<int32_t>(layer), d.srcX, d.srcY, m_frameSerial);
+            const TileChunk* chunk = streamer->GetAndTouch(static_cast<int32_t>(layer), d.srcX, d.srcY, m_FrameSerial);
             if (!chunk)
             {
                 continue;
@@ -725,15 +725,15 @@ struct TilemapRenderPassRegistrar
         DekiRendering::RenderPassInfo info;
         info.factory = []() -> DekiRendering::RenderPass* { return new DekiTiledMap::TilemapRenderPass(); };
         info.autoAttach = true;
-        DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::RegistryName, info);
+        DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::kRegistryName, info);
     }
     // Unregister on DLL unload so the std::function factory (whose target
     // lives in this package's code) doesn't outlive the DLL and crash
     // deki-rendering's static-registry teardown.
     ~TilemapRenderPassRegistrar()
     {
-        DekiRendering::DekiRenderPassRegistry::Unregister(DekiTiledMap::TilemapRenderPass::RegistryName);
+        DekiRendering::DekiRenderPassRegistry::Unregister(DekiTiledMap::TilemapRenderPass::kRegistryName);
     }
 };
-static TilemapRenderPassRegistrar s_tilemapPassRegistrar;
+static TilemapRenderPassRegistrar s_TilemapPassRegistrar;
 }  // namespace

@@ -43,8 +43,8 @@ public:
     const TileChunk* GetAndTouch(int32_t layerIdx, int32_t chunkX, int32_t chunkY, uint32_t frame);
 
     void SetMemoryBudget(size_t bytes);
-    size_t MemoryBudget() const { return m_budgetBytes; }
-    size_t ResidentBytes() const { return m_residentBytes; }
+    size_t MemoryBudget() const { return m_BudgetBytes; }
+    size_t ResidentBytes() const { return m_ResidentBytes; }
 
     uint16_t ChunkWidth() const { return m_MHeader.chunkWidth; }
     uint16_t ChunkHeight() const { return m_MHeader.chunkHeight; }
@@ -85,21 +85,21 @@ private:
     Deki::IFileSystem::FileHandle m_MHandle = nullptr;
     DTilemapHeader m_MHeader;
     const ChunkIndexEntry* m_MIndex;
-    size_t m_indexCount;
+    size_t m_IndexCount;
 
     // Last successful FindIndexEntry result. RequestRect walks chunks in
     // (cy, cx) order so the next call usually wants the entry adjacent in the
     // sorted index — try the cache and the entry immediately after it before
     // falling back to a fresh binary search.
-    mutable const ChunkIndexEntry* m_lastFound = nullptr;
+    mutable const ChunkIndexEntry* m_LastFound = nullptr;
 
     std::unordered_map<Key, ResidentChunk, KeyHash> m_MResident;
     std::list<Key> m_MLru;                          // back = newest
     std::list<Key> m_MPending;                      // load queue (FIFO)
-    std::unordered_set<Key, KeyHash> m_pendingSet;  // O(1) dedupe for m_MPending
-    size_t m_residentBytes = 0;
-    size_t m_budgetBytes = 256 * 1024;
-    size_t m_chunkBytes = 0;
+    std::unordered_set<Key, KeyHash> m_PendingSet;  // O(1) dedupe for m_MPending
+    size_t m_ResidentBytes = 0;
+    size_t m_BudgetBytes = 256 * 1024;
+    size_t m_ChunkBytes = 0;
 };
 
 }  // namespace DekiTiledMap

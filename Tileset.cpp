@@ -29,7 +29,7 @@ Tileset* Tileset::Load(const char* dtilesetPath)
         return nullptr;
     }
 
-    Deki::IFileSystem::FileHandle f = fs->OpenFile(dtilesetPath, Deki::IFileSystem::OpenMode::READ_BINARY);
+    Deki::IFileSystem::FileHandle f = fs->OpenFile(dtilesetPath, Deki::IFileSystem::OpenMode::ReadBinary);
     if (!f)
     {
         DEKI_LOG_ERROR("Tileset::Load: cannot open '%s'", dtilesetPath);
@@ -59,7 +59,7 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     { return offset <= fileBytes && count <= (fileBytes - offset) / elem; };
     auto readAt = [&](uint64_t offset, void* into, uint64_t bytes)
     {
-        fs->SeekFile(f, static_cast<long>(offset), Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->SeekFile(f, static_cast<long>(offset), Deki::IFileSystem::SeekOrigin::Begin);
         return fs->ReadFile(f, into, static_cast<size_t>(bytes)) == static_cast<size_t>(bytes);
     };
     auto damaged = [&](const char* what) -> Tileset*
@@ -105,8 +105,8 @@ Tileset* Tileset::Load(const char* dtilesetPath)
         }
         if (totalFrames > 0)
         {
-            ts->m_animFrames.resize(static_cast<size_t>(totalFrames));
-            if (!readAt(firstOffset, ts->m_animFrames.data(), sizeof(DTileAnimationFrame) * totalFrames))
+            ts->m_AnimFrames.resize(static_cast<size_t>(totalFrames));
+            if (!readAt(firstOffset, ts->m_AnimFrames.data(), sizeof(DTileAnimationFrame) * totalFrames))
             {
                 return fail("short animation frames");
             }
@@ -167,7 +167,7 @@ const DTileCollision* Tileset::GetCollision(uint32_t localId) const
 
 const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) const
 {
-    if (m_animFrames.empty() || m_MAnims.empty())
+    if (m_AnimFrames.empty() || m_MAnims.empty())
     {
         return nullptr;
     }
@@ -177,11 +177,11 @@ const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) 
         return nullptr;
     }
     const uint32_t idx = (a.frameOffset - base) / sizeof(DTileAnimationFrame);
-    if (uint64_t(idx) + a.frameCount > m_animFrames.size())
+    if (uint64_t(idx) + a.frameCount > m_AnimFrames.size())
     {
         return nullptr;
     }
-    return &m_animFrames[idx];
+    return &m_AnimFrames[idx];
 }
 
 // REGISTER_ASSET_TYPE concatenates the type name into an identifier, so it

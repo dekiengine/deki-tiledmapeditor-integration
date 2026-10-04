@@ -24,7 +24,7 @@ class Tileset;
 class TilemapRenderPass : public DekiRendering::RenderPass
 {
 public:
-    static constexpr const char* RegistryName = "tilemap";
+    static constexpr const char* kRegistryName = "tilemap";
 
     // Execute only: the renderer skips this pass for the other four hooks.
     uint32_t HookMask() const override { return DekiRendering::RenderPassHooks::Execute; }
@@ -73,13 +73,13 @@ private:
     std::vector<std::pair<Tilemap*, TilesetCache>> m_MCaches;
     // Epoch m_MCaches was built under. The Tilemap* keys are asset pointers, so
     // when the AssetManager epoch moves every entry is dropped, not refreshed.
-    uint64_t m_cachesEpoch = 0;
+    uint64_t m_CachesEpoch = 0;
     // Bumped per Execute; lets the streamer relink a chunk's LRU node at most
     // once per frame however many times the chunk is drawn.
-    uint32_t m_frameSerial = 0;
+    uint32_t m_FrameSerial = 0;
 
     // Reused scratch — avoids heap traffic in Execute().
-    std::vector<ChunkIndexEntry> m_visibleScratch;
+    std::vector<ChunkIndexEntry> m_VisibleScratch;
     struct VisChunk
     {
         int drawX;
@@ -87,9 +87,9 @@ private:
         int srcX;
         int srcY;
     };
-    std::vector<VisChunk> m_drawsScratch;
-    std::vector<int> m_srcChunkXLut;
-    std::vector<int> m_srcChunkYLut;
+    std::vector<VisChunk> m_DrawsScratch;
+    std::vector<int> m_SrcChunkXLut;
+    std::vector<int> m_SrcChunkYLut;
 
     TilesetCache& GetCache(Tilemap* tm);
     void RefreshCache(Tilemap* tm, TilesetCache& cache);

@@ -38,7 +38,7 @@ bool ReadFile(const std::string& path, std::string& out, std::string& err)
 // Decode a base64 string into bytes. Returns false on malformed input.
 bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
 {
-    static const int8_t lut[256] = {
+    static const int8_t kLut[256] = {
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55,
         56, 57, 58, 59, 60, 61, -1, -1, -1, 0,  -1, -1, -1, 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
@@ -63,7 +63,7 @@ bool DecodeBase64(const std::string& in, std::vector<uint8_t>& out)
         {
             break;
         }
-        int8_t d = lut[c];
+        int8_t d = kLut[c];
         if (d < 0)
         {
             return false;
@@ -273,12 +273,12 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
             std::string type = jl.value("type", "");
             if (type == "tilelayer")
             {
-                TmjLayer L;
-                L.name = jl.value("name", "");
-                L.id = jl.value("id", 0);
-                L.visible = jl.value("visible", true);
-                L.width = jl.value("width", outMap.width);
-                L.height = jl.value("height", outMap.height);
+                TmjLayer l;
+                l.name = jl.value("name", "");
+                l.id = jl.value("id", 0);
+                l.visible = jl.value("visible", true);
+                l.width = jl.value("width", outMap.width);
+                l.height = jl.value("height", outMap.height);
 
                 if (outMap.infinite)
                 {
@@ -299,7 +299,7 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         {
                             return false;
                         }
-                        L.chunks.push_back(std::move(c));
+                        l.chunks.push_back(std::move(c));
                     }
                 }
                 else
@@ -309,20 +309,20 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         outError = "finite tile layer missing 'data'";
                         return false;
                     }
-                    if (!DecodeLayerPayload(jl["data"], jl, static_cast<size_t>(L.width) * L.height, L.data, outError))
+                    if (!DecodeLayerPayload(jl["data"], jl, static_cast<size_t>(l.width) * l.height, l.data, outError))
                     {
                         return false;
                     }
                 }
 
-                outMap.tileLayers.push_back(std::move(L));
+                outMap.tileLayers.push_back(std::move(l));
             }
             else if (type == "objectgroup")
             {
-                TmjObjectLayer OL;
-                OL.name = jl.value("name", "");
-                OL.id = jl.value("id", 0);
-                OL.visible = jl.value("visible", true);
+                TmjObjectLayer ol;
+                ol.name = jl.value("name", "");
+                ol.id = jl.value("id", 0);
+                ol.visible = jl.value("visible", true);
                 if (jl.contains("objects") && jl["objects"].is_array())
                 {
                     for (const auto& jo : jl["objects"])
@@ -358,10 +358,10 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         {
                             ParseProperties(jo["properties"], o.properties);
                         }
-                        OL.objects.push_back(std::move(o));
+                        ol.objects.push_back(std::move(o));
                     }
                 }
-                outMap.objectLayers.push_back(std::move(OL));
+                outMap.objectLayers.push_back(std::move(ol));
             }
             // Group / image / other layer types: skipped silently in v1.
         }

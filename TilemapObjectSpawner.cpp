@@ -79,7 +79,7 @@ void TilemapObjectSpawner::Awake()
                 continue;
             }
             Deki::Scene* scene =
-                mgr ? static_cast<Deki::Scene*>(mgr->LoadByGuidAndType(guid, Deki::Scene::AssetTypeName)) : nullptr;
+                mgr ? static_cast<Deki::Scene*>(mgr->LoadByGuidAndType(guid, Deki::Scene::kAssetTypeName)) : nullptr;
             if (!scene)
             {
                 DEKI_LOG_ERROR("TilemapObjectSpawner: scene '%s' not found for object %u", guid.c_str(), obj.id);

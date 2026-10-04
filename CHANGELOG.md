@@ -10,6 +10,11 @@ alongside one that has them.
 
 ## Unreleased
 
+### Changed
+- **Names follow the code style** (deki-engine/docs/codestyle): types, functions and enum values are PascalCase, constants kPascalCase, members m_PascalCase, locals and parameters camelCase. The code is formatted with clang-format 22.
+- The functions the editor finds by name are PascalCase: DekiTilemapRegisterComponents, DekiTilemapGetAutoComponentCount, DekiTilemapEnsureRegistered and the rest. Built against engine ABI 21; a build of this package from before does not load and is rebuilt.
+- Renamed: `AssetTypeName` is `kAssetTypeName`, `GID_INDEX_MASK` and the other gid flags are `kGidIndexMask`, ..., `CHUNK_FLAG_EMPTY` is `ChunkFlagEmpty`.
+
 ### Fixed
 - **Builds for ESP32 boards again** (0.17.0 did not): the Max Size change
   called `std::max` with an `int` and an `int32_t`, which is `long` on Xtensa,

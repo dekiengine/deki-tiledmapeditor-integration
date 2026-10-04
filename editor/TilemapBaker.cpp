@@ -242,20 +242,20 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         e.flags = 0;
         if (empty)
         {
-            e.flags |= CHUNK_FLAG_EMPTY;
+            e.flags |= ChunkFlagEmpty;
         }
         else if (uniform)
         {
-            e.flags |= CHUNK_FLAG_UNIFORM_FILL;
+            e.flags |= ChunkFlagUniformFill;
         }
 
         PendingChunk pc;
         pc.entry = e;
-        if (e.flags & CHUNK_FLAG_EMPTY)
+        if (e.flags & ChunkFlagEmpty)
         {
             // no payload bytes
         }
-        else if (e.flags & CHUNK_FLAG_UNIFORM_FILL)
+        else if (e.flags & ChunkFlagUniformFill)
         {
             pc.payload = { first };
         }
@@ -268,10 +268,10 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
 
     for (uint32_t layer = 0; layer < map.tileLayers.size(); ++layer)
     {
-        const auto& L = map.tileLayers[layer];
+        const auto& l = map.tileLayers[layer];
         if (map.infinite)
         {
-            for (const auto& chunk : L.chunks)
+            for (const auto& chunk : l.chunks)
             {
                 // Tiled chunk coords are in *tiles*; convert to chunk-grid coords.
                 if (map.chunkWidth <= 0 || map.chunkHeight <= 0)
@@ -286,26 +286,26 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         else
         {
             // Slice the finite layer into chunks.
-            const int W = L.width, H = L.height;
-            const int CW = map.chunkWidth, CH = map.chunkHeight;
-            const int cxN = (W + CW - 1) / CW;
-            const int cyN = (H + CH - 1) / CH;
+            const int w = l.width, h = l.height;
+            const int cw = map.chunkWidth, ch = map.chunkHeight;
+            const int cxN = (w + cw - 1) / cw;
+            const int cyN = (h + ch - 1) / ch;
             for (int cy = 0; cy < cyN; ++cy)
             {
                 for (int cx = 0; cx < cxN; ++cx)
                 {
-                    std::vector<uint32_t> tiles(static_cast<size_t>(CW) * CH, 0);
-                    for (int ty = 0; ty < CH; ++ty)
+                    std::vector<uint32_t> tiles(static_cast<size_t>(cw) * ch, 0);
+                    for (int ty = 0; ty < ch; ++ty)
                     {
-                        for (int tx = 0; tx < CW; ++tx)
+                        for (int tx = 0; tx < cw; ++tx)
                         {
-                            int gx = cx * CW + tx;
-                            int gy = cy * CH + ty;
-                            if (gx >= W || gy >= H)
+                            int gx = cx * cw + tx;
+                            int gy = cy * ch + ty;
+                            if (gx >= w || gy >= h)
                             {
                                 continue;
                             }
-                            tiles[ty * CW + tx] = L.data[static_cast<size_t>(gy) * W + gx];
+                            tiles[ty * cw + tx] = l.data[static_cast<size_t>(gy) * w + gx];
                         }
                     }
                     pushChunkData(layer, cx, cy, tiles);
@@ -352,16 +352,16 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         return off;
     };
 
-    for (const auto& OL : map.objectLayers)
+    for (const auto& ol : map.objectLayers)
     {
-        DObjectLayer L{};
-        CopyName32(L.name, OL.name);
-        L.objectOffset = 0;  // patched after we know objects file offset
-        L.objectCount = static_cast<uint32_t>(OL.objects.size());
-        olRows.push_back(L);
+        DObjectLayer l{};
+        CopyName32(l.name, ol.name);
+        l.objectOffset = 0;  // patched after we know objects file offset
+        l.objectCount = static_cast<uint32_t>(ol.objects.size());
+        olRows.push_back(l);
 
         const uint32_t firstObjIdx = static_cast<uint32_t>(objRows.size());
-        for (const auto& o : OL.objects)
+        for (const auto& o : ol.objects)
         {
             DTilemapObject row{};
             row.id = o.id;

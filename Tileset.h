@@ -75,7 +75,7 @@ struct DTileCollision
 class Tileset
 {
 public:
-    static constexpr const char* AssetTypeName = "Tileset";
+    static constexpr const char* kAssetTypeName = "Tileset";
 
     // Loads header + index tables. Atlas is loaded lazily through AssetRef.
     static Tileset* Load(const char* dtilesetPath);
@@ -109,7 +109,7 @@ private:
     DTilesetHeader m_MHeader{};
     mutable Deki::AssetRef<Deki2D::Sprite> m_MAtlas;
     std::vector<DTileAnimation> m_MAnims;
-    std::vector<DTileAnimationFrame> m_animFrames;
+    std::vector<DTileAnimationFrame> m_AnimFrames;
     std::vector<DTileCollision> m_MCollisions;
 };
 

@@ -36,7 +36,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         return nullptr;
     }
 
-    Deki::IFileSystem::FileHandle f = fs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
+    Deki::IFileSystem::FileHandle f = fs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::ReadBinary);
     if (!f)
     {
         DEKI_LOG_ERROR("Tilemap::Load: cannot open '%s'", dtilemapPath);
@@ -87,7 +87,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
 
     auto* tm = new Tilemap();
     tm->m_MHeader = hdr;
-    tm->m_absolutePath = dtilemapPath;
+    tm->m_AbsolutePath = dtilemapPath;
     auto fail = [&](const char* what) -> Tilemap*
     {
         fs->CloseFile(f);
@@ -97,7 +97,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     };
     auto readAt = [&](uint64_t offset, void* into, uint64_t bytes)
     {
-        fs->SeekFile(f, static_cast<long>(offset), Deki::IFileSystem::SeekOrigin::BEGIN);
+        fs->SeekFile(f, static_cast<long>(offset), Deki::IFileSystem::SeekOrigin::Begin);
         return fs->ReadFile(f, into, static_cast<size_t>(bytes)) == static_cast<size_t>(bytes);
     };
 
@@ -143,8 +143,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
 
     if (hdr.objectLayerCount > 0)
     {
-        tm->m_objectLayers.resize(hdr.objectLayerCount);
-        if (!readAt(hdr.objectLayerOffset, tm->m_objectLayers.data(),
+        tm->m_ObjectLayers.resize(hdr.objectLayerCount);
+        if (!readAt(hdr.objectLayerOffset, tm->m_ObjectLayers.data(),
                     uint64_t(sizeof(DObjectLayer)) * hdr.objectLayerCount))
         {
             return fail("short object layer table");
@@ -154,13 +154,13 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         // contiguous object blobs but we don't assume contiguity here — each
         // layer carries its own offset.
         uint64_t total = 0;
-        for (const auto& L : tm->m_objectLayers)
+        for (const auto& l : tm->m_ObjectLayers)
         {
-            if (!inFile(L.objectOffset, L.objectCount, sizeof(DTilemapObject)))
+            if (!inFile(l.objectOffset, l.objectCount, sizeof(DTilemapObject)))
             {
                 return fail("an object layer runs past the end of the file");
             }
-            total += L.objectCount;
+            total += l.objectCount;
         }
         if (total > fileBytes / sizeof(DTilemapObject))
         {
@@ -170,18 +170,18 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         {
             tm->m_MObjects.resize(static_cast<size_t>(total));
             size_t cursor = 0;
-            for (const auto& L : tm->m_objectLayers)
+            for (const auto& l : tm->m_ObjectLayers)
             {
-                if (L.objectCount == 0)
+                if (l.objectCount == 0)
                 {
                     continue;
                 }
-                if (!readAt(L.objectOffset, tm->m_MObjects.data() + cursor,
-                            uint64_t(sizeof(DTilemapObject)) * L.objectCount))
+                if (!readAt(l.objectOffset, tm->m_MObjects.data() + cursor,
+                            uint64_t(sizeof(DTilemapObject)) * l.objectCount))
                 {
                     return fail("short object table");
                 }
-                cursor += L.objectCount;
+                cursor += l.objectCount;
             }
         }
     }
@@ -206,10 +206,10 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         // list, then the points (always none), the properties, and the
         // strings last; an object's propertyOffset is its index among them.
         uint64_t objectsEnd = 0;
-        for (const auto& L : tm->m_objectLayers)
+        for (const auto& l : tm->m_ObjectLayers)
         {
             objectsEnd =
-                std::max(objectsEnd, uint64_t(L.objectOffset) + uint64_t(L.objectCount) * sizeof(DTilemapObject));
+                std::max(objectsEnd, uint64_t(l.objectOffset) + uint64_t(l.objectCount) * sizeof(DTilemapObject));
         }
         for (const auto& o : tm->m_MObjects)
         {
@@ -223,10 +223,10 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
 
     if (pointCount > 0 && inFile(pointOffset, pointCount, 2 * sizeof(int32_t)))
     {
-        tm->m_polygonPoints.resize(static_cast<size_t>(pointCount * 2));
-        if (!readAt(pointOffset, tm->m_polygonPoints.data(), pointCount * 2 * sizeof(int32_t)))
+        tm->m_PolygonPoints.resize(static_cast<size_t>(pointCount * 2));
+        if (!readAt(pointOffset, tm->m_PolygonPoints.data(), pointCount * 2 * sizeof(int32_t)))
         {
-            tm->m_polygonPoints.clear();
+            tm->m_PolygonPoints.clear();
         }
     }
     if (propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty)))
@@ -240,10 +240,10 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     if (!tm->m_MProperties.empty() && stringOffset < fileBytes)
     {
         const uint64_t stringBytes = fileBytes - stringOffset;
-        tm->m_stringPool.resize(static_cast<size_t>(stringBytes));
-        if (!readAt(stringOffset, tm->m_stringPool.data(), stringBytes))
+        tm->m_StringPool.resize(static_cast<size_t>(stringBytes));
+        if (!readAt(stringOffset, tm->m_StringPool.data(), stringBytes))
         {
-            tm->m_stringPool.clear();
+            tm->m_StringPool.clear();
         }
     }
     if (propCount > 0 && tm->m_MProperties.size() < propCount)
@@ -260,8 +260,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
 
     // Both are pure functions of the data just loaded; the render pass reads
     // them every frame, so resolve them once here.
-    tm->m_hasOrigin = tm->ComputeOrigin(tm->m_originX, tm->m_originY);
-    tm->m_hasBounds = tm->ComputeAuthoredBounds(tm->m_boundsMinX, tm->m_boundsMinY, tm->m_boundsW, tm->m_boundsH);
+    tm->m_HasOrigin = tm->ComputeOrigin(tm->m_OriginX, tm->m_OriginY);
+    tm->m_HasBounds = tm->ComputeAuthoredBounds(tm->m_BoundsMinX, tm->m_BoundsMinY, tm->m_BoundsW, tm->m_BoundsH);
     return tm;
 }
 
@@ -273,7 +273,7 @@ const TilesetRef* Tilemap::ResolveTileset(uint32_t gid, uint32_t& outLocalId) co
 
 const TilesetRef* Tilemap::ResolveTilesetWithIndex(uint32_t gid, uint32_t& outLocalId, size_t& outIndex) const
 {
-    const uint32_t idx = gid & GID_INDEX_MASK;
+    const uint32_t idx = gid & kGidIndexMask;
     if (idx == 0)
     {
         return nullptr;
@@ -341,12 +341,12 @@ const DTilemapProperty* Tilemap::ObjectProperties(const DTilemapObject& obj, uin
 std::string Tilemap::GetString(uint32_t offset) const
 {
     // Offsets are from the start of the string pool, as the baker counts them.
-    if (offset >= m_stringPool.size())
+    if (offset >= m_StringPool.size())
     {
         return {};
     }
-    const char* p = m_stringPool.data() + offset;
-    size_t maxLen = m_stringPool.size() - offset;
+    const char* p = m_StringPool.data() + offset;
+    size_t maxLen = m_StringPool.size() - offset;
     size_t n = strnlen(p, maxLen);
     return std::string(p, n);
 }

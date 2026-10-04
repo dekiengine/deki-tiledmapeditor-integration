@@ -50,7 +50,7 @@ public:
     void Shutdown() override {}
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
-        if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        if (mode != OpenMode::ReadBinary || !path || m_Path != path)
         {
             return nullptr;
         }
@@ -74,11 +74,11 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT)
+        if (origin == SeekOrigin::Current)
         {
             base = static_cast<long>(m_Cursor);
         }
-        else if (origin == SeekOrigin::END)
+        else if (origin == SeekOrigin::End)
         {
             base = static_cast<long>(m_Bytes.size());
         }

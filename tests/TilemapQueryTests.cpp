@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 
-#include "TileChunk.h"  // GID_INDEX_MASK
+#include "TileChunk.h"  // kGidIndexMask
 #include "Tilemap.h"
 
 #include <deki/providers/FileSystem.h>
@@ -44,7 +44,7 @@ public:
     void Shutdown() override {}
     FileHandle OpenFile(const char* path, OpenMode mode) override
     {
-        if (mode != OpenMode::READ_BINARY || !path || m_Path != path)
+        if (mode != OpenMode::ReadBinary || !path || m_Path != path)
         {
             return nullptr;
         }
@@ -67,11 +67,11 @@ public:
     long SeekFile(FileHandle, long offset, SeekOrigin origin) override
     {
         long base = 0;
-        if (origin == SeekOrigin::CURRENT)
+        if (origin == SeekOrigin::Current)
         {
             base = static_cast<long>(m_Cursor);
         }
-        else if (origin == SeekOrigin::END)
+        else if (origin == SeekOrigin::End)
         {
             base = static_cast<long>(m_Bytes.size());
         }
@@ -278,7 +278,7 @@ TEST_F(MapFixture, FlipFlagsAreStrippedBeforeResolving)
     Tilemap* map = LoadFrom(b);
     ASSERT_NE(map, nullptr);
 
-    const uint32_t flipped = 150u | ~DekiTiledMap::GID_INDEX_MASK;
+    const uint32_t flipped = 150u | ~DekiTiledMap::kGidIndexMask;
 
     uint32_t local = 0;
     const TilesetRef* t = map->ResolveTileset(flipped, local);

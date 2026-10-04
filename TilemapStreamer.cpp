@@ -15,11 +15,11 @@ TilemapStreamer::TilemapStreamer(Deki::IFileSystem* fs, const char* dtilemapPath
     : m_MFs(fs),
       m_MHeader(header),
       m_MIndex(index),
-      m_indexCount(indexCount)
+      m_IndexCount(indexCount)
 {
-    m_chunkBytes = static_cast<size_t>(header.chunkWidth) * static_cast<size_t>(header.chunkHeight) * sizeof(uint32_t);
+    m_ChunkBytes = static_cast<size_t>(header.chunkWidth) * static_cast<size_t>(header.chunkHeight) * sizeof(uint32_t);
 
-    m_MHandle = m_MFs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::READ_BINARY);
+    m_MHandle = m_MFs->OpenFile(dtilemapPath, Deki::IFileSystem::OpenMode::ReadBinary);
     if (!m_MHandle)
     {
         DEKI_LOG_ERROR("TilemapStreamer: cannot open '%s' for streaming", dtilemapPath);
@@ -40,29 +40,29 @@ TilemapStreamer::~TilemapStreamer()
 
 void TilemapStreamer::SetMemoryBudget(size_t bytes)
 {
-    m_budgetBytes = bytes;
-    EvictUntilUnder(m_budgetBytes);
+    m_BudgetBytes = bytes;
+    EvictUntilUnder(m_BudgetBytes);
 }
 
 const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t cx, int32_t cy) const
 {
     const uint16_t layer16 = static_cast<uint16_t>(layerIdx);
     const auto* begin = m_MIndex;
-    const auto* end = m_MIndex + m_indexCount;
+    const auto* end = m_MIndex + m_IndexCount;
 
     // Spatial-locality cache: RequestRect scans in (cy, cx) order, so the next
     // probe usually wants the entry right after the previous hit. Check the
     // cached pointer and its successor before paying for a fresh binary search.
-    if (m_lastFound && m_lastFound >= begin && m_lastFound < end)
+    if (m_LastFound && m_LastFound >= begin && m_LastFound < end)
     {
-        if (m_lastFound->layerIndex == layer16 && m_lastFound->chunkY == cy && m_lastFound->chunkX == cx)
+        if (m_LastFound->layerIndex == layer16 && m_LastFound->chunkY == cy && m_LastFound->chunkX == cx)
         {
-            return m_lastFound;
+            return m_LastFound;
         }
-        const auto* nxt = m_lastFound + 1;
+        const auto* nxt = m_LastFound + 1;
         if (nxt < end && nxt->layerIndex == layer16 && nxt->chunkY == cy && nxt->chunkX == cx)
         {
-            m_lastFound = nxt;
+            m_LastFound = nxt;
             return nxt;
         }
     }
@@ -94,7 +94,7 @@ const ChunkIndexEntry* TilemapStreamer::FindIndexEntry(int32_t layerIdx, int32_t
     {
         return nullptr;
     }
-    m_lastFound = it;
+    m_LastFound = it;
     return it;
 }
 
@@ -115,7 +115,7 @@ void TilemapStreamer::RequestRect(int32_t layerIdx, int32_t chunkMinX, int32_t c
             {
                 continue;  // index says nothing here — treat as empty
             }
-            if (m_pendingSet.insert(key).second)
+            if (m_PendingSet.insert(key).second)
             {
                 m_MPending.push_back(key);
             }
@@ -131,9 +131,9 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
         return true;
     }
 
-    if (m_residentBytes + m_chunkBytes > m_budgetBytes)
+    if (m_ResidentBytes + m_ChunkBytes > m_BudgetBytes)
     {
-        EvictUntilUnder(m_budgetBytes > m_chunkBytes ? m_budgetBytes - m_chunkBytes : 0);
+        EvictUntilUnder(m_BudgetBytes > m_ChunkBytes ? m_BudgetBytes - m_ChunkBytes : 0);
     }
 
     ResidentChunk rc{};
@@ -143,9 +143,9 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     rc.chunk.width = m_MHeader.chunkWidth;
     rc.chunk.height = m_MHeader.chunkHeight;
     rc.chunk.flags = entry.flags;
-    rc.bytes = m_chunkBytes;
+    rc.bytes = m_ChunkBytes;
     // Through the engine: a streamed map chunk is a large read-mostly blob.
-    rc.owned = static_cast<uint32_t*>(Deki::Memory::Allocate(m_chunkBytes, Deki::Memory::External));
+    rc.owned = static_cast<uint32_t*>(Deki::Memory::Allocate(m_ChunkBytes, Deki::Memory::External));
     if (!rc.owned)
     {
         DEKI_LOG_ERROR("TilemapStreamer: alloc failed for chunk (%d,%d) layer %u", entry.chunkX, entry.chunkY,
@@ -153,16 +153,16 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
         return false;
     }
 
-    if (entry.flags & CHUNK_FLAG_EMPTY)
+    if (entry.flags & ChunkFlagEmpty)
     {
-        std::memset(rc.owned, 0, m_chunkBytes);
+        std::memset(rc.owned, 0, m_ChunkBytes);
     }
-    else if (entry.flags & CHUNK_FLAG_UNIFORM_FILL)
+    else if (entry.flags & ChunkFlagUniformFill)
     {
         uint32_t fill = 0;
         if (m_MHandle)
         {
-            m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset), Deki::IFileSystem::SeekOrigin::BEGIN);
+            m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset), Deki::IFileSystem::SeekOrigin::Begin);
             m_MFs->ReadFile(m_MHandle, &fill, sizeof(fill));
         }
         const size_t n = static_cast<size_t>(rc.chunk.width) * rc.chunk.height;
@@ -178,12 +178,12 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
             Deki::Memory::Free(rc.owned);
             return false;
         }
-        m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset), Deki::IFileSystem::SeekOrigin::BEGIN);
-        size_t got = m_MFs->ReadFile(m_MHandle, rc.owned, m_chunkBytes);
-        if (got != m_chunkBytes)
+        m_MFs->SeekFile(m_MHandle, static_cast<long>(entry.payloadOffset), Deki::IFileSystem::SeekOrigin::Begin);
+        size_t got = m_MFs->ReadFile(m_MHandle, rc.owned, m_ChunkBytes);
+        if (got != m_ChunkBytes)
         {
             DEKI_LOG_ERROR("TilemapStreamer: short read on chunk (%d,%d) layer %u: got %zu of %zu", entry.chunkX,
-                           entry.chunkY, static_cast<unsigned>(entry.layerIndex), got, m_chunkBytes);
+                           entry.chunkY, static_cast<unsigned>(entry.layerIndex), got, m_ChunkBytes);
             Deki::Memory::Free(rc.owned);
             return false;
         }
@@ -193,7 +193,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
     m_MLru.push_back(key);
     rc.lruIt = std::prev(m_MLru.end());
 
-    m_residentBytes += rc.bytes;
+    m_ResidentBytes += rc.bytes;
     m_MResident.emplace(key, std::move(rc));
     return true;
 }
@@ -205,7 +205,7 @@ void TilemapStreamer::Pump(size_t byteBudget)
     {
         Key k = m_MPending.front();
         m_MPending.pop_front();
-        m_pendingSet.erase(k);
+        m_PendingSet.erase(k);
         const ChunkIndexEntry* e = FindIndexEntry(static_cast<int32_t>(k.layer), k.cx, k.cy);
         if (!e)
         {
@@ -213,7 +213,7 @@ void TilemapStreamer::Pump(size_t byteBudget)
         }
         if (LoadChunkNow(*e))
         {
-            spent += m_chunkBytes;
+            spent += m_ChunkBytes;
         }
     }
 }
@@ -265,7 +265,7 @@ void TilemapStreamer::TouchLRU(int32_t layerIdx, int32_t chunkX, int32_t chunkY)
 
 void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
 {
-    while (m_residentBytes > targetBytes && !m_MLru.empty())
+    while (m_ResidentBytes > targetBytes && !m_MLru.empty())
     {
         Key oldest = m_MLru.front();
         m_MLru.pop_front();
@@ -275,7 +275,7 @@ void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
             continue;
         }
         Deki::Memory::Free(it->second.owned);
-        m_residentBytes -= it->second.bytes;
+        m_ResidentBytes -= it->second.bytes;
         m_MResident.erase(it);
     }
 }

@@ -117,7 +117,7 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
 
     auto* tileset = Deki::AssetManager::Get()
                         ? static_cast<DekiTiledMap::Tileset*>(Deki::AssetManager::Get()->LoadByGuidAndType(
-                              tref->guid, DekiTiledMap::Tileset::AssetTypeName))
+                              tref->guid, DekiTiledMap::Tileset::kAssetTypeName))
                         : nullptr;
     if (!tileset)
     {

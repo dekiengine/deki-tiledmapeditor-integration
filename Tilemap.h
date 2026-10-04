@@ -128,7 +128,7 @@ struct DTilemapProperty
 class Tilemap
 {
 public:
-    static constexpr const char* AssetTypeName = "Tilemap";
+    static constexpr const char* kAssetTypeName = "Tilemap";
 
     static Tilemap* Load(const char* dtilemapPath);
 
@@ -163,7 +163,7 @@ public:
     TilemapStreamer* Streamer() const { return m_MStreamer; }
 
     // Object layers (loaded eagerly with the header).
-    const std::vector<DObjectLayer>& ObjectLayers() const { return m_objectLayers; }
+    const std::vector<DObjectLayer>& ObjectLayers() const { return m_ObjectLayers; }
     const std::vector<DTilemapObject>& Objects() const { return m_MObjects; }
 
     // Tiled-pixel coordinate that should land on the owning GameObject. Set by
@@ -172,12 +172,12 @@ public:
     // Resolved once at load (the render pass asks every frame).
     bool FindOrigin(float& outX, float& outY) const
     {
-        if (!m_hasOrigin)
+        if (!m_HasOrigin)
         {
             return false;
         }
-        outX = m_originX;
-        outY = m_originY;
+        outX = m_OriginX;
+        outY = m_OriginY;
         return true;
     }
 
@@ -188,14 +188,14 @@ public:
     bool GetAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY, int32_t& outWidthTiles,
                            int32_t& outHeightTiles) const
     {
-        if (!m_hasBounds)
+        if (!m_HasBounds)
         {
             return false;
         }
-        outMinTileX = m_boundsMinX;
-        outMinTileY = m_boundsMinY;
-        outWidthTiles = m_boundsW;
-        outHeightTiles = m_boundsH;
+        outMinTileX = m_BoundsMinX;
+        outMinTileY = m_BoundsMinY;
+        outWidthTiles = m_BoundsW;
+        outHeightTiles = m_BoundsH;
         return true;
     }
     // Every object's properties, an object's being the propertyCount entries
@@ -204,8 +204,8 @@ public:
     // Every polygon and polyline point as (x, y) pairs: an object's are the
     // pointCount pairs from pair pointOffset. Empty for maps baked before
     // the points were written.
-    const std::vector<int32_t>& PolygonPoints() const { return m_polygonPoints; }
-    const std::string& StringPool() const { return m_stringPool; }
+    const std::vector<int32_t>& PolygonPoints() const { return m_PolygonPoints; }
+    const std::string& StringPool() const { return m_StringPool; }
 
     // The properties of one object, or nullptr (and outCount 0) when it has
     // none or they are not in the file.
@@ -216,7 +216,7 @@ public:
 
     // Internal — not intended for game code.
     const std::vector<ChunkIndexEntry>& Index() const { return m_MIndex; }
-    const std::string& AbsolutePath() const { return m_absolutePath; }
+    const std::string& AbsolutePath() const { return m_AbsolutePath; }
 
 private:
     Tilemap() = default;
@@ -225,20 +225,20 @@ private:
     bool ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY, int32_t& outWidthTiles,
                                int32_t& outHeightTiles) const;
 
-    bool m_hasOrigin = false;
-    float m_originX = 0.0f, m_originY = 0.0f;
-    bool m_hasBounds = false;
-    int32_t m_boundsMinX = 0, m_boundsMinY = 0, m_boundsW = 0, m_boundsH = 0;
+    bool m_HasOrigin = false;
+    float m_OriginX = 0.0f, m_OriginY = 0.0f;
+    bool m_HasBounds = false;
+    int32_t m_BoundsMinX = 0, m_BoundsMinY = 0, m_BoundsW = 0, m_BoundsH = 0;
 
     DTilemapHeader m_MHeader{};
     std::vector<ChunkIndexEntry> m_MIndex;
     std::vector<TilesetRef> m_MTilesets;
-    std::vector<DObjectLayer> m_objectLayers;
+    std::vector<DObjectLayer> m_ObjectLayers;
     std::vector<DTilemapObject> m_MObjects;
     std::vector<DTilemapProperty> m_MProperties;
-    std::vector<int32_t> m_polygonPoints;
-    std::string m_stringPool;
-    std::string m_absolutePath;
+    std::vector<int32_t> m_PolygonPoints;
+    std::string m_StringPool;
+    std::string m_AbsolutePath;
     TilemapStreamer* m_MStreamer = nullptr;
 };
 
