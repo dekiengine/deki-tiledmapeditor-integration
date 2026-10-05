@@ -15,7 +15,6 @@ namespace DekiTiledMap
 // loaded returns false and logs an error, so a miss is never silent.
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Exposes a tilemap layer's per-tile collision shapes for queries.")
-DEKI_FORMER_NAME("TilemapColliderComponent")
 class TilemapColliderComponent : public Deki::Component
 {
 public:

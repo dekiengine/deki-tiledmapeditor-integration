@@ -39,6 +39,8 @@ alongside one that has them.
 ### Removed
 - Reading maps baked before the header said where the pools are. The editor
   bakes every map again (asset cache version 5).
+- The former names from before 0.16.0 (bare class names, and deki-gpio's
+  `DekiEsp32::ESP32PinSetup`). A scene that old is upgraded with 0.17 first.
 
 ## 0.17.0
 

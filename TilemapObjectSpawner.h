@@ -24,7 +24,6 @@ namespace DekiTiledMap
 //     transform. Tile objects do not get a sprite yet.
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Spawns objects from a Tiled map's object layers when the scene loads.")
-DEKI_FORMER_NAME("TilemapObjectSpawner")
 class TilemapObjectSpawner : public Deki::Component
 {
 public:

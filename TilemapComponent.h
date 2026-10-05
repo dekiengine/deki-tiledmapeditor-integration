@@ -13,7 +13,6 @@ namespace DekiTiledMap
 
 DEKI_CATEGORY("Tilemap")
 DEKI_DESCRIPTION("Draws a Tiled map, streaming chunks in around the camera.")
-DEKI_FORMER_NAME("TilemapComponent")
 class TilemapComponent : public DekiRendering::RendererComponent
 {
 public:
