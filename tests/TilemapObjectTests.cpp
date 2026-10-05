@@ -303,22 +303,6 @@ TEST_F(ObjectsFromS, PolygonAndPolylinePointsLoad)
     delete map;
 }
 
-// An older map whose header does not name its pools: same layout, no flag,
-// the pool fields zero. Its properties are found where that baker put them.
-TEST_F(ObjectsFromS, AMapBakedBeforeThePoolOffsetsKeepsItsProperties)
-{
-    std::vector<uint8_t> bytes = Bake(MapWithObjects(false));
-    DTilemapHeader& h = HeaderOf(bytes);
-    ASSERT_EQ(h.pointPoolCount, 0u);
-    h.flags &= ~kTilemapHasPools;
-    h.pointPoolOffset = h.pointPoolCount = h.propertyTableOffset = h.propertyCount = h.stringPoolOffset = 0;
-
-    Tilemap* map = Load(std::move(bytes));
-    ASSERT_NE(map, nullptr);
-    ExpectEveryProperty(*map);
-    delete map;
-}
-
 TEST_F(ObjectsFromS, DamagedPropertiesLeaveTheMapLoading)
 {
     std::vector<uint8_t> bytes = Bake(MapWithObjects(true));

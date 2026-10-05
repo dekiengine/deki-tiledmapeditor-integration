@@ -34,8 +34,6 @@ struct DTilemapHeader
     uint32_t backgroundColor;  // RGBA8
     uint32_t flags;            // bit0 = infinite, bit1 = kTilemapHasPools
     // Where the per-object pools are; valid when flags has kTilemapHasPools.
-    // Older maps leave them zero, and the loader finds the pools where the
-    // baker placed them.
     uint32_t pointPoolOffset;      // int32_t[2 * pointPoolCount], (x, y) pairs
     uint32_t pointPoolCount;       // points
     uint32_t propertyTableOffset;  // DTilemapProperty[propertyCount]

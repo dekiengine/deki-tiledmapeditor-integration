@@ -194,26 +194,6 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         propCount = hdr.propertyCount;
         stringOffset = hdr.stringPoolOffset;
     }
-    else if (!tm->m_MObjects.empty())
-    {
-        // An older map whose header does not name the pools. The baker wrote
-        // the object list, then the points (always none), the properties, and
-        // the strings last; an object's propertyOffset is its index among them.
-        uint64_t objectsEnd = 0;
-        for (const auto& l : tm->m_ObjectLayers)
-        {
-            objectsEnd =
-                std::max(objectsEnd, uint64_t(l.objectOffset) + uint64_t(l.objectCount) * sizeof(DTilemapObject));
-        }
-        for (const auto& o : tm->m_MObjects)
-        {
-            propCount = std::max(propCount, uint64_t(o.propertyOffset) + o.propertyCount);
-        }
-        propOffset = objectsEnd;
-        stringOffset = propCount > 0 && inFile(propOffset, propCount, sizeof(DTilemapProperty))
-                           ? propOffset + propCount * sizeof(DTilemapProperty)
-                           : fileBytes;
-    }
 
     if (pointCount > 0 && inFile(pointOffset, pointCount, 2 * sizeof(int32_t)))
     {

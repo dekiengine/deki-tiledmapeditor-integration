@@ -23,9 +23,7 @@ alongside one that has them.
 - **Object properties load.** The baker wrote every object's properties, but
   the loader never read them back, so `Properties()` was always empty and a
   `TilemapObjectSpawner` never found an object's `scene_guid`. The map header
-  now says where the properties, points and strings are; maps baked before
-  this are read from where the old baker put them, so they keep their
-  properties without a rebake. New: `Tilemap::ObjectProperties(object, count)`.
+  now says where the properties, points and strings are. New: `Tilemap::ObjectProperties(object, count)`.
 - **Polygon and polyline points are written.** Objects had a point count but
   the points themselves were never baked. `DTilemapObject::pointOffset` is now
   the object's first point in `PolygonPoints()`. Maps baked before this have
@@ -37,6 +35,10 @@ alongside one that has them.
   (zero divided by zero in the collider, a huge one overflowed the chunk
   buffer on 32-bit boards), and a tileset's animation frame counts can no
   longer wrap.
+
+### Removed
+- Reading maps baked before the header said where the pools are. The editor
+  bakes every map again (asset cache version 5).
 
 ## 0.17.0
 
