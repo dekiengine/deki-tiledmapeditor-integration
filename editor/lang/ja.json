@@ -29,5 +29,8 @@
     "How tall one vertical repeat is, in tiles. 0 uses the map's own height.": "縦方向の 1 回分の繰り返しの高さ (タイル数) です。0 ではマップ自体の高さを使います。",
     "Tilemap Object Spawner": "タイルマップのオブジェクト生成",
     "The map whose object layer is read. Each object placed in Tiled becomes an object in the scene.": "オブジェクトレイヤーを読み込むマップです。Tiled で配置した各オブジェクトがシーンのオブジェクトになります。",
-    "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "マップの何ピクセルで 1 メートルになるかです。これで生成したオブジェクトが Tiled で置いた位置に来ます。"
+    "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "マップの何ピクセルで 1 メートルになるかです。これで生成したオブジェクトが Tiled で置いた位置に来ます。",
+    "Draws a Tiled map, streaming chunks in around the camera.": "Tiled のマップを描きます。カメラの周りのチャンクを順次読み込みます。",
+    "Exposes a tilemap layer's per-tile collision shapes for queries.": "タイルマップのレイヤーにあるタイルごとの衝突形状を、クエリで使えるようにします。",
+    "Spawns objects from a Tiled map's object layers when the scene loads.": "シーンの読み込み時に、Tiled マップのオブジェクトレイヤーからオブジェクトを生成します。"
 }

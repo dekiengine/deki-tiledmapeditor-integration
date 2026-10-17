@@ -29,5 +29,8 @@
     "How tall one vertical repeat is, in tiles. 0 uses the map's own height.": "세로 반복 한 번의 높이(타일 수)입니다. 0이면 맵 자체의 높이를 사용합니다.",
     "Tilemap Object Spawner": "타일맵 오브젝트 생성기",
     "The map whose object layer is read. Each object placed in Tiled becomes an object in the scene.": "오브젝트 레이어를 읽을 맵입니다. Tiled에서 배치한 각 오브젝트가 씬의 오브젝트가 됩니다.",
-    "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "맵의 몇 픽셀이 1미터인지 지정합니다. 이 값으로 생성된 오브젝트가 Tiled에서 놓은 위치에 놓입니다."
+    "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "맵의 몇 픽셀이 1미터인지 지정합니다. 이 값으로 생성된 오브젝트가 Tiled에서 놓은 위치에 놓입니다.",
+    "Draws a Tiled map, streaming chunks in around the camera.": "카메라 주변의 청크를 스트리밍하며 Tiled 맵을 그립니다.",
+    "Exposes a tilemap layer's per-tile collision shapes for queries.": "타일맵 레이어의 타일별 충돌 모양을 쿼리에 제공합니다.",
+    "Spawns objects from a Tiled map's object layers when the scene loads.": "씬이 로드될 때 Tiled 맵의 오브젝트 레이어에서 오브젝트를 생성합니다."
 }
