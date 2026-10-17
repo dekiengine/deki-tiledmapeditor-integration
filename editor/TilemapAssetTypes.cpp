@@ -10,6 +10,7 @@
 #include <deki-editor/EditorExtension.h>
 #include <deki-editor/EditorRegistry.h>
 #include <deki-editor/AssetTypeRegistry.h>
+#include <deki-editor/Localization.h>
 
 namespace DekiEditor
 {
@@ -18,7 +19,7 @@ class TilemapAssetType : public AssetTypeEditor
 {
 public:
     const char* GetTypeName() const override { return "Tilemap"; }
-    const char* GetDisplayName() const override { return "Tilemap"; }
+    const char* GetDisplayName() const override { return TrMark("Tilemap"); }
     std::vector<std::string> GetExtensions() const override { return { ".tmj" }; }
 };
 
@@ -26,7 +27,7 @@ class TilesetAssetType : public AssetTypeEditor
 {
 public:
     const char* GetTypeName() const override { return "Tileset"; }
-    const char* GetDisplayName() const override { return "Tileset"; }
+    const char* GetDisplayName() const override { return TrMark("Tileset"); }
     std::vector<std::string> GetExtensions() const override { return { ".tsj" }; }
 };
 
