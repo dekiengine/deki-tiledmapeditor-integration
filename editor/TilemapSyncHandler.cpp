@@ -192,6 +192,45 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
     return DekiEditor::AssetCacheResult::Cached;
 }
 
+// What a build must ship with a tileset: its image. Paths in a .tsj are
+// relative to it.
+std::vector<std::string> TilesetDependencies(const std::string& absolutePath, DekiEditor::AssetPipeline* pipeline)
+{
+    TmjTileset ts;
+    std::string err;
+    if (!ParseTsjTileset(absolutePath, ts, err))
+    {
+        return {};
+    }
+    const fs::path image = (fs::path(absolutePath).parent_path() / ts.imageRelative).lexically_normal();
+    const std::string guid =
+        GuidForRelativePath(pipeline, fs::relative(image, pipeline->GetProjectPath()).generic_string());
+    return guid.empty() ? std::vector<std::string>{} : std::vector<std::string>{ guid };
+}
+
+// What a build must ship with a map: its tilesets, which ship their images.
+std::vector<std::string> TilemapDependencies(const std::string& absolutePath, DekiEditor::AssetPipeline* pipeline)
+{
+    TmjMap map;
+    std::string err;
+    std::vector<std::string> guids;
+    if (!ParseTmjMap(absolutePath, map, err))
+    {
+        return guids;
+    }
+    for (const auto& tref : map.tilesets)
+    {
+        const fs::path tsj = (fs::path(absolutePath).parent_path() / tref.source).lexically_normal();
+        const std::string guid =
+            GuidForRelativePath(pipeline, fs::relative(tsj, pipeline->GetProjectPath()).generic_string());
+        if (!guid.empty())
+        {
+            guids.push_back(guid);
+        }
+    }
+    return guids;
+}
+
 }  // namespace
 
 void RegisterTilemapSyncHandlers()
@@ -211,6 +250,8 @@ void RegisterTilemapSyncHandlers()
             // handlers run after hasCachedVersion is final.
             p->RegisterCacheHandler(".tsj", HandleTilesetCache);
             p->RegisterCacheHandler(".tmj", HandleTilemapCache);
+            p->RegisterDependencyReporter(".tsj", TilesetDependencies);
+            p->RegisterDependencyReporter(".tmj", TilemapDependencies);
         });
 }
 

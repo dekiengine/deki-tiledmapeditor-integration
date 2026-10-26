@@ -1,10 +1,12 @@
 #include "TilemapRenderSystem.h"
 #include "PixelFormat.h"
+#include "deki-2d/SpriteRowSpans.h"
 #include <deki/assets/Texture2D.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include <deki/Object.h>
@@ -138,6 +140,8 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
             src = QuadBlit::Source{};
         }
         cache.gidLut.clear();
+        cache.rowSpans.clear();
+        cache.opaqueTiles.clear();
         cache.gidLimit = 0;
         cache.epoch = curEpoch;
     }
@@ -177,7 +181,7 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         if (allLoaded && limit > 0)
         {
             cache.gidLimit = limit;
-            cache.gidLut.assign(limit, TileLUT{ kUnresolved, 0, 0, 0, 0 });
+            cache.gidLut.assign(limit, TileLUT{ kUnresolved, 0, 0, 0, 0, -1, -1 });
         }
     }
 }
@@ -198,8 +202,11 @@ void ToStoredRect(const Deki2D::Sprite* atlas, int sx, int sy, int sw, int sh, i
 }  // namespace
 
 bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint32_t gidIndex, int32_t& outTsIdx,
-                                    int32_t& outSx, int32_t& outSy, int32_t& outSw, int32_t& outSh)
+                                    int32_t& outSx, int32_t& outSy, int32_t& outSw, int32_t& outSh, int32_t& outSpans,
+                                    int32_t& outOpaque)
 {
+    outSpans = -1;
+    outOpaque = -1;
     if (gidIndex == 0)
     {
         return false;
@@ -230,8 +237,42 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
             {
                 int sx, sy, sw, sh;
                 ts->GetTileRect(localId, sx, sy, sw, sh);
-                TileLUT entry{ static_cast<int32_t>(tsIdx), 0, 0, 0, 0 };
-                ToStoredRect(ts->Atlas(), sx, sy, sw, sh, entry.sx, entry.sy, entry.sw, entry.sh);
+                const Deki2D::Sprite* atlas = ts->Atlas();
+                TileLUT entry{ static_cast<int32_t>(tsIdx), 0, 0, 0, 0, -1, -1 };
+                ToStoredRect(atlas, sx, sy, sw, sh, entry.sx, entry.sy, entry.sw, entry.sh);
+                // RGB565A8, the format of an atlas with see-through pixels:
+                // the tile's spans are read off its rect in the atlas.
+                if (atlas->hasAlpha && atlas->data && Deki::Texture2D::GetBytesPerPixel(atlas->format) == 3)
+                {
+                    entry.spans = static_cast<int32_t>(cache.rowSpans.size());
+                    cache.rowSpans.resize(cache.rowSpans.size() + static_cast<size_t>(entry.sh) * 2);
+                    const int32_t stride = atlas->width * 3;
+                    const uint8_t* tilePixels = atlas->data + entry.sy * stride + entry.sx * 3;
+                    Deki2D::BuildOpaqueRowSpans(tilePixels, entry.sw, entry.sh, stride,
+                                                cache.rowSpans.data() + entry.spans);
+
+                    // Opaque in every row, and no colour key to cut holes: a
+                    // copy of its colours, as stored, is the same picture.
+                    bool opaque = !ts->HasTransparentColor();
+                    for (int32_t y = 0; opaque && y < entry.sh; ++y)
+                    {
+                        const int16_t* span = cache.rowSpans.data() + entry.spans + y * 2;
+                        opaque = span[0] == 0 && span[1] == entry.sw;
+                    }
+                    Deki::Buffer<uint16_t> copy;
+                    if (opaque && copy.Allocate(static_cast<size_t>(entry.sw) * entry.sh, Deki::Memory::External))
+                    {
+                        for (int32_t y = 0; y < entry.sh; ++y)
+                        {
+                            for (int32_t x = 0; x < entry.sw; ++x)
+                            {
+                                std::memcpy(copy.Data() + y * entry.sw + x, tilePixels + y * stride + x * 3, 2);
+                            }
+                        }
+                        entry.opaque = static_cast<int32_t>(cache.opaqueTiles.size());
+                        cache.opaqueTiles.push_back(std::move(copy));
+                    }
+                }
                 e = entry;
             }
         }
@@ -244,6 +285,8 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
         outSy = e.sy;
         outSw = e.sw;
         outSh = e.sh;
+        outSpans = e.spans;
+        outOpaque = e.opaque;
         return true;
     }
 
@@ -265,6 +308,11 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
     outTsIdx = static_cast<int32_t>(tsIdx);
     ToStoredRect(ts->Atlas(), sx, sy, sw, sh, outSx, outSy, outSw, outSh);
     return true;
+}
+
+bool TilemapRenderPass::WantsObject(Deki::Object* obj) const
+{
+    return obj && obj->GetComponent<TilemapComponent>() != nullptr;
 }
 
 void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx)
@@ -632,13 +680,54 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                 continue;
             }
 
+            // Each column's and each row's screen position, once for the
+            // chunk rather than once a tile: WorldToScreen works x and y out
+            // apart, so these are the very calls each tile made, with the
+            // same results.
+            //
+            // A tile's corner is its top-left in Tiled pixels, converted to
+            // world meters (Y up, centred on the owner): in engine terms the
+            // corner with the highest Y, which BlitScaled takes as (destX,
+            // destY).
+            const bool roundToPixel = pixelSnap || cam.snapStep > 0;
+            m_ChunkColX.resize(static_cast<size_t>(cw));
+            m_ChunkRowY.resize(static_cast<size_t>(ch));
+            for (int tx = 0; tx < cw; ++tx)
+            {
+                const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw) * invTilePPM;
+                const float wx = originX + tiledTileX - originOffsetX;
+                float fDestSX, unusedY;
+                cam.WorldToScreen(wx, originY, fDestSX, unusedY);
+                if (cam.snapStep > 0)  // project Pixel Perfect: the art-pixel grid
+                {
+                    fDestSX = cam.SnapX(fDestSX);
+                }
+                m_ChunkColX[tx] = roundToPixel ? static_cast<int>(std::lround(fDestSX)) : static_cast<int>(fDestSX);
+            }
+            for (int ty = 0; ty < ch; ++ty)
+            {
+                const float tiledTileY = static_cast<float>(chunkOriginY + ty * th) * invTilePPM;
+                const float wy = originY + originOffsetY - tiledTileY;
+                float unusedX, fDestSY;
+                cam.WorldToScreen(originX, wy, unusedX, fDestSY);
+                if (cam.snapStep > 0)
+                {
+                    fDestSY = cam.SnapY(fDestSY);
+                }
+                m_ChunkRowY[ty] = roundToPixel ? static_cast<int>(std::lround(fDestSY)) : static_cast<int>(fDestSY);
+            }
+
             for (int ty = 0; ty < ch; ++ty)
             {
                 for (int tx = 0; tx < cw; ++tx)
                 {
                     const uint32_t gid = chunk->tileGids[ty * cw + tx];
-                    int32_t tsIdx, sx, sy, sw, sh;
-                    if (!ResolveTile(tm, cache, GidIndex(gid), tsIdx, sx, sy, sw, sh))
+                    if (GidIndex(gid) == 0)
+                    {
+                        continue;  // an empty cell
+                    }
+                    int32_t tsIdx, sx, sy, sw, sh, spans, opaque;
+                    if (!ResolveTile(tm, cache, GidIndex(gid), tsIdx, sx, sy, sw, sh, spans, opaque))
                     {
                         continue;
                     }
@@ -647,26 +736,8 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                         continue;
                     }
 
-                    // The tile's top-left in Tiled pixels, converted to world
-                    // meters (Y up, centred on the owner). WorldToScreen gets
-                    // the tile's top-left in engine terms, the corner with the
-                    // highest Y, which BlitScaled takes as (destX, destY).
-                    const float tiledTileX = static_cast<float>(chunkOriginX + tx * tw) * invTilePPM;
-                    const float tiledTileY = static_cast<float>(chunkOriginY + ty * th) * invTilePPM;
-                    const float wx = originX + tiledTileX - originOffsetX;
-                    const float wy = originY + originOffsetY - tiledTileY;
-
-                    float fDestSX, fDestSY;
-                    cam.WorldToScreen(wx, wy, fDestSX, fDestSY);
-                    if (cam.snapStep > 0)  // project Pixel Perfect: the art-pixel grid
-                    {
-                        fDestSX = cam.SnapX(fDestSX);
-                        fDestSY = cam.SnapY(fDestSY);
-                    }
-                    const int destSX = (pixelSnap || cam.snapStep > 0) ? static_cast<int>(std::lround(fDestSX))
-                                                                       : static_cast<int>(fDestSX);
-                    const int destSY = (pixelSnap || cam.snapStep > 0) ? static_cast<int>(std::lround(fDestSY))
-                                                                       : static_cast<int>(fDestSY);
+                    const int destSX = m_ChunkColX[tx];
+                    const int destSY = m_ChunkRowY[ty];
 
                     const int destW = cache.destW[tsIdx];
                     const int destH = cache.destH[tsIdx];
@@ -689,9 +760,24 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                     sub.flipH = GidFlipH(gid);
                     sub.flipV = GidFlipV(gid);
                     sub.flipD = GidFlipD(gid);
+                    sub.alphaRowSpans = spans >= 0 ? cache.rowSpans.data() + spans : nullptr;
 
-                    QuadBlit::BlitScaled(sub, ctx.buffer, screenW, screenH, ctx.format, destSX, destSY, destW, destH,
-                                         tintR, tintG, tintB, tintA);
+                    if (opaque >= 0)
+                    {
+                        QuadBlit::Source plain =
+                            QuadBlit::MakeSource(reinterpret_cast<const uint8_t*>(cache.opaqueTiles[opaque].Data()), sw,
+                                                 sh, QuadBlit::PixelLayout::RGB565());
+                        plain.flipH = sub.flipH;
+                        plain.flipV = sub.flipV;
+                        plain.flipD = sub.flipD;
+                        QuadBlit::BlitScaled(plain, ctx.buffer, screenW, screenH, ctx.format, destSX, destSY, destW,
+                                             destH, tintR, tintG, tintB, tintA);
+                    }
+                    else
+                    {
+                        QuadBlit::BlitScaled(sub, ctx.buffer, screenW, screenH, ctx.format, destSX, destSY, destW,
+                                             destH, tintR, tintG, tintB, tintA);
+                    }
                 }
             }
         }
@@ -704,17 +790,22 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
 // the active DekiRendering::Standard2DRenderer whenever this package is
 // loaded. The project's .rpipeline need not mention "tilemap", but can, to
 // order it against other passes (clip2d, say).
+void DekiTiledMap::RegisterTilemapRenderPass()
+{
+    DekiRendering::RenderPassInfo info;
+    info.factory = []() -> DekiRendering::RenderPass* { return new DekiTiledMap::TilemapRenderPass(); };
+    info.autoAttach = true;
+    DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::kRegistryName, info);
+}
+
+// In a DLL this also registers the pass, and takes it out again on unload. A
+// firmware links the package from a static library and drops this object, so
+// DekiTilemapInitSystem registers the pass there.
 namespace
 {
 struct TilemapRenderPassRegistrar
 {
-    TilemapRenderPassRegistrar()
-    {
-        DekiRendering::RenderPassInfo info;
-        info.factory = []() -> DekiRendering::RenderPass* { return new DekiTiledMap::TilemapRenderPass(); };
-        info.autoAttach = true;
-        DekiRendering::DekiRenderPassRegistry::Register(DekiTiledMap::TilemapRenderPass::kRegistryName, info);
-    }
+    TilemapRenderPassRegistrar() { DekiTiledMap::RegisterTilemapRenderPass(); }
     // Unregister on DLL unload, so the factory (code in this package) does
     // not outlive the DLL and crash deki-rendering's registry teardown.
     ~TilemapRenderPassRegistrar()

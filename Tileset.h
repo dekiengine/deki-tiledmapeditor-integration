@@ -114,4 +114,8 @@ private:
     std::vector<DTileCollision> m_MCollisions;
 };
 
+/// Registers the Tileset asset loader. Safe to call more than once; see
+/// DekiTilemapInitSystem.
+void RegisterTilesetLoader();
+
 }  // namespace DekiTiledMap

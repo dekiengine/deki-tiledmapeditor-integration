@@ -183,8 +183,11 @@ const DTileAnimationFrame* Tileset::GetAnimationFrames(const DTileAnimation& a) 
     return &m_AnimFrames[idx];
 }
 
-// REGISTER_ASSET_TYPE pastes the type name into an identifier, so it cannot
-// take a qualified name; it is called inside the namespace.
-REGISTER_ASSET_TYPE(Tileset, Tileset::Load)
+void RegisterTilesetLoader()
+{
+    Deki::AssetManager::RegisterLoader(
+        Tileset::kAssetTypeName, [](const char* path) -> void* { return Tileset::Load(path); },
+        [](void* asset) { delete static_cast<Tileset*>(asset); });
+}
 
 }  // namespace DekiTiledMap

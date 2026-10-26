@@ -386,6 +386,11 @@ bool Tilemap::ComputeAuthoredBounds(int32_t& outMinTileX, int32_t& outMinTileY, 
     return true;
 }
 
-REGISTER_ASSET_TYPE(Tilemap, Tilemap::Load)
+void RegisterTilemapLoader()
+{
+    Deki::AssetManager::RegisterLoader(
+        Tilemap::kAssetTypeName, [](const char* path) -> void* { return Tilemap::Load(path); },
+        [](void* asset) { delete static_cast<Tilemap*>(asset); });
+}
 
 }  // namespace DekiTiledMap

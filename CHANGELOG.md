@@ -8,6 +8,32 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Changed
+- The map's render pass says which objects it draws (`WantsObject`): in strips
+  it skips the rest, and a whole frame under a full-screen background is not
+  cleared first (deki-rendering's lazy clear).
+- **Maps draw faster.** A tile with see-through edges copies its opaque run
+  and blends only the rest, from spans found once per tile, and a fully
+  opaque tile in an atlas that has see-through tiles is drawn from a 2-byte
+  copy instead of read 3 bytes a pixel: tiles take the same paths sprites do.
+  Each column's and row's screen position is worked out once per chunk, and
+  empty cells are skipped at once. The demo's meadow on a T-Deck Plus renders
+  in 6.0 ms instead of 6.9 ms (6.6 ms when its tiles were sprites), with the
+  same pixels.
+
+### Fixed
+- **Maps draw on boards.** A firmware links the package from a static
+  library, which left out the render pass and the Tileset loader: nothing
+  referred to their files, so their registrations never ran, and a map drew
+  nothing, with no error. `DekiTilemapInitSystem()` now registers the loaders
+  and the pass, and the firmware calls it (`PACKAGE_HAS_SYSTEM_INIT`); the
+  editor calls it when it loads the package.
+- **A build ships a map's tilesets and their images.** The package reports
+  them to the editor (`AssetPipeline::RegisterDependencyReporter`), so a build
+  for a board includes them; it used to ship the map alone.
+
 ## 0.19.0
 
 ### Changed

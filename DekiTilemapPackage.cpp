@@ -6,6 +6,7 @@
 #include "TilemapColliderComponent.h"
 #include "TilemapObjectSpawner.h"
 #include "TilemapRenderSystem.h"
+#include "TilemapInit.h"
 #include <deki/reflection/ComponentRegistry.h>
 #include <deki/reflection/ComponentFactory.h>
 
@@ -73,6 +74,7 @@ extern "C"
 
     DEKI_PLUGIN_API int DekiPluginInit(void)
     {
+        DekiTilemapInitSystem();
         return 0;
     }
 

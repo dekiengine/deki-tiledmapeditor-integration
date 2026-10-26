@@ -240,4 +240,8 @@ private:
     TilemapStreamer* m_MStreamer = nullptr;
 };
 
+/// Registers the Tilemap asset loader. Safe to call more than once; see
+/// DekiTilemapInitSystem.
+void RegisterTilemapLoader();
+
 }  // namespace DekiTiledMap
