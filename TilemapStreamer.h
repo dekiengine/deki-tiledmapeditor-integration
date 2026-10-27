@@ -45,6 +45,12 @@ public:
     size_t MemoryBudget() const { return m_BudgetBytes; }
     size_t ResidentBytes() const { return m_ResidentBytes; }
 
+    /// One more each time a chunk is loaded or dropped: what a map draws may
+    /// differ from then on.
+    uint32_t Changes() const { return m_Changes; }
+    /// Chunks asked for and not loaded yet.
+    size_t Pending() const { return m_PendingSet.size(); }
+
     uint16_t ChunkWidth() const { return m_MHeader.chunkWidth; }
     uint16_t ChunkHeight() const { return m_MHeader.chunkHeight; }
 
@@ -96,6 +102,7 @@ private:
     std::list<Key> m_MPending;                      // load queue (FIFO)
     std::unordered_set<Key, KeyHash> m_PendingSet;  // fast duplicate check for m_MPending
     size_t m_ResidentBytes = 0;
+    uint32_t m_Changes = 0;
     size_t m_BudgetBytes = 256 * 1024;
     size_t m_ChunkBytes = 0;
 };

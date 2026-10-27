@@ -195,6 +195,7 @@ bool TilemapStreamer::LoadChunkNow(const ChunkIndexEntry& entry)
 
     m_ResidentBytes += rc.bytes;
     m_MResident.emplace(key, std::move(rc));
+    ++m_Changes;
     return true;
 }
 
@@ -277,6 +278,7 @@ void TilemapStreamer::EvictUntilUnder(size_t targetBytes)
         Deki::Memory::Free(it->second.owned);
         m_ResidentBytes -= it->second.bytes;
         m_MResident.erase(it);
+        ++m_Changes;
     }
 }
 

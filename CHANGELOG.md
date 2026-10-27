@@ -11,6 +11,10 @@ alongside one that has them.
 ## Unreleased
 
 ### Changed
+- The map pass says when a map changed (deki-rendering's
+  redraw-only-what-changed): where it sits, its settings, a chunk loaded or
+  dropped (`TilemapStreamer::Changes`), a tileset arriving. A map still
+  loading chunks counts as changed, so it keeps loading them.
 - The map's render pass says which objects it draws (`WantsObject`): in strips
   it skips the rest, and a whole frame under a full-screen background is not
   cleared first (deki-rendering's lazy clear).

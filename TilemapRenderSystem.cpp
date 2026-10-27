@@ -14,6 +14,8 @@
 #include "deki-rendering/CameraComponent.h"
 #include "deki-rendering/DekiRenderer.h"
 #include "deki-rendering/DekiRenderPassRegistry.h"
+#include "deki-rendering/DirtyRegion.h"
+#include "deki-rendering/Fingerprint.h"
 #include "deki-rendering/QuadBlit.h"
 #include "deki-2d/Sprite.h"
 #include "Tilemap.h"
@@ -313,6 +315,77 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
 bool TilemapRenderPass::WantsObject(Deki::Object* obj) const
 {
     return obj && obj->GetComponent<TilemapComponent>() != nullptr;
+}
+
+void TilemapRenderPass::AddChanges(Deki::Object* obj, const DekiRendering::RenderContext& ctx,
+                                   DekiRendering::DirtyRegion& changed)
+{
+    (void)ctx;
+    auto* tc = obj ? obj->GetComponent<TilemapComponent>() : nullptr;
+    if (!tc)
+    {
+        return;
+    }
+    // Everything that decides the map's pixels besides the camera (a camera
+    // that moves redraws everything anyway), field by field.
+    Tilemap* tm = tc->tilemap.Get();
+    TilemapStreamer* streamer = tm ? tm->Streamer() : nullptr;
+    size_t ready = 0;
+    if (tm)
+    {
+        const TilesetCache& cache = GetCache(tm);
+        ready = static_cast<size_t>(std::count(cache.ready.begin(), cache.ready.end(), true));
+    }
+    DekiRendering::Fingerprint f;
+    f.Add(static_cast<const void*>(tm));
+    f.Add(obj->GetWorldX());
+    f.Add(obj->GetWorldY());
+    f.Add(static_cast<uint32_t>(tc->visibleLayerMask));
+    f.Add(static_cast<uint32_t>(tc->tintColor.r) | (static_cast<uint32_t>(tc->tintColor.g) << 8) |
+          (static_cast<uint32_t>(tc->tintColor.b) << 16) | (static_cast<uint32_t>(tc->tintColor.a) << 24));
+    f.Add(tc->pixelsPerMeter);
+    f.Add(static_cast<uint32_t>(tc->loopX) | (static_cast<uint32_t>(tc->loopY) << 1));
+    f.Add(static_cast<uint32_t>(tc->wrapPeriodX));
+    f.Add(static_cast<uint32_t>(tc->wrapPeriodY));
+    f.Add(static_cast<uint32_t>(tc->chunkPadding));
+    f.Add(static_cast<uint32_t>(ready));
+    f.Add(streamer ? streamer->Changes() : 0u);
+    const Deki::AssetManager* assets = Deki::AssetManager::Get();
+    const uint64_t epoch = assets ? assets->GetEpoch() : 0;
+    f.Add(static_cast<uint32_t>(epoch));
+    f.Add(static_cast<uint32_t>(epoch >> 32));
+    const uint64_t h = f.Value();
+
+    Drawn& drawn = m_Drawn[tc];
+    const bool loading = streamer && streamer->Pending() > 0;
+    if (drawn.seen == 0 || drawn.signature != h || loading)
+    {
+        changed.SetFull();
+    }
+    drawn.signature = h;
+    drawn.seen = m_ChangesCall;
+}
+
+void TilemapRenderPass::FinishChanges(const DekiRendering::RenderContext& ctx, DekiRendering::DirtyRegion& changed)
+{
+    (void)ctx;
+    // A map no longer drawn leaves its tiles behind until the view is redrawn.
+    for (auto it = m_Drawn.begin(); it != m_Drawn.end();)
+    {
+        if (it->second.seen != m_ChangesCall)
+        {
+            changed.SetFull();
+            it = m_Drawn.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (++m_ChangesCall == 0)
+    {
+        m_ChangesCall = 1;
+    }
 }
 
 void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx)

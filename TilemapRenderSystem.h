@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,7 @@ namespace DekiTiledMap
 {
 
 class Tileset;
+class TilemapComponent;
 
 /// Registers the "tilemap" render pass. Safe to call more than once; see
 /// DekiTilemapInitSystem.
@@ -36,6 +38,16 @@ public:
     uint32_t HookMask() const override { return DekiRendering::RenderPassHooks::Execute; }
     bool WantsObject(Deki::Object* obj) const override;
     void Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx) override;
+
+    /// A map usually fills the view, so any change to what it draws (where it
+    /// sits, its settings, a chunk loaded or dropped, a tileset arriving)
+    /// redraws the whole view; a map that stays as it is redraws nothing.
+    /// While chunks are still loading it counts as changed, so its Execute
+    /// keeps loading them.
+    bool ReportsChanges() const override { return true; }
+    void AddChanges(Deki::Object* obj, const DekiRendering::RenderContext& ctx,
+                    DekiRendering::DirtyRegion& changed) override;
+    void FinishChanges(const DekiRendering::RenderContext& ctx, DekiRendering::DirtyRegion& changed) override;
 
 private:
     // Where a global tile id lives: its tileset index and pixel rect in that
@@ -98,6 +110,16 @@ private:
     // Bumped per Execute, so the streamer moves a chunk's LRU node at most once
     // per frame however often the chunk is drawn.
     uint32_t m_FrameSerial = 0;
+
+    // AddChanges: a signature of what each map drew last, and the call that
+    // last saw it.
+    struct Drawn
+    {
+        uint64_t signature = 0;
+        uint32_t seen = 0;
+    };
+    std::unordered_map<const TilemapComponent*, Drawn> m_Drawn;
+    uint32_t m_ChangesCall = 1;
 
     // Scratch kept between calls, so Execute() does not allocate.
     std::vector<ChunkIndexEntry> m_VisibleScratch;
