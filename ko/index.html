@@ -57,7 +57,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-tiledmapeditor-integration<span id="projectnumber">&#160;0.20.2</span>
+   <div id="projectname">deki-tiledmapeditor-integration<span id="projectnumber">&#160;0.21.0</span>
    </div>
    <div id="projectbrief">Deki 패키지 레퍼런스</div>
   </td>
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-tiledmapeditor-integration.png" alt=""/>
 </div>
     <p>Tiled Map Editor 통합. 프로젝트에 .tmj 파일을 넣으면 에디터가 스트리밍 가능한 바이너리 타일맵으로 베이크합니다.</p>
-<p>저장소: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration">github.com/dekiengine/deki-tiledmapeditor-integration</a> · 최신 릴리스: 0.19.0 · 엔진 0.19.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-2d/ko/">deki-2d</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
+<p>저장소: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration">github.com/dekiengine/deki-tiledmapeditor-integration</a> · 최신 릴리스: 0.21.0 · 엔진 0.21.0 이상 필요 · 의존: <a href="https://dekiengine.github.io/deki-2d/ko/">deki-2d</a>, <a href="https://dekiengine.github.io/deki-rendering/ko/">deki-rendering</a></p>
 <p><span class="tt">DekiEditor --packages-add deki-tiledmapeditor-integration &lt;project&gt;</span> 또는 패키지 관리자로 설치합니다. 엔진 자체의 컴포넌트와 C++ API는 <a href="https://dekiengine.github.io/docs/ko/">Deki 문서</a>에 있습니다.</p>
 <p>에디터에는 <b>Tiled Map Editor Integration</b>(으)로 표시됩니다.</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -210,47 +210,37 @@ TilemapObjectSpawner</h2>
 변경 내역</h1>
 <p>변경 내역은 영어로 되어 있습니다.</p>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.19.0</h2>
+0.21.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Changed</h2>
+<ul>
+<li><span class="tt">minEngine</span> 0.21.0: built against engine 0.21.0. A build of this package from before does not load and is rebuilt.</li>
+<li>The map pass says when a map changed (deki-rendering's redraw-only-what-changed): where it sits, its settings, a chunk loaded or dropped (<span class="tt">TilemapStreamer::Changes</span>), a tileset arriving. A map still loading chunks counts as changed, so it keeps loading them.</li>
+<li>The map's render pass says which objects it draws (<span class="tt">WantsObject</span>): in strips it skips the rest, and a whole frame under a full-screen background is not cleared first (deki-rendering's lazy clear).</li>
+<li><b>Maps draw faster.</b> A tile with see-through edges copies its opaque run and blends only the rest, from spans found once per tile, and a fully opaque tile in an atlas that has see-through tiles is drawn from a 2-byte copy instead of read 3 bytes a pixel: tiles take the same paths sprites do. Each column's and row's screen position is worked out once per chunk, and empty cells are skipped at once. The demo's meadow on a T-Deck Plus renders in 6.0 ms instead of 6.9 ms (6.6 ms when its tiles were sprites), with the same pixels.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Fixed</h2>
+<ul>
+<li><b>Maps draw on boards.</b> A firmware links the package from a static library, which left out the render pass and the Tileset loader: nothing referred to their files, so their registrations never ran, and a map drew nothing, with no error. <span class="tt">DekiTilemapInitSystem()</span> now registers the loaders and the pass, and the firmware calls it (<span class="tt">PACKAGE_HAS_SYSTEM_INIT</span>); the editor calls it when it loads the package.</li>
+<li><b>A build ships a map's tilesets and their images.</b> The package reports them to the editor (<span class="tt">AssetPipeline::RegisterDependencyReporter</span>), so a build for a board includes them; it used to ship the map alone.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+0.19.0</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 Changed</h2>
 <ul>
 <li><span class="tt">minEngine</span> 0.19.0: built against engine 0.19.0, whose component metadata records the package each class is in. A build of this package from before does not load and is rebuilt.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
 Added</h2>
 <ul>
 <li>Japanese, Simplified Chinese and Korean: <span class="tt">editor/lang/ja.json</span>, <span class="tt">zh.json</span> and <span class="tt">ko.json</span> translate the names, tooltips and enum values this package's components show in the Inspector.</li>
 <li>The package's editor text goes through the editor's translation (<span class="tt">Tr</span>), so it shows in the editor's language. Needs the editor release that adds <span class="tt">Localization.h</span>; raise <span class="tt">minEngine</span> to it when releasing.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-0.18.0</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Changed</h2>
-<ul>
-<li><span class="tt">minEngine</span> 0.18.0. Reflection ABI 21: the package must be rebuilt.</li>
-<li><b>Names follow the code style</b> (deki-engine/docs/codestyle): types, functions and enum values are PascalCase, constants kPascalCase, members m_PascalCase, locals and parameters camelCase. The code is formatted with clang-format 22.</li>
-<li>The functions the editor finds by name are PascalCase: DekiTilemapRegisterComponents, DekiTilemapGetAutoComponentCount, DekiTilemapEnsureRegistered and the rest. Built against engine ABI 21; a build of this package from before does not load and is rebuilt.</li>
-<li>Renamed: <span class="tt">AssetTypeName</span> is <span class="tt">kAssetTypeName</span>, <span class="tt">GID_INDEX_MASK</span> and the other gid flags are <span class="tt">kGidIndexMask</span>, ..., <span class="tt">CHUNK_FLAG_EMPTY</span> is <span class="tt">ChunkFlagEmpty</span>.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Fixed</h2>
-<ul>
-<li>The Chunk Padding tooltip says it counts chunks; it said tiles.</li>
-<li><b>Builds for ESP32 boards again</b> (0.17.0 did not): the Max Size change called <span class="tt">std::max</span> with an <span class="tt">int</span> and an <span class="tt">int32_t</span>, which is <span class="tt">long</span> on Xtensa, and left two members of the tile lookup uninitialised, an error there.</li>
-<li><b>Object properties load.</b> The baker wrote every object's properties, but the loader never read them back, so <span class="tt">Properties()</span> was always empty and a <span class="tt">TilemapObjectSpawner</span> never found an object's <span class="tt">scene_guid</span>. The map header now says where the properties, points and strings are. New: <span class="tt">Tilemap::ObjectProperties(object, count)</span>.</li>
-<li><b>Polygon and polyline points are written.</b> Objects had a point count but the points themselves were never baked. <span class="tt">DTilemapObject::pointOffset</span> is now the object's first point in <span class="tt">PolygonPoints()</span>. Maps baked before this have no points until they are baked again.</li>
-<li>A map no longer reads its whole object list into memory twice.</li>
-<li>Corrupt map and tileset files are refused instead of crashing: every table is checked against the file's size, the per-layer object counts can no longer wrap and overflow the object table, chunk sides must be 1 to 1024 (zero divided by zero in the collider, a huge one overflowed the chunk buffer on 32-bit boards), and a tileset's animation frame counts can no longer wrap.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
-Removed</h2>
-<ul>
-<li>Reading maps baked before the header said where the pools are. The editor bakes every map again (asset cache version 5).</li>
-<li>The former names from before 0.16.0 (bare class names, and deki-gpio's <span class="tt">DekiEsp32::ESP32PinSetup</span>). A scene that old is upgraded with 0.17 first.</li>
-</ul>
 <p>이전 릴리스: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a></p>
 <hr  />
-<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.20.2). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
+<p>패키지의 리플렉션 데이터에서 생성했습니다(엔진 0.21.0). 속성 이름은 씬 파일에서 쓰는 키입니다. 이름을 바꿔도 별칭이 유지됩니다(<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">호환성</a>). </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
