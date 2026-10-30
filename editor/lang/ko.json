@@ -11,7 +11,7 @@
     "Which of the map's layers to draw, one bit per layer. All bits set draws everything.": "맵의 어떤 레이어를 그릴지 레이어당 1비트로 지정합니다. 모든 비트를 켜면 전부 그립니다.",
     "Chunk Padding": "청크 여백",
     "How many chunks beyond the screen edge to keep loaded and drawn. A little padding stops tiles popping in at the edge while scrolling.": "화면 가장자리 바깥으로 몇 개의 청크를 로드하고 그려 둘지 지정합니다. 여백을 조금 두면 스크롤할 때 가장자리에서 타일이 갑자기 나타나지 않습니다.",
-    "Chunk Cache Ki B": "청크 캐시(KiB)",
+    "Chunk Cache KiB": "청크 캐시(KiB)",
     "How much memory this map may keep decoded chunks in, in KiB. Past the budget the least recently drawn chunks are dropped and re-read from storage when they are needed again, so too small shows up as stutter while scrolling rather than as anything missing. 256 suits an ESP32; a desktop can afford far more.": "이 맵이 디코딩된 청크를 보관할 수 있는 메모리 양(KiB)입니다. 한도를 넘으면 가장 오래전에 그려진 청크부터 버리고, 다시 필요할 때 저장소에서 다시 읽습니다. 그래서 너무 작으면 무언가가 빠지는 대신 스크롤 중 끊김으로 나타납니다. ESP32에는 256이 적당하며, 데스크톱은 훨씬 더 많이 쓸 수 있습니다.",
     "Loop X": "X 방향 반복",
     "Repeat the map horizontally, so scrolling past the edge wraps round.": "맵을 가로로 반복하여, 가장자리를 넘어 스크롤하면 반대쪽으로 이어집니다.",

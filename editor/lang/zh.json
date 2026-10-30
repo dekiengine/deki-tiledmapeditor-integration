@@ -11,7 +11,7 @@
     "Which of the map's layers to draw, one bit per layer. All bits set draws everything.": "要绘制地图的哪些图层，每个图层一位。所有位都置位时绘制全部图层。",
     "Chunk Padding": "区块边距",
     "How many chunks beyond the screen edge to keep loaded and drawn. A little padding stops tiles popping in at the edge while scrolling.": "在屏幕边缘之外保持加载和绘制的区块数。留一点边距可以避免滚动时图块在边缘突然出现。",
-    "Chunk Cache Ki B": "区块缓存 (KiB)",
+    "Chunk Cache KiB": "区块缓存 (KiB)",
     "How much memory this map may keep decoded chunks in, in KiB. Past the budget the least recently drawn chunks are dropped and re-read from storage when they are needed again, so too small shows up as stutter while scrolling rather than as anything missing. 256 suits an ESP32; a desktop can afford far more.": "此地图可用于保存已解码区块的内存量，单位为 KiB。超出预算时，最久未绘制的区块会被丢弃，再次需要时从存储中重新读取。因此设得太小的表现是滚动时卡顿，而不是内容缺失。ESP32 适合用 256；桌面平台可以用得多得多。",
     "Loop X": "X 方向循环",
     "Repeat the map horizontally, so scrolling past the edge wraps round.": "在水平方向重复地图，滚动越过边缘时会绕回另一侧。",
