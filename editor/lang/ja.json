@@ -32,5 +32,16 @@
     "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "マップの何ピクセルで 1 メートルになるかです。これで生成したオブジェクトが Tiled で置いた位置に来ます。",
     "Draws a Tiled map, streaming chunks in around the camera.": "Tiled のマップを描きます。カメラの周りのチャンクを順次読み込みます。",
     "Exposes a tilemap layer's per-tile collision shapes for queries.": "タイルマップのレイヤーにあるタイルごとの衝突形状を、クエリで使えるようにします。",
-    "Spawns objects from a Tiled map's object layers when the scene loads.": "シーンの読み込み時に、Tiled マップのオブジェクトレイヤーからオブジェクトを生成します。"
+    "Spawns objects from a Tiled map's object layers when the scene loads.": "シーンの読み込み時に、Tiled マップのオブジェクトレイヤーからオブジェクトを生成します。",
+    "Size in Tiles": "サイズ (タイル数)",
+    "Tile Size": "タイルサイズ",
+    "Tile Layers": "タイルレイヤー",
+    "Object Layers": "オブジェクトレイヤー",
+    "Tilesets": "タイルセット",
+    "Tiles": "タイル数",
+    "Columns": "列数",
+    "Image": "画像",
+    "infinite": "無限",
+    "Made in Tiled. Edit it there; the editor bakes it again when the file changes.": "Tiled で作成されています。Tiled で編集すると、ファイルが変わったときにエディターが再ベイクします。",
+    "Open in Tiled": "Tiled で開く"
 }

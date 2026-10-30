@@ -14,6 +14,10 @@ alongside one that has them.
 - Translations are keyed by the editor's names with their acronyms ("I2C Port",
   "SPI Host" rather than "I 2c Port", "Spi Host"), which the 0.22 editor shows.
 
+### Added
+- Tilemaps and tilesets have an inspector: size, tiles, layers and tilesets
+  read from the file, and Open in Tiled.
+
 ## 0.21.0
 
 ### Changed

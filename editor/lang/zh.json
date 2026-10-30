@@ -32,5 +32,16 @@
     "How many of the map's pixels make one meter, so spawned objects land where Tiled put them.": "地图上多少像素算作一米，使生成的对象落在 Tiled 中放置的位置。",
     "Draws a Tiled map, streaming chunks in around the camera.": "绘制 Tiled 地图，在相机周围流式加载区块。",
     "Exposes a tilemap layer's per-tile collision shapes for queries.": "提供瓦片地图图层中每个图块的碰撞形状，供查询使用。",
-    "Spawns objects from a Tiled map's object layers when the scene loads.": "场景加载时，根据 Tiled 地图的对象图层生成对象。"
+    "Spawns objects from a Tiled map's object layers when the scene loads.": "场景加载时，根据 Tiled 地图的对象图层生成对象。",
+    "Size in Tiles": "大小（图块数）",
+    "Tile Size": "图块大小",
+    "Tile Layers": "图块层",
+    "Object Layers": "对象层",
+    "Tilesets": "图块集",
+    "Tiles": "图块数",
+    "Columns": "列数",
+    "Image": "图像",
+    "infinite": "无限",
+    "Made in Tiled. Edit it there; the editor bakes it again when the file changes.": "由 Tiled 制作。在 Tiled 中编辑，文件改变时编辑器会重新烘焙。",
+    "Open in Tiled": "在 Tiled 中打开"
 }

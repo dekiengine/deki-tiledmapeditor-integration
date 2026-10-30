@@ -2,8 +2,15 @@
 
 #include "TilemapInspector.h"
 
+#include "TmjParser.h"
+
+#include <cstdio>
+#include <filesystem>
 #include <string>
 
+#include <deki-editor/EditorExtension.h>
+#include <deki-editor/EditorUI.h>
+#include <deki-editor/Localization.h>
 #include <deki/LogSystem.h>
 
 #ifdef _WIN32
@@ -16,6 +23,8 @@ namespace DekiTiledMap
 
 namespace
 {
+
+namespace fs = std::filesystem;
 
 bool s_InspectorRegistered = false;
 
@@ -38,6 +47,108 @@ void OpenInTiled(const std::string& absPath)
 #endif
 }
 
+// What a Tiled map or tileset is, read from the file: Tiled edits it, the
+// editor bakes it when it changes, so the inspector shows it and opens Tiled.
+// The file is parsed again only when it changes on disk.
+class TilemapFileInspector : public DekiEditor::FileInspector
+{
+public:
+    const char** GetExtensions() const override
+    {
+        static const char* kExtensions[] = { ".tmj", ".tsj" };
+        return kExtensions;
+    }
+    int GetExtensionCount() const override { return 2; }
+
+    void OnInspectorGUI(const std::string& assetPath, const std::string&) override
+    {
+        auto& ui = DekiEditor::EditorUI::Get();
+        Refresh(assetPath);
+        if (!ui.SectionHeader(DekiEditor::Tr(m_IsMap ? "Tilemap" : "Tileset")))
+        {
+            return;
+        }
+
+        char buf[64];
+        if (!m_Error.empty())
+        {
+            ui.Hint(m_Error.c_str());
+        }
+        else if (m_IsMap)
+        {
+            std::snprintf(buf, sizeof(buf), "%d x %d", m_Map.width, m_Map.height);
+            ui.PropertyRow("Size in Tiles");
+            ui.ValueText(m_Map.infinite ? DekiEditor::Tr("infinite") : buf);
+            std::snprintf(buf, sizeof(buf), "%d x %d px", m_Map.tileWidth, m_Map.tileHeight);
+            ui.PropertyRow("Tile Size");
+            ui.ValueText(buf);
+            std::snprintf(buf, sizeof(buf), "%zu", m_Map.tileLayers.size());
+            ui.PropertyRow("Tile Layers");
+            ui.ValueText(buf);
+            std::snprintf(buf, sizeof(buf), "%zu", m_Map.objectLayers.size());
+            ui.PropertyRow("Object Layers");
+            ui.ValueText(buf);
+            std::snprintf(buf, sizeof(buf), "%zu", m_Map.tilesets.size());
+            ui.PropertyRow("Tilesets");
+            ui.ValueText(buf);
+        }
+        else
+        {
+            std::snprintf(buf, sizeof(buf), "%d x %d px", m_Tileset.tileWidth, m_Tileset.tileHeight);
+            ui.PropertyRow("Tile Size");
+            ui.ValueText(buf);
+            std::snprintf(buf, sizeof(buf), "%d", m_Tileset.tileCount);
+            ui.PropertyRow("Tiles");
+            ui.ValueText(buf);
+            std::snprintf(buf, sizeof(buf), "%d", m_Tileset.columns);
+            ui.PropertyRow("Columns");
+            ui.ValueText(buf);
+            ui.PropertyRow("Image");
+            ui.ValueText(fs::path(m_Tileset.imageRelative).filename().string().c_str());
+        }
+
+        ui.Hint(DekiEditor::Tr("Made in Tiled. Edit it there; the editor bakes it again when the file changes."));
+        if (ui.ActionButton(DekiEditor::TrLabel("Open in Tiled")))
+        {
+            OpenInTiled(assetPath);
+        }
+    }
+
+private:
+    void Refresh(const std::string& assetPath)
+    {
+        std::error_code ec;
+        const auto stamp = fs::last_write_time(assetPath, ec);
+        if (assetPath == m_Path && !ec && stamp == m_Stamp)
+        {
+            return;
+        }
+        m_Path = assetPath;
+        m_Stamp = stamp;
+        m_Error.clear();
+        m_IsMap = fs::path(assetPath).extension() == ".tmj";
+        m_Map = TmjMap{};
+        m_Tileset = TmjTileset{};
+        if (m_IsMap)
+        {
+            ParseTmjMap(assetPath, m_Map, m_Error);
+        }
+        else
+        {
+            ParseTsjTileset(assetPath, m_Tileset, m_Error);
+        }
+    }
+
+    std::string m_Path;
+    fs::file_time_type m_Stamp{};
+    bool m_IsMap = true;
+    TmjMap m_Map;
+    TmjTileset m_Tileset;
+    std::string m_Error;
+};
+
+TilemapFileInspector s_TilemapFileInspector;
+
 }  // namespace
 
 void RegisterTilemapInspector()
@@ -47,11 +158,7 @@ void RegisterTilemapInspector()
         return;
     }
     s_InspectorRegistered = true;
-
-    // The editor's FileInspector registry has no stable header for packages
-    // yet, so nothing is registered here. OpenInTiled is a public helper a
-    // project's custom editor can call from its inspector.
-    (void)&OpenInTiled;  // no unused-function warning
+    DekiEditor::FileInspectorRegistry::Instance().Register(&s_TilemapFileInspector);
 }
 
 }  // namespace DekiTiledMap
