@@ -56,7 +56,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">deki-tiledmapeditor-integration<span id="projectnumber">&#160;0.21.0</span>
+   <div id="projectname">deki-tiledmapeditor-integration<span id="projectnumber">&#160;0.22.0</span>
    </div>
    <div id="projectbrief">Deki package reference</div>
   </td>
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded',() => { initNavTree('index.html',''
 <img src="deki-tiledmapeditor-integration.png" alt=""/>
 </div>
     <p>Loads and renders maps authored in Tiled (.tmj) with chunk streaming</p>
-<p>Repository: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration">github.com/dekiengine/deki-tiledmapeditor-integration</a> · Latest release: 0.21.0 · Needs engine 0.21.0+ · Requires: <a href="https://dekiengine.github.io/deki-2d/">deki-2d</a>, <a href="https://dekiengine.github.io/deki-rendering/">deki-rendering</a></p>
+<p>Repository: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration">github.com/dekiengine/deki-tiledmapeditor-integration</a> · Latest release: 0.22.0 · Needs engine 0.22.0+ · Requires: <a href="https://dekiengine.github.io/deki-2d/">deki-2d</a>, <a href="https://dekiengine.github.io/deki-rendering/">deki-rendering</a></p>
 <p>Install with <span class="tt">DekiEditor --packages-add deki-tiledmapeditor-integration &lt;project&gt;</span>, or from the Package Manager. The engine's own components and C++ API are in the <a href="https://dekiengine.github.io/docs/">Deki docs</a>.</p>
 <p>Shown in the editor as <b>Tiled Map Editor Integration</b>.</p>
 <h1 class="doxsection"><a class="anchor" id="components"></a>
@@ -208,8 +208,21 @@ TilemapObjectSpawner</h2>
 <h1 class="doxsection"><a class="anchor" id="changelog"></a>
 Changelog</h1>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md0"></a>
-0.21.0</h2>
+0.22.0</h2>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+Changed</h2>
+<ul>
+<li>Translations are keyed by the editor's names with their acronyms ("I2C Port", "SPI Host" rather than "I 2c Port", "Spi Host"), which the 0.22 editor shows.</li>
+<li><span class="tt">minEngine</span> 0.22.0: built against engine 0.22.0. A build of this package from before does not load and is rebuilt.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Added</h2>
+<ul>
+<li>Tilemaps and tilesets have an inspector: size, tiles, layers and tilesets read from the file, and Open in Tiled.</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+0.21.0</h2>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 Changed</h2>
 <ul>
 <li><span class="tt">minEngine</span> 0.21.0: built against engine 0.21.0. A build of this package from before does not load and is rebuilt.</li>
@@ -217,28 +230,15 @@ Changed</h2>
 <li>The map's render pass says which objects it draws (<span class="tt">WantsObject</span>): in strips it skips the rest, and a whole frame under a full-screen background is not cleared first (deki-rendering's lazy clear).</li>
 <li><b>Maps draw faster.</b> A tile with see-through edges copies its opaque run and blends only the rest, from spans found once per tile, and a fully opaque tile in an atlas that has see-through tiles is drawn from a 2-byte copy instead of read 3 bytes a pixel: tiles take the same paths sprites do. Each column's and row's screen position is worked out once per chunk, and empty cells are skipped at once. The demo's meadow on a T-Deck Plus renders in 6.0 ms instead of 6.9 ms (6.6 ms when its tiles were sprites), with the same pixels.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
 Fixed</h2>
 <ul>
 <li><b>Maps draw on boards.</b> A firmware links the package from a static library, which left out the render pass and the Tileset loader: nothing referred to their files, so their registrations never ran, and a map drew nothing, with no error. <span class="tt">DekiTilemapInitSystem()</span> now registers the loaders and the pass, and the firmware calls it (<span class="tt">PACKAGE_HAS_SYSTEM_INIT</span>); the editor calls it when it loads the package.</li>
 <li><b>A build ships a map's tilesets and their images.</b> The package reports them to the editor (<span class="tt">AssetPipeline::RegisterDependencyReporter</span>), so a build for a board includes them; it used to ship the map alone.</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-0.19.0</h2>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Changed</h2>
-<ul>
-<li><span class="tt">minEngine</span> 0.19.0: built against engine 0.19.0, whose component metadata records the package each class is in. A build of this package from before does not load and is rebuilt.</li>
-</ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Added</h2>
-<ul>
-<li>Japanese, Simplified Chinese and Korean: <span class="tt">editor/lang/ja.json</span>, <span class="tt">zh.json</span> and <span class="tt">ko.json</span> translate the names, tooltips and enum values this package's components show in the Inspector.</li>
-<li>The package's editor text goes through the editor's translation (<span class="tt">Tr</span>), so it shows in the editor's language. Needs the editor release that adds <span class="tt">Localization.h</span>; raise <span class="tt">minEngine</span> to it when releasing.</li>
-</ul>
 <p>Earlier releases: <a href="https://github.com/dekiengine/deki-tiledmapeditor-integration/blob/master/CHANGELOG.md">CHANGELOG.md</a>.</p>
 <hr  />
-<p>Generated from the package's reflection data (engine 0.21.0). Property names are the keys used in scene files. Renames keep an alias (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">compatibility</a>). </p>
+<p>Generated from the package's reflection data (engine 0.22.0). Property names are the keys used in scene files. Renames keep an alias (<a href="https://github.com/dekiengine/deki-editor/blob/master/COMPATIBILITY.md">compatibility</a>). </p>
 </div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
