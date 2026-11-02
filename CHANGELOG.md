@@ -8,6 +8,14 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## Unreleased
+
+### Added
+- Tiles carry their atlas's revision (`QuadBlit::Source::revision`), and each
+  opaque tile copy one of its own, so a GPU drawing the 2D (`deki-gl`)
+  uploads each tile once. The map pass says it writes nothing into the frame
+  buffer itself (`RenderPass::WritesBuffer`).
+
 ## 0.22.0
 
 ### Changed

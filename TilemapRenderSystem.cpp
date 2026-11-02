@@ -55,6 +55,9 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
 
     const uint32_t bpp = Deki::Texture2D::GetBytesPerPixel(atlas->format);
     outSrc.pixels = atlas->data;
+    // The atlas's pixels stay as they are while it lives: a GPU uploads each
+    // tile of it once.
+    outSrc.revision = atlas->Revision();
     outSrc.width = atlas->width;
     outSrc.height = atlas->height;
     outSrc.bytesPerPixel = static_cast<int32_t>(bpp);
@@ -144,6 +147,7 @@ void TilemapRenderPass::RefreshCache(Tilemap* tm, TilesetCache& cache)
         cache.gidLut.clear();
         cache.rowSpans.clear();
         cache.opaqueTiles.clear();
+        cache.opaqueRevisions.clear();
         cache.gidLimit = 0;
         cache.epoch = curEpoch;
     }
@@ -273,6 +277,7 @@ bool TilemapRenderPass::ResolveTile(const Tilemap* tm, TilesetCache& cache, uint
                         }
                         entry.opaque = static_cast<int32_t>(cache.opaqueTiles.size());
                         cache.opaqueTiles.push_back(std::move(copy));
+                        cache.opaqueRevisions.push_back(QuadBlit::NextRevision());
                     }
                 }
                 e = entry;
@@ -843,6 +848,7 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                         plain.flipH = sub.flipH;
                         plain.flipV = sub.flipV;
                         plain.flipD = sub.flipD;
+                        plain.revision = cache.opaqueRevisions[opaque];
                         QuadBlit::BlitScaled(plain, ctx.buffer, screenW, screenH, ctx.format, destSX, destSY, destW,
                                              destH, tintR, tintG, tintB, tintA);
                     }

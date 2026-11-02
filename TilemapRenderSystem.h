@@ -36,6 +36,8 @@ public:
 
     /// Execute only: the renderer skips this pass for the other four hooks.
     uint32_t HookMask() const override { return DekiRendering::RenderPassHooks::Execute; }
+    /// Every tile is a QuadBlit blit.
+    bool WritesBuffer() const override { return false; }
     bool WantsObject(Deki::Object* obj) const override;
     void Execute(Deki::Object* obj, DekiRendering::RenderContext& ctx) override;
 
@@ -94,8 +96,10 @@ private:
         // Each resolved tile's opaque row spans (Deki2D::BuildOpaqueRowSpans),
         // 2 per row, found once when the tile is first drawn.
         std::vector<int16_t> rowSpans;
-        // The fully opaque tiles' RGB565 copies (TileLUT::opaque).
+        // The fully opaque tiles' RGB565 copies (TileLUT::opaque), and a
+        // Source::revision for each: made once, they never change.
         std::vector<Deki::Buffer<uint16_t>> opaqueTiles;
+        std::vector<uint32_t> opaqueRevisions;
         uint32_t gidLimit = 0;
         // The AssetManager epoch the sources were resolved in. When the global
         // epoch moves (UnloadAll, InvalidateAsset, hot reload), sources[].pixels
