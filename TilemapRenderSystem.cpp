@@ -68,6 +68,7 @@ bool MakeAtlasSource(Tileset* ts, QuadBlit::Source& outSrc)
     outSrc.alphaRowSpans = nullptr;
     outSrc.ownsPixels = false;
     outSrc.stride = atlas->width * static_cast<int32_t>(bpp);
+    outSrc.filter = atlas->filter;  // the tileset image's
 
     if (ts->HasTransparentColor())
     {
@@ -849,6 +850,7 @@ void TilemapRenderPass::Execute(Deki::Object* obj, DekiRendering::RenderContext&
                         plain.flipV = sub.flipV;
                         plain.flipD = sub.flipD;
                         plain.revision = cache.opaqueRevisions[opaque];
+                        plain.filter = sub.filter;
                         QuadBlit::BlitScaled(plain, ctx.buffer, screenW, screenH, ctx.format, destSX, destSY, destW,
                                              destH, tintR, tintG, tintB, tintA);
                     }

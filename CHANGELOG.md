@@ -11,6 +11,8 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- Tiles carry their tileset image's filter (`QuadBlit::Source::filter`), so a
+  GPU draws them as its Filter says, each tile within its own texels.
 - Tiles carry their atlas's revision (`QuadBlit::Source::revision`), and each
   opaque tile copy one of its own, so a GPU drawing the 2D (`deki-gl`)
   uploads each tile once. The map pass says it writes nothing into the frame
