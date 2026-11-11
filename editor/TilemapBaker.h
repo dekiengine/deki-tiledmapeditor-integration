@@ -22,7 +22,9 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
 
 /// Writes a .dtilemap file for a parsed map. The caller resolves the tileset
 /// references (firstGid and GUID); the baker reads no tileset files.
-bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath);
+/// imageGuids: each image layer's image asset, by image layer index.
+bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath,
+                   const std::vector<std::string>& imageGuids = {});
 
 }  // namespace DekiTiledMap
 

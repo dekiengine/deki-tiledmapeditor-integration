@@ -22,11 +22,25 @@ ESP32 SD cards and direct mmap-style reads on desktop.
   again, so a budget that is too small shows up as stutter while scrolling
   rather than as missing tiles. Two objects drawing the same map settle on the
   larger of their two requests.
+- **Every Tiled orientation** - orthogonal, isometric (diamonds, back to
+  front, tall tiles standing on their squares), staggered and hexagonal (either
+  stagger axis and index), laid out and drawn in Tiled's order.
 - **TilemapColliderComponent** - exposes per-tile collision shapes from the
   tileset's collision objectgroups.
-- **TilemapObjectSpawner** - instantiates engine scenes from Tiled object
-  layers. Convention: a Tiled object with custom string property
-  `scene_guid = "<guid>"` spawns that scene at the object's transform.
+- **Layers as Tiled draws them** - opacity, tint, offsets, parallax and blend
+  modes, on layers and groups; image layers; animated tiles; a tileset's Tile
+  Render Size. An object layer's parallax moves its spawned objects with the
+  view. An object layer's blend mode is not drawn, and baking says so.
+- **TilemapObjectSpawner** - turns Tiled object layers into objects, in an
+  object named "<owner> objects" beside its own, so they sort with the rest of
+  the scene. A tile object gets a sprite of its tile, animated if its tile is,
+  and **Sort Per Meter** sorts them by how low their points stand; set it to
+  the Pixels Per Meter for one order per pixel row, which stacks them as the
+  Tiled editor does. A tileset's Tile Offset moves the picture without
+  changing the order. Tile and image layers above an object layer draw above
+  its objects. `Tilemap::FindProperty` reads an object's custom properties.
+  A Tiled object with custom string property `scene_guid = "<guid>"` spawns
+  that scene at the object's transform.
 
 ## Source format
 

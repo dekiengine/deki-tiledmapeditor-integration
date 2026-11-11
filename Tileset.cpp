@@ -36,16 +36,24 @@ Tileset* Tileset::Load(const char* dtilesetPath)
     }
 
     DTilesetHeader hdr{};
-    if (fs->ReadFile(f, &hdr, sizeof(hdr)) != sizeof(hdr))
+    if (fs->ReadFile(f, &hdr, kDTilesetHeaderV1Size) != kDTilesetHeaderV1Size)
     {
         fs->CloseFile(f);
         DEKI_LOG_ERROR("Tileset::Load: short read on header for '%s'", dtilesetPath);
         return nullptr;
     }
-    if (std::memcmp(hdr.magic, "DTS1", 4) != 0 || hdr.version != 1)
+    if (std::memcmp(hdr.magic, "DTS1", 4) != 0 || (hdr.version != 1 && hdr.version != 2))
     {
         fs->CloseFile(f);
         DEKI_LOG_ERROR("Tileset::Load: bad magic/version in '%s'", dtilesetPath);
+        return nullptr;
+    }
+
+    const size_t extra = sizeof(hdr) - kDTilesetHeaderV1Size;
+    if (hdr.version >= 2 && fs->ReadFile(f, &hdr.margin, extra) != extra)
+    {
+        fs->CloseFile(f);
+        DEKI_LOG_ERROR("Tileset::Load: short read on header for '%s'", dtilesetPath);
         return nullptr;
     }
 
@@ -134,8 +142,8 @@ Deki2D::Sprite* Tileset::Atlas() const
 void Tileset::GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const
 {
     const uint32_t cols = m_MHeader.columns ? m_MHeader.columns : 1;
-    x = static_cast<int>((localId % cols) * m_MHeader.tileWidth);
-    y = static_cast<int>((localId / cols) * m_MHeader.tileHeight);
+    x = static_cast<int>(m_MHeader.margin + (localId % cols) * (m_MHeader.tileWidth + m_MHeader.spacing));
+    y = static_cast<int>(m_MHeader.margin + (localId / cols) * (m_MHeader.tileHeight + m_MHeader.spacing));
     w = m_MHeader.tileWidth;
     h = m_MHeader.tileHeight;
 }

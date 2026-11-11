@@ -1,5 +1,10 @@
 #ifdef DEKI_EDITOR
 
+#include <algorithm>
+#include <functional>
+
+#include <deki/LogSystem.h>
+
 #include "TmjParser.h"
 
 #include <cstdint>
@@ -181,6 +186,75 @@ bool DecodeLayerPayload(const json& jdata, const json& jlayer, size_t expectedTi
     return true;
 }
 
+uint32_t ObjectAlignmentFromName(const std::string& name)
+{
+    static const char* const kNames[] = { "topleft", "top", "topright", "left", "center", "right", "bottomleft", "bottom", "bottomright" };
+    for (uint32_t i = 0; i < 9; ++i)
+    {
+        if (name == kNames[i])
+        {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+// Tiled's name for a layer's blend mode (its "mode"), as a DBlendMode. An
+// unknown one is drawn Normal, and said once at bake time.
+uint8_t BlendModeFromName(const std::string& mode, const std::string& layerName)
+{
+    static const char* const kNames[] = { "normal",     "add",        "multiply",   "screen",     "overlay",
+                                          "darken",     "lighten",    "color-dodge", "color-burn", "hard-light",
+                                          "soft-light", "difference", "exclusion" };
+    for (size_t i = 0; i < sizeof(kNames) / sizeof(kNames[0]); ++i)
+    {
+        if (mode == kNames[i])
+        {
+            return static_cast<uint8_t>(i);
+        }
+    }
+    DEKI_LOG_WARNING("Tiled layer '%s': blend mode '%s' is not known, so it is drawn Normal.", layerName.c_str(),
+                     mode.c_str());
+    return 0;
+}
+
+// Multiplies two RGBA8 colours, channel by channel.
+uint32_t MultiplyColors(uint32_t a, uint32_t b)
+{
+    uint32_t out = 0;
+    for (int shift = 0; shift < 32; shift += 8)
+    {
+        const uint32_t ca = (a >> shift) & 0xFFu;
+        const uint32_t cb = (b >> shift) & 0xFFu;
+        out |= ((ca * cb + 127u) / 255u) << shift;
+    }
+    return out;
+}
+
+// A layer's own look, on top of its group's: opacity and tint multiply,
+// offsets add and parallax factors multiply, as in Tiled.
+TmjLayerLook LookOf(const json& jl, const TmjLayerLook& parent)
+{
+    TmjLayerLook look = parent;
+    look.visible = parent.visible && jl.value("visible", true);
+    look.opacity = parent.opacity * jl.value("opacity", 1.0f);
+    if (jl.contains("tintcolor") && jl["tintcolor"].is_string())
+    {
+        look.tint = MultiplyColors(parent.tint, ParseTiledColor(jl["tintcolor"].get<std::string>()));
+    }
+    look.offsetX = parent.offsetX + jl.value("offsetx", 0.0f);
+    look.offsetY = parent.offsetY + jl.value("offsety", 0.0f);
+    look.parallaxX = parent.parallaxX * jl.value("parallaxx", 1.0f);
+    look.parallaxY = parent.parallaxY * jl.value("parallaxy", 1.0f);
+    // A layer's own mode, or else its group's.
+    const std::string mode = jl.value("mode", std::string("normal"));
+    if (mode != "normal")
+    {
+        look.blendMode = BlendModeFromName(mode, jl.value("name", std::string()));
+    }
+    return look;
+}
+
 void ParseProperties(const json& jprops, std::vector<TmjPropertyValue>& out)
 {
     if (!jprops.is_array())
@@ -238,6 +312,27 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
     outMap.tileWidth = j.value("tilewidth", 0);
     outMap.tileHeight = j.value("tileheight", 0);
     outMap.infinite = j.value("infinite", false);
+
+    // A layout the renderer does not know would be drawn as something else.
+    const std::string orientation = j.value("orientation", std::string("orthogonal"));
+    if (orientation != "orthogonal" && orientation != "isometric" && orientation != "staggered" &&
+        orientation != "hexagonal")
+    {
+        outError = "'" + orientation +
+                   "' maps are not supported. Use orthogonal, isometric, staggered or hexagonal (Map > Map Properties "
+                   "> Orientation).";
+        return false;
+    }
+    outMap.isometric = orientation == "isometric";
+    outMap.staggered = orientation == "staggered";
+    outMap.hexagonal = orientation == "hexagonal";
+    if (outMap.staggered || outMap.hexagonal)
+    {
+        outMap.staggerX = j.value("staggeraxis", std::string("y")) == "x";
+        outMap.staggerEven = j.value("staggerindex", std::string("odd")) == "even";
+        outMap.hexSideLength = outMap.hexagonal ? std::max(0, j.value("hexsidelength", 0)) : 0;
+    }
+
     // json::object(), not json{}, as the default: a default json is null, and
     // .value() on null throws type_error.302.
     outMap.chunkWidth = j.value("editorsettings", json::object()).value("chunksize", json::object()).value("width", 16);
@@ -248,6 +343,8 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
     {
         outMap.backgroundColor = ParseTiledColor(j["backgroundcolor"].get<std::string>());
     }
+    outMap.parallaxOriginX = j.value("parallaxoriginx", 0.0f);
+    outMap.parallaxOriginY = j.value("parallaxoriginy", 0.0f);
 
     // Tilesets: external only; embedded ones are rejected.
     if (j.contains("tilesets") && j["tilesets"].is_array())
@@ -266,17 +363,31 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
         }
     }
 
-    if (j.contains("layers") && j["layers"].is_array())
+    // Groups are flattened in order: what Tiled shows is their layers, and a
+    // group's visibility, opacity, tint, offset and parallax apply to all of them.
+    std::function<bool(const json&, const TmjLayerLook&)> parseLayers = [&](const json& layers,
+                                                                          const TmjLayerLook& parent) -> bool
     {
-        for (const auto& jl : j["layers"])
+        for (const auto& jl : layers)
         {
             std::string type = jl.value("type", "");
+            TmjLayerLook look = LookOf(jl, parent);
+            const bool layerVisible = look.visible;
+            if (type == "objectgroup" && look.blendMode != 0)
+            {
+                // Spawned objects are drawn by the scene's sprites, one by one.
+                DEKI_LOG_WARNING("Tiled layer '%s': an object layer's blend mode is not drawn by Deki.",
+                                 jl.value("name", std::string()).c_str());
+            }
             if (type == "tilelayer")
             {
+                look.kind = TmjLayerLook::Kind::Tile;
+                look.index = static_cast<uint32_t>(outMap.tileLayers.size());
+                outMap.layers.push_back(look);
                 TmjLayer l;
                 l.name = jl.value("name", "");
                 l.id = jl.value("id", 0);
-                l.visible = jl.value("visible", true);
+                l.visible = layerVisible;
                 l.width = jl.value("width", outMap.width);
                 l.height = jl.value("height", outMap.height);
 
@@ -319,10 +430,13 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
             }
             else if (type == "objectgroup")
             {
+                look.kind = TmjLayerLook::Kind::Object;
+                look.index = static_cast<uint32_t>(outMap.objectLayers.size());
+                outMap.layers.push_back(look);
                 TmjObjectLayer ol;
                 ol.name = jl.value("name", "");
                 ol.id = jl.value("id", 0);
-                ol.visible = jl.value("visible", true);
+                ol.visible = layerVisible;
                 if (jl.contains("objects") && jl["objects"].is_array())
                 {
                     for (const auto& jo : jl["objects"])
@@ -331,10 +445,10 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         o.id = jo.value("id", 0u);
                         o.name = jo.value("name", "");
                         o.type = jo.value("type", "");
-                        o.x = static_cast<int32_t>(jo.value("x", 0.0));
-                        o.y = static_cast<int32_t>(jo.value("y", 0.0));
-                        o.width = static_cast<int32_t>(jo.value("width", 0.0));
-                        o.height = static_cast<int32_t>(jo.value("height", 0.0));
+                        o.x = jo.value("x", 0.0f);
+                        o.y = jo.value("y", 0.0f);
+                        o.width = jo.value("width", 0.0f);
+                        o.height = jo.value("height", 0.0f);
                         o.rotation = jo.value("rotation", 0.0f);
                         o.gid = jo.value("gid", 0u);
                         o.ellipse = jo.value("ellipse", false);
@@ -358,13 +472,42 @@ bool ParseTmjMap(const std::string& tmjAbsPath, TmjMap& outMap, std::string& out
                         {
                             ParseProperties(jo["properties"], o.properties);
                         }
+                        // Tiled does not draw a hidden tile object. One that
+                        // spawns a scene, or any other object, is data and stays.
+                        const bool spawnsScene = std::any_of(o.properties.begin(), o.properties.end(),
+                                                             [](const TmjPropertyValue& p) { return p.name == "scene_guid"; });
+                        if (o.gid != 0 && !spawnsScene && !(layerVisible && jo.value("visible", true)))
+                        {
+                            continue;
+                        }
                         ol.objects.push_back(std::move(o));
                     }
                 }
                 outMap.objectLayers.push_back(std::move(ol));
             }
-            // Group, image and other layer types are skipped.
+            else if (type == "imagelayer")
+            {
+                look.kind = TmjLayerLook::Kind::Image;
+                look.index = outMap.imageLayerCount++;
+                look.imageRelative = jl.value("image", std::string());
+                look.repeatX = jl.value("repeatx", false);
+                look.repeatY = jl.value("repeaty", false);
+                outMap.layers.push_back(look);
+            }
+            else if (type == "group" && jl.contains("layers") && jl["layers"].is_array())
+            {
+                if (!parseLayers(jl["layers"], look))
+                {
+                    return false;
+                }
+            }
         }
+        return true;
+    };
+
+    if (j.contains("layers") && j["layers"].is_array() && !parseLayers(j["layers"], TmjLayerLook{}))
+    {
+        return false;
     }
 
     return true;
@@ -392,6 +535,16 @@ bool ParseTsjTileset(const std::string& tsjAbsPath, TmjTileset& outTs, std::stri
     outTs.name = j.value("name", "");
     outTs.tileWidth = j.value("tilewidth", 0);
     outTs.tileHeight = j.value("tileheight", 0);
+    outTs.margin = j.value("margin", 0);
+    outTs.spacing = j.value("spacing", 0);
+    if (j.contains("tileoffset"))
+    {
+        outTs.tileOffsetX = j["tileoffset"].value("x", 0);
+        outTs.tileOffsetY = j["tileoffset"].value("y", 0);
+    }
+    outTs.objectAlignment = ObjectAlignmentFromName(j.value("objectalignment", std::string()));
+    outTs.renderToGrid = j.value("tilerendersize", std::string("tile")) == "grid";
+    outTs.preserveAspect = j.value("fillmode", std::string("stretch")) == "preserve-aspect-fit";
     outTs.tileCount = j.value("tilecount", 0);
     outTs.columns = j.value("columns", 0);
     if (outTs.columns > 0 && outTs.tileCount > 0)

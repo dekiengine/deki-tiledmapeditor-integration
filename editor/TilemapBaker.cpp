@@ -4,6 +4,7 @@
 #include "Tilemap.h"
 #include "Tileset.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -56,7 +57,7 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
 
     DTilesetHeader hdr{};
     std::memcpy(hdr.magic, "DTS1", 4);
-    hdr.version = 1;
+    hdr.version = 2;
     std::memset(hdr.atlasGuid, 0, sizeof(hdr.atlasGuid));
     std::memcpy(hdr.atlasGuid, atlasGuid.data(), std::min<size_t>(36, atlasGuid.size()));
     hdr.tileWidth = static_cast<uint16_t>(ts.tileWidth);
@@ -64,6 +65,13 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
     hdr.columns = static_cast<uint16_t>(ts.columns);
     hdr.rows = static_cast<uint16_t>(ts.rows);
     hdr.tileCount = static_cast<uint32_t>(ts.tileCount);
+    hdr.margin = static_cast<uint16_t>(ts.margin);
+    hdr.spacing = static_cast<uint16_t>(ts.spacing);
+    hdr.tileOffsetX = static_cast<int16_t>(ts.tileOffsetX);
+    hdr.tileOffsetY = static_cast<int16_t>(ts.tileOffsetY);
+    hdr.objectAlignment = static_cast<uint8_t>(ts.objectAlignment);
+    hdr.renderSize = ts.renderToGrid ? 1 : 0;
+    hdr.fillMode = ts.preserveAspect ? 1 : 0;
 
     // Chroma key: the high bit turns it on, the low 24 bits are RGB. The alpha
     // byte from ParseTiledColor is dropped, since only RGB is matched.
@@ -148,7 +156,8 @@ bool WriteDtileset(const TmjTileset& ts, const std::string& atlasGuid, const std
     return true;
 }
 
-bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath)
+bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilesets, const std::string& outAbsPath,
+                   const std::vector<std::string>& imageGuids)
 {
     // The limits Tilemap::Load accepts; a bigger chunk would bake fine and
     // then be refused on every device.
@@ -156,7 +165,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     {
         DEKI_LOG_ERROR("TilemapBaker: the map's chunk size is %dx%d tiles; 1 to 1024 each are supported. Change it "
                        "in Tiled (Map > Map Properties > Output Chunk Width/Height).",
-                       (int)map.chunkWidth, (int)map.chunkHeight);
+                       static_cast<int>(map.chunkWidth), static_cast<int>(map.chunkHeight));
         return false;
     }
 
@@ -169,7 +178,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
 
     DTilemapHeader hdr{};
     std::memcpy(hdr.magic, "DTM1", 4);
-    hdr.version = 1;
+    hdr.version = 3;
     hdr.mapWidth = map.infinite ? 0xFFFFFFFFu : static_cast<uint32_t>(map.width);
     hdr.mapHeight = map.infinite ? 0xFFFFFFFFu : static_cast<uint32_t>(map.height);
     hdr.tileWidth = static_cast<uint16_t>(map.tileWidth);
@@ -178,9 +187,44 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     hdr.chunkHeight = static_cast<uint16_t>(map.chunkHeight);
     hdr.layerCount = static_cast<uint32_t>(map.tileLayers.size());
     hdr.backgroundColor = map.backgroundColor;
-    hdr.flags = map.infinite ? 1u : 0u;
+    hdr.flags = (map.infinite ? 1u : 0u) | (map.isometric ? kTilemapIsometric : 0u) |
+                (map.staggered ? kTilemapStaggered : 0u) | (map.hexagonal ? kTilemapHexagonal : 0u) |
+                (map.staggerX ? kTilemapStaggerX : 0u) | (map.staggerEven ? kTilemapStaggerEven : 0u);
 
+    DTilemapHeaderV2 hdr2{};
+    hdr2.parallaxOriginX = map.parallaxOriginX;
+    hdr2.parallaxOriginY = map.parallaxOriginY;
+    DTilemapHeaderV3 hdr3{};
+    hdr3.hexSideLength = static_cast<uint32_t>(std::max(0, map.hexSideLength));
     std::fwrite(&hdr, sizeof(hdr), 1, f);
+    std::fwrite(&hdr2, sizeof(hdr2), 1, f);
+    std::fwrite(&hdr3, sizeof(hdr3), 1, f);
+
+    // Every layer in drawing order, with how Tiled draws it.
+    std::vector<DLayerLook> looks;
+    looks.reserve(map.layers.size());
+    for (const TmjLayerLook& l : map.layers)
+    {
+        DLayerLook row{};
+        row.kind = static_cast<uint8_t>(l.kind);
+        row.flags = static_cast<uint8_t>((l.repeatX ? kLayerRepeatX : 0) | (l.repeatY ? kLayerRepeatY : 0) |
+                                         (l.visible ? 0 : kLayerHidden));
+        row.index = static_cast<uint16_t>(l.index);
+        row.opacity = l.opacity;
+        row.tint = l.tint;
+        row.offsetX = l.offsetX;
+        row.offsetY = l.offsetY;
+        row.parallaxX = l.parallaxX;
+        row.parallaxY = l.parallaxY;
+        row.blendMode = l.blendMode;
+        if (l.kind == TmjLayerLook::Kind::Image && l.index < imageGuids.size())
+        {
+            std::memcpy(row.imageGuid, imageGuids[l.index].data(), std::min<size_t>(36, imageGuids[l.index].size()));
+        }
+        looks.push_back(row);
+    }
+    hdr2.layerTableOffset = AppendBlob(f, looks.data(), looks.size());
+    hdr2.layerTableCount = static_cast<uint32_t>(looks.size());
 
     // Tileset table.
     std::vector<TilesetRef> tsRefs;
@@ -237,7 +281,7 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
         e.chunkX = cx;
         e.chunkY = cy;
         e.layerIndex = static_cast<uint16_t>(layerIndex);
-        e.flags = 0;
+        e.flags = map.tileLayers[layerIndex].visible ? 0 : ChunkFlagLayerHidden;
         if (empty)
         {
             e.flags |= ChunkFlagEmpty;
@@ -473,6 +517,8 @@ bool WriteDtilemap(const TmjMap& map, const std::vector<BakedTilesetRef>& tilese
     // The header again, now with the offsets and counts.
     std::fseek(f, 0, SEEK_SET);
     std::fwrite(&hdr, sizeof(hdr), 1, f);
+    std::fwrite(&hdr2, sizeof(hdr2), 1, f);
+    std::fwrite(&hdr3, sizeof(hdr3), 1, f);
 
     std::fclose(f);
     return true;

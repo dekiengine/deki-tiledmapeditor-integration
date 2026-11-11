@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -10,7 +11,8 @@
 namespace DekiTiledMap
 {
 
-// On-disk header for .dtileset (88 bytes, little-endian, packed by hand).
+// On-disk header for .dtileset (100 bytes, little-endian, packed by hand).
+// Version 1 files stop before margin, and have none of what follows it.
 #pragma pack(push, 1)
 struct DTilesetHeader
 {
@@ -34,8 +36,38 @@ struct DTilesetHeader
     // ParseTiledColor's low 24 bits). 0 = no key. Older .dtileset files have
     // 0 here, which reads as off.
     uint32_t transparentColorFlag;
+    // Tiled's margin (around the image) and spacing (between tiles), in pixels.
+    uint16_t margin;
+    uint16_t spacing;
+    // Tiled's drawing offset for every tile of the set, in pixels (Y down).
+    int16_t tileOffsetX;
+    int16_t tileOffsetY;
+    // TileObjectAlignment. A uint32 before render sizes were kept: its high
+    // bytes were 0, which read as Tile Size and Stretch.
+    uint8_t objectAlignment;
+    uint8_t renderSize;  // Tiled's Tile Render Size: 0 Tile Size, 1 Map Grid Size
+    uint8_t fillMode;    // with Map Grid Size: 0 Stretch, 1 Preserve Aspect Fit
+    uint8_t pad1;
 };
-static_assert(sizeof(DTilesetHeader) == 88, "DTilesetHeader layout drift");
+static_assert(sizeof(DTilesetHeader) == 100, "DTilesetHeader layout drift");
+constexpr size_t kDTilesetHeaderV1Size = 88;
+
+// Which point of a tile object's image sits on the object's position, from
+// the tileset's Object Alignment. Unspecified means bottom-left on a square
+// map and bottom-centre on an isometric one, as in Tiled.
+enum class TileObjectAlignment : uint32_t
+{
+    Unspecified = 0,
+    TopLeft,
+    Top,
+    TopRight,
+    Left,
+    Center,
+    Right,
+    BottomLeft,
+    Bottom,
+    BottomRight,
+};
 
 // Per-tile animation: a tile's local id, and its frames with durations.
 struct DTileAnimationFrame
@@ -89,6 +121,48 @@ public:
     uint16_t Columns() const { return m_MHeader.columns; }
     uint16_t Rows() const { return m_MHeader.rows; }
     uint32_t TileCount() const { return m_MHeader.tileCount; }
+    int TileOffsetX() const { return m_MHeader.tileOffsetX; }
+    int TileOffsetY() const { return m_MHeader.tileOffsetY; }
+    TileObjectAlignment ObjectAlignment() const { return static_cast<TileObjectAlignment>(m_MHeader.objectAlignment); }
+
+    /// Tiled's Tile Render Size set to Map Grid Size: a tile layer draws this
+    /// set's tiles at the map's tile size instead of their own.
+    bool RendersAtGridSize() const { return m_MHeader.renderSize == 1; }
+    /// With RendersAtGridSize: Fill Mode Preserve Aspect Fit, where a tile
+    /// keeps its shape and is centred in the grid cell, instead of Stretch.
+    bool PreservesAspect() const { return m_MHeader.fillMode == 1; }
+
+    /// How big a tile layer draws this set's tiles on a map with tiles of
+    /// mapTileWidth x mapTileHeight, in pixels, and where in the cell: its
+    /// left and top, from the cell's left and bottom (the top is negative),
+    /// before the set's Tile Offset. As Tiled's CellRenderer.
+    void DrawnTileRect(int mapTileWidth, int mapTileHeight, float& outLeft, float& outTop, float& outWidth,
+                       float& outHeight) const
+    {
+        const float tw = static_cast<float>(m_MHeader.tileWidth);
+        const float th = static_cast<float>(m_MHeader.tileHeight);
+        outLeft = 0.0f;
+        outWidth = tw;
+        outHeight = th;
+        if (RendersAtGridSize() && tw > 0.0f && th > 0.0f)
+        {
+            outWidth = static_cast<float>(mapTileWidth);
+            outHeight = static_cast<float>(mapTileHeight);
+            if (PreservesAspect())
+            {
+                const float scale = std::min(outWidth / tw, outHeight / th);
+                const float w = tw * scale;
+                const float h = th * scale;
+                outLeft = (outWidth - w) * 0.5f;
+                // Centred in the cell, which stands on its bottom.
+                outTop = -outHeight + (outHeight - h) * 0.5f;
+                outWidth = w;
+                outHeight = h;
+                return;
+            }
+        }
+        outTop = -outHeight;
+    }
 
     /// Chroma key (Tiled "transparentcolor"), RGB only. The renderer skips
     /// matching pixels whatever the atlas's own alpha.
@@ -101,6 +175,7 @@ public:
     void GetTileRect(uint32_t localId, int& x, int& y, int& w, int& h) const;
 
     const DTileAnimation* GetAnimation(uint32_t localId) const;
+    bool HasAnimations() const { return !m_MAnims.empty(); }
     const DTileCollision* GetCollision(uint32_t localId) const;
     const DTileAnimationFrame* GetAnimationFrames(const DTileAnimation& a) const;
 

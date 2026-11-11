@@ -47,11 +47,26 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
         DEKI_LOG_ERROR("Tilemap::Load: short read on header for '%s'", dtilemapPath);
         return nullptr;
     }
-    if (std::memcmp(hdr.magic, "DTM1", 4) != 0 || hdr.version != 1)
+    if (std::memcmp(hdr.magic, "DTM1", 4) != 0 || hdr.version < 1 || hdr.version > 3)
     {
         fs->CloseFile(f);
         DEKI_LOG_ERROR("Tilemap::Load: bad magic/version in '%s'", dtilemapPath);
         return nullptr;
+    }
+    // Version 2 adds the layer table: how Tiled draws each layer. Version 3
+    // the hexagonal maps' side length.
+    DTilemapHeaderV2 hdr2{};
+    DTilemapHeaderV3 hdr3{};
+    if ((hdr.version >= 2 && fs->ReadFile(f, &hdr2, sizeof(hdr2)) != sizeof(hdr2)) ||
+        (hdr.version >= 3 && fs->ReadFile(f, &hdr3, sizeof(hdr3)) != sizeof(hdr3)))
+    {
+        fs->CloseFile(f);
+        DEKI_LOG_ERROR("Tilemap::Load: short read on header for '%s'", dtilemapPath);
+        return nullptr;
+    }
+    if (hdr.version < 3)
+    {
+        hdr.flags &= ~(kTilemapStaggered | kTilemapHexagonal | kTilemapStaggerX | kTilemapStaggerEven);
     }
 
     // Chunk sides come from the file too, so check them. Zero would divide by
@@ -61,7 +76,7 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     {
         fs->CloseFile(f);
         DEKI_LOG_ERROR("Tilemap::Load: '%s' has chunks of %ux%u tiles; 1 to 1024 each are supported", dtilemapPath,
-                       (unsigned)hdr.chunkWidth, (unsigned)hdr.chunkHeight);
+                       static_cast<unsigned>(hdr.chunkWidth), static_cast<unsigned>(hdr.chunkHeight));
         return nullptr;
     }
 
@@ -75,7 +90,8 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     { return offset <= fileBytes && count <= (fileBytes - offset) / elem; };
     if (!inFile(hdr.chunkIndexOffset, hdr.chunkIndexCount, sizeof(ChunkIndexEntry)) ||
         !inFile(hdr.tilesetTableOffset, hdr.tilesetCount, sizeof(TilesetRef)) ||
-        !inFile(hdr.objectLayerOffset, hdr.objectLayerCount, sizeof(DObjectLayer)))
+        !inFile(hdr.objectLayerOffset, hdr.objectLayerCount, sizeof(DObjectLayer)) ||
+        !inFile(hdr2.layerTableOffset, hdr2.layerTableCount, sizeof(DLayerLook)))
     {
         fs->CloseFile(f);
         DEKI_LOG_ERROR("Tilemap::Load: '%s' is damaged (a table runs past the end of the file)", dtilemapPath);
@@ -85,6 +101,34 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
     auto* tm = new Tilemap();
     tm->m_MHeader = hdr;
     tm->m_AbsolutePath = dtilemapPath;
+    if (tm->IsStaggered())
+    {
+        // Tiled's HexagonalRenderer::RenderParams.
+        StaggerGrid& g = tm->m_Stagger;
+        g.staggerX = (hdr.flags & kTilemapStaggerX) != 0;
+        g.staggerEven = (hdr.flags & kTilemapStaggerEven) != 0;
+        g.tileWidth = hdr.tileWidth & ~1;
+        g.tileHeight = hdr.tileHeight & ~1;
+        if (tm->IsHexagonal())
+        {
+            const int32_t side = static_cast<int32_t>(std::min<uint32_t>(hdr3.hexSideLength, 0xFFFFu));
+            (g.staggerX ? g.sideLengthX : g.sideLengthY) = side;
+        }
+        g.sideOffsetX = (g.tileWidth - g.sideLengthX) / 2;
+        g.sideOffsetY = (g.tileHeight - g.sideLengthY) / 2;
+        g.columnWidth = g.sideOffsetX + g.sideLengthX;
+        g.rowHeight = g.sideOffsetY + g.sideLengthY;
+        // As Tiled: no gaps between tiles.
+        g.tileWidth = g.columnWidth + g.sideOffsetX;
+        g.tileHeight = g.rowHeight + g.sideOffsetY;
+        if (g.columnWidth <= 0 || g.rowHeight <= 0)
+        {
+            fs->CloseFile(f);
+            delete tm;
+            DEKI_LOG_ERROR("Tilemap::Load: '%s' has a Hex Side Length as long as its tiles", dtilemapPath);
+            return nullptr;
+        }
+    }
     auto fail = [&](const char* what) -> Tilemap*
     {
         fs->CloseFile(f);
@@ -137,6 +181,29 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
                   [](const TilesetRef& a, const TilesetRef& b) { return a.firstGid < b.firstGid; });
     }
 
+    for (const ChunkIndexEntry& e : tm->m_MIndex)
+    {
+        if ((e.flags & ChunkFlagLayerHidden) != 0 && e.layerIndex < 32)
+        {
+            tm->m_HiddenLayerMask |= 1u << e.layerIndex;
+        }
+    }
+
+    if (hdr2.layerTableCount > 0)
+    {
+        tm->m_Layers.resize(hdr2.layerTableCount);
+        if (!readAt(hdr2.layerTableOffset, tm->m_Layers.data(), uint64_t(sizeof(DLayerLook)) * hdr2.layerTableCount))
+        {
+            return fail("short layer table");
+        }
+        for (DLayerLook& look : tm->m_Layers)
+        {
+            look.imageGuid[sizeof(look.imageGuid) - 1] = '\0';
+        }
+    }
+    tm->m_ParallaxOriginX = hdr2.parallaxOriginX;
+    tm->m_ParallaxOriginY = hdr2.parallaxOriginY;
+
     if (hdr.objectLayerCount > 0)
     {
         tm->m_ObjectLayers.resize(hdr.objectLayerCount);
@@ -175,6 +242,21 @@ Tilemap* Tilemap::Load(const char* dtilemapPath)
                             uint64_t(sizeof(DTilemapObject)) * l.objectCount))
                 {
                     return fail("short object table");
+                }
+                // Before version 3, positions and sizes were whole pixels.
+                if (hdr.version < 3)
+                {
+                    for (uint32_t i = 0; i < l.objectCount; ++i)
+                    {
+                        DTilemapObject& o = tm->m_MObjects[cursor + i];
+                        float* fields[] = { &o.x, &o.y, &o.width, &o.height };
+                        for (float* field : fields)
+                        {
+                            int32_t whole = 0;
+                            std::memcpy(&whole, field, sizeof(whole));
+                            *field = static_cast<float>(whole);
+                        }
+                    }
                 }
                 cursor += l.objectCount;
             }
@@ -312,6 +394,225 @@ const DTilemapProperty* Tilemap::ObjectProperties(const DTilemapObject& obj, uin
     return &m_MProperties[obj.propertyOffset];
 }
 
+uint32_t Tilemap::ObjectLayerOf(const DTilemapObject& obj) const
+{
+    const size_t at = m_MObjects.empty() ? 0 : static_cast<size_t>(&obj - m_MObjects.data());
+    size_t end = 0;
+    for (uint32_t i = 0; i < m_ObjectLayers.size(); ++i)
+    {
+        end += m_ObjectLayers[i].objectCount;
+        if (at < end)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+const DLayerLook* Tilemap::FindLayerLook(DLayerKind kind, uint32_t index) const
+{
+    for (const DLayerLook& look : m_Layers)
+    {
+        if (look.kind == static_cast<uint8_t>(kind) && look.index == index)
+        {
+            return &look;
+        }
+    }
+    return nullptr;
+}
+
+const DTilemapProperty* Tilemap::FindProperty(const DTilemapObject& obj, const char* name) const
+{
+    uint32_t count = 0;
+    const DTilemapProperty* props = ObjectProperties(obj, count);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const uint32_t offset = props[i].nameOffset;
+        if (offset < m_StringPool.size() &&
+            std::strncmp(m_StringPool.data() + offset, name, m_StringPool.size() - offset) == 0)
+        {
+            return &props[i];
+        }
+    }
+    return nullptr;
+}
+
+void Tilemap::StaggerGrid::TileAt(float x, float y, bool hexagonal, int32_t& outColumn, int32_t& outRow) const
+{
+    if (tileWidth <= 0 || tileHeight <= 0)
+    {
+        outColumn = 0;
+        outRow = 0;
+        return;
+    }
+    // A tile's neighbours, whose corners reach into its box (Tiled's
+    // HexagonalRenderer::topLeft and the rest).
+    auto shifted = [this](int32_t i) { return ((i & 1) != 0) != staggerEven; };
+    auto neighbour = [&](int32_t column, int32_t row, int dx, int dy)
+    {
+        // dx, dy: -1 or 1, the corner's side.
+        if (!staggerX)
+        {
+            const bool s = shifted(row);
+            outColumn = column + (dx < 0 ? (s ? 0 : -1) : (s ? 1 : 0));
+            outRow = row + dy;
+        }
+        else
+        {
+            const bool s = shifted(column);
+            outColumn = column + dx;
+            outRow = row + (dy < 0 ? (s ? 0 : -1) : (s ? 1 : 0));
+        }
+    };
+
+    if (!hexagonal)
+    {
+        // Tiled's StaggeredRenderer::screenToTileCoords: the diamond in a
+        // grid-aligned box, or one of the four whose corners reach into it.
+        if (staggerX)
+        {
+            x -= staggerEven ? static_cast<float>(sideOffsetX) : 0.0f;
+        }
+        else
+        {
+            y -= staggerEven ? static_cast<float>(sideOffsetY) : 0.0f;
+        }
+        int32_t refX = static_cast<int32_t>(std::floor(x / static_cast<float>(tileWidth)));
+        int32_t refY = static_cast<int32_t>(std::floor(y / static_cast<float>(tileHeight)));
+        const float relX = x - static_cast<float>(refX * tileWidth);
+        const float relY = y - static_cast<float>(refY * tileHeight);
+        int32_t& axis = staggerX ? refX : refY;
+        axis *= 2;
+        if (staggerEven)
+        {
+            ++axis;
+        }
+        const float yPos = relX * (static_cast<float>(tileHeight) / static_cast<float>(tileWidth));
+        const float side = static_cast<float>(sideOffsetY);
+        if (side - yPos > relY)
+        {
+            neighbour(refX, refY, -1, -1);
+        }
+        else if (-side + yPos > relY)
+        {
+            neighbour(refX, refY, 1, -1);
+        }
+        else if (side + yPos < relY)
+        {
+            neighbour(refX, refY, -1, 1);
+        }
+        else if (side * 3 - yPos < relY)
+        {
+            neighbour(refX, refY, 1, 1);
+        }
+        else
+        {
+            outColumn = refX;
+            outRow = refY;
+        }
+        return;
+    }
+
+    // Tiled's HexagonalRenderer::screenToTileCoords: the nearest of four
+    // centres around a box of two by two tiles.
+    if (staggerX)
+    {
+        x -= static_cast<float>(staggerEven ? tileWidth : sideOffsetX);
+    }
+    else
+    {
+        y -= static_cast<float>(staggerEven ? tileHeight : sideOffsetY);
+    }
+    int32_t refX = static_cast<int32_t>(std::floor(x / static_cast<float>(columnWidth * 2)));
+    int32_t refY = static_cast<int32_t>(std::floor(y / static_cast<float>(rowHeight * 2)));
+    const float relX = x - static_cast<float>(refX * columnWidth * 2);
+    const float relY = y - static_cast<float>(refY * rowHeight * 2);
+    int32_t& axis = staggerX ? refX : refY;
+    axis *= 2;
+    if (staggerEven)
+    {
+        ++axis;
+    }
+    float centres[4][2];
+    int offsets[4][2];
+    if (staggerX)
+    {
+        const float left = static_cast<float>(sideLengthX / 2);
+        const float centreX = left + static_cast<float>(columnWidth);
+        const float centreY = static_cast<float>(tileHeight / 2);
+        const float cw = static_cast<float>(columnWidth), rh = static_cast<float>(rowHeight);
+        const float c[4][2] = { { left, centreY }, { centreX, centreY - rh }, { centreX, centreY + rh },
+                                { centreX + cw, centreY } };
+        const int o[4][2] = { { 0, 0 }, { 1, -1 }, { 1, 0 }, { 2, 0 } };
+        std::memcpy(centres, c, sizeof(c));
+        std::memcpy(offsets, o, sizeof(o));
+    }
+    else
+    {
+        const float top = static_cast<float>(sideLengthY / 2);
+        const float centreX = static_cast<float>(tileWidth / 2);
+        const float centreY = top + static_cast<float>(rowHeight);
+        const float cw = static_cast<float>(columnWidth), rh = static_cast<float>(rowHeight);
+        const float c[4][2] = { { centreX, top }, { centreX - cw, centreY }, { centreX + cw, centreY },
+                                { centreX, centreY + rh } };
+        const int o[4][2] = { { 0, 0 }, { -1, 1 }, { 0, 1 }, { 0, 2 } };
+        std::memcpy(centres, c, sizeof(c));
+        std::memcpy(offsets, o, sizeof(o));
+    }
+    int nearest = 0;
+    float minDist = 0.0f;
+    for (int i = 0; i < 4; ++i)
+    {
+        const float dx = centres[i][0] - relX;
+        const float dy = centres[i][1] - relY;
+        const float dist = dx * dx + dy * dy;
+        if (i == 0 || dist < minDist)
+        {
+            minDist = dist;
+            nearest = i;
+        }
+    }
+    outColumn = refX + offsets[nearest][0];
+    outRow = refY + offsets[nearest][1];
+}
+
+bool Tilemap::MapPixelSize(int32_t& outWidth, int32_t& outHeight) const
+{
+    if (IsInfinite())
+    {
+        return false;
+    }
+    const int32_t w = static_cast<int32_t>(m_MHeader.mapWidth);
+    const int32_t h = static_cast<int32_t>(m_MHeader.mapHeight);
+    const int32_t tw = m_MHeader.tileWidth;
+    const int32_t th = m_MHeader.tileHeight;
+    if (IsStaggered())
+    {
+        // Tiled's HexagonalRenderer::mapSize.
+        const StaggerGrid& g = m_Stagger;
+        if (g.staggerX)
+        {
+            outWidth = w * g.columnWidth + g.sideOffsetX;
+            outHeight = h * (g.tileHeight + g.sideLengthY) + (w > 1 ? g.rowHeight : 0);
+        }
+        else
+        {
+            outWidth = w * (g.tileWidth + g.sideLengthX) + (h > 1 ? g.columnWidth : 0);
+            outHeight = h * g.rowHeight + g.sideOffsetY;
+        }
+        return true;
+    }
+    if (IsIsometric())
+    {
+        outWidth = (w + h) * tw / 2;
+        outHeight = (w + h) * th / 2;
+        return true;
+    }
+    outWidth = w * tw;
+    outHeight = h * th;
+    return true;
+}
+
 std::string Tilemap::GetString(uint32_t offset) const
 {
     // Offsets are from the start of the string pool, as the baker counts them.
@@ -334,8 +635,7 @@ bool Tilemap::ComputeOrigin(float& outX, float& outY) const
     {
         if (std::strncmp(obj.name, "origin", sizeof(obj.name)) == 0)
         {
-            outX = static_cast<float>(obj.x);
-            outY = static_cast<float>(obj.y);
+            ObjectToPixels(static_cast<float>(obj.x), static_cast<float>(obj.y), outX, outY);
             return true;
         }
     }

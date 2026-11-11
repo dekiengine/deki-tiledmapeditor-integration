@@ -147,7 +147,25 @@ DekiEditor::AssetCacheResult HandleTilemapCache(const DekiEditor::AssetCacheCont
         subs.push_back(s);
     }
 
-    if (!WriteDtilemap(map, baked, ctx.cachePath))
+    // Each image layer's image, which must be imported like any other.
+    std::vector<std::string> imageGuids(map.imageLayerCount);
+    for (const TmjLayerLook& look : map.layers)
+    {
+        if (look.kind != TmjLayerLook::Kind::Image || look.imageRelative.empty())
+        {
+            continue;
+        }
+        const fs::path image = (tmjPath.parent_path() / look.imageRelative).lexically_normal();
+        const std::string rel = fs::relative(image, ctx.projectPath).generic_string();
+        imageGuids[look.index] = GuidForRelativePath(ctx.pipeline, rel);
+        if (imageGuids[look.index].empty())
+        {
+            DEKI_LOG_ERROR("TilemapSync: image layer image '%s' (in '%s') is not in the project", rel.c_str(),
+                           ctx.absolutePath.c_str());
+        }
+    }
+
+    if (!WriteDtilemap(map, baked, ctx.cachePath, imageGuids))
     {
         DEKI_LOG_ERROR("TilemapSync: bake failed for '%s' (cache path '%s')", ctx.absolutePath.c_str(),
                        ctx.cachePath.c_str());
@@ -223,6 +241,21 @@ std::vector<std::string> TilemapDependencies(const std::string& absolutePath, De
         const fs::path tsj = (fs::path(absolutePath).parent_path() / tref.source).lexically_normal();
         const std::string guid =
             GuidForRelativePath(pipeline, fs::relative(tsj, pipeline->GetProjectPath()).generic_string());
+        if (!guid.empty())
+        {
+            guids.push_back(guid);
+        }
+    }
+    // And its image layers' images.
+    for (const TmjLayerLook& look : map.layers)
+    {
+        if (look.kind != TmjLayerLook::Kind::Image || look.imageRelative.empty())
+        {
+            continue;
+        }
+        const fs::path image = (fs::path(absolutePath).parent_path() / look.imageRelative).lexically_normal();
+        const std::string guid =
+            GuidForRelativePath(pipeline, fs::relative(image, pipeline->GetProjectPath()).generic_string());
         if (!guid.empty())
         {
             guids.push_back(guid);

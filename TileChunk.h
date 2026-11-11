@@ -48,6 +48,7 @@ enum ChunkIndexFlags : uint16_t
 {
     ChunkFlagEmpty = 1 << 0,        // payload is absent; treat as all-zero
     ChunkFlagUniformFill = 1 << 1,  // payload is a single uint32 repeated for every tile
+    ChunkFlagLayerHidden = 1 << 2,  // its layer is hidden in Tiled: read, but not drawn
 };
 
 }  // namespace DekiTiledMap

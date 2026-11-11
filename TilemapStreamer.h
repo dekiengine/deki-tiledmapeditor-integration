@@ -50,6 +50,11 @@ public:
     uint32_t Changes() const { return m_Changes; }
     /// Chunks asked for and not loaded yet.
     size_t Pending() const { return m_PendingSet.size(); }
+    /// Whether the map has the chunk at all, loaded or not.
+    bool Has(int32_t layerIdx, int32_t chunkX, int32_t chunkY) const
+    {
+        return FindIndexEntry(layerIdx, chunkX, chunkY) != nullptr;
+    }
 
     uint16_t ChunkWidth() const { return m_MHeader.chunkWidth; }
     uint16_t ChunkHeight() const { return m_MHeader.chunkHeight; }

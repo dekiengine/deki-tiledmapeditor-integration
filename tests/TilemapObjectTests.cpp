@@ -201,16 +201,7 @@ const DTilemapObject* Find(const Tilemap& map, const char* name)
 
 const DTilemapProperty* FindProp(const Tilemap& map, const DTilemapObject& obj, const char* name)
 {
-    uint32_t count = 0;
-    const DTilemapProperty* props = map.ObjectProperties(obj, count);
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        if (map.GetString(props[i].nameOffset) == name)
-        {
-            return &props[i];
-        }
-    }
-    return nullptr;
+    return map.FindProperty(obj, name);
 }
 
 class ObjectsFromS : public ::testing::Test
@@ -252,6 +243,8 @@ void ExpectEveryProperty(const Tilemap& map)
     const DTilemapProperty* hp = FindProp(map, *door, "hp");
     ASSERT_NE(hp, nullptr);
     EXPECT_EQ(hp->intValue, 7);
+    EXPECT_EQ(map.FindProperty(*door, "h"), nullptr) << "only the whole name matches";
+    EXPECT_EQ(map.FindProperty(*door, "hpx"), nullptr);
 
     const DTilemapObject* plain = Find(map, "plain");
     ASSERT_NE(plain, nullptr);
@@ -300,6 +293,54 @@ TEST_F(ObjectsFromS, PolygonAndPolylinePointsLoad)
     ASSERT_LE(size_t(path->pointOffset + path->pointCount) * 2, pts.size());
     const int32_t* p = pts.data() + path->pointOffset * 2;
     EXPECT_EQ(std::vector<int32_t>(p, p + 4), (std::vector<int32_t>{ 1, 2, 3, 4 }));
+    delete map;
+}
+
+TEST_F(ObjectsFromS, PositionsAndSizesKeepTiledsFractions)
+{
+    TmjMap source = MapWithObjects(false);
+    TmjObject& door = source.objectLayers[0].objects[0];
+    door.x = 32.25f;
+    door.y = 47.5f;
+    door.width = 10.75f;
+    door.height = 3.5f;
+    Tilemap* map = Load(Bake(source));
+    ASSERT_NE(map, nullptr);
+    const DTilemapObject* baked = Find(*map, "door");
+    ASSERT_NE(baked, nullptr);
+    EXPECT_FLOAT_EQ(baked->x, 32.25f);
+    EXPECT_FLOAT_EQ(baked->y, 47.5f);
+    EXPECT_FLOAT_EQ(baked->width, 10.75f);
+    EXPECT_FLOAT_EQ(baked->height, 3.5f);
+    delete map;
+}
+
+TEST_F(ObjectsFromS, AVersion2MapsWholePixelsStillLoad)
+{
+    // Version 2 stored the position as whole pixels: rewrite the door's that way.
+    std::vector<uint8_t> bytes = Bake(MapWithObjects(false));
+    ASSERT_EQ(HeaderOf(bytes).version, 3u);
+    const float asFloats[2] = { 32.0f, 48.0f };
+    const int32_t asWhole[2] = { 32, 48 };
+    size_t found = 0;
+    for (size_t i = 0; i + sizeof(asFloats) <= bytes.size(); ++i)
+    {
+        if (std::memcmp(bytes.data() + i, asFloats, sizeof(asFloats)) == 0)
+        {
+            std::memcpy(bytes.data() + i, asWhole, sizeof(asWhole));
+            ++found;
+        }
+    }
+    ASSERT_EQ(found, 1u);
+    HeaderOf(bytes).version = 2;
+
+    Tilemap* map = Load(std::move(bytes));
+    ASSERT_NE(map, nullptr);
+    const DTilemapObject* door = Find(*map, "door");
+    ASSERT_NE(door, nullptr);
+    EXPECT_FLOAT_EQ(door->x, 32.0f);
+    EXPECT_FLOAT_EQ(door->y, 48.0f);
+    ExpectEveryProperty(*map);
     delete map;
 }
 

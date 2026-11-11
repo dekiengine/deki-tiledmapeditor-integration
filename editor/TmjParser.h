@@ -56,8 +56,8 @@ struct TmjObject
     uint32_t id;
     std::string name;
     std::string type;  // Tiled "class"
-    int32_t x, y;
-    int32_t width, height;
+    float x, y;  // pixels, as Tiled keeps them
+    float width, height;
     float rotation;
     uint32_t gid = 0;
     bool ellipse = false;
@@ -74,6 +74,31 @@ struct TmjObjectLayer
     std::vector<TmjObject> objects;
 };
 
+// How Tiled draws one layer, with its groups' settings folded in. TmjMap's
+// layers lists every tile, object and image layer in drawing order.
+struct TmjLayerLook
+{
+    enum class Kind
+    {
+        Tile,
+        Object,
+        Image,
+    };
+    Kind kind = Kind::Tile;
+    uint32_t index = 0;  // into tileLayers, objectLayers or the image layers
+    bool visible = true;
+    float opacity = 1.0f;
+    uint32_t tint = 0xFFFFFFFFu;  // RGBA8, R in the low byte
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float parallaxX = 1.0f;
+    float parallaxY = 1.0f;
+    uint8_t blendMode = 0;  // DBlendMode
+    std::string imageRelative;  // image layers: the image, relative to the .tmj
+    bool repeatX = false;
+    bool repeatY = false;
+};
+
 struct TmjMap
 {
     int32_t width = 0;
@@ -83,10 +108,21 @@ struct TmjMap
     int32_t chunkWidth = 16;
     int32_t chunkHeight = 16;
     bool infinite = false;
+    bool isometric = false;
+    // Staggered and hexagonal maps: which rows (or columns) are shifted.
+    bool staggered = false;
+    bool hexagonal = false;
+    bool staggerX = false;     // Stagger Axis X: columns, not rows
+    bool staggerEven = false;  // Stagger Index Even: the even ones, not the odd
+    int32_t hexSideLength = 0;
     uint32_t backgroundColor = 0xFF000000;  // RGBA8, R in the low byte (ParseTiledColor)
     std::vector<TmjTilesetRef> tilesets;
     std::vector<TmjLayer> tileLayers;
     std::vector<TmjObjectLayer> objectLayers;
+    std::vector<TmjLayerLook> layers;  // every layer, bottom first
+    uint32_t imageLayerCount = 0;
+    float parallaxOriginX = 0.0f;
+    float parallaxOriginY = 0.0f;
 };
 
 // A parsed tileset (.tsj).
@@ -112,6 +148,13 @@ struct TmjTilesetTile
 struct TmjTileset
 {
     std::string name;
+    int32_t margin = 0;
+    int32_t spacing = 0;
+    int32_t tileOffsetX = 0;
+    int32_t tileOffsetY = 0;
+    uint32_t objectAlignment = 0;  // TileObjectAlignment
+    bool renderToGrid = false;     // Tile Render Size: Map Grid Size
+    bool preserveAspect = false;   // Fill Mode: Preserve Aspect Fit
     int32_t tileWidth = 0;
     int32_t tileHeight = 0;
     int32_t tileCount = 0;

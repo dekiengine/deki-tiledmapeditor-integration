@@ -1,5 +1,7 @@
 #include "TilemapColliderComponent.h"
 
+#include <cmath>
+
 #include <deki/LogSystem.h>
 #include "Tileset.h"
 #include "TilemapStreamer.h"
@@ -24,8 +26,15 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     }
 
     // World coordinates are in map pixels, as in Tiled.
-    const int origTileX = static_cast<int>(worldX) / tw;
-    const int origTileY = static_cast<int>(worldY) / th;
+    int origTileX = static_cast<int>(worldX) / tw;
+    int origTileY = static_cast<int>(worldY) / th;
+    if (tm->IsIsometric() || tm->IsStaggered())
+    {
+        float column = 0.0f, row = 0.0f;
+        tm->PixelsToTile(worldX, worldY, column, row);
+        origTileX = static_cast<int>(std::floor(column));
+        origTileY = static_cast<int>(std::floor(row));
+    }
     int tileX = origTileX;
     int tileY = origTileY;
     const int cw = tm->ChunkWidth();
@@ -131,8 +140,25 @@ bool TilemapColliderComponent::HitTest(float worldX, float worldY, uint32_t* out
     }
 
     // Local point inside the tile.
-    const float px = worldX - origTileX * tw;
-    const float py = worldY - origTileY * th;
+    float px = worldX - origTileX * tw;
+    float py = worldY - origTileY * th;
+    if (tm->IsStaggered())
+    {
+        // The image stands on the bottom-left of the tile's box.
+        int32_t cornerX = 0, cornerY = 0;
+        tm->Stagger().TileCorner(origTileX, origTileY, cornerX, cornerY);
+        px = worldX - static_cast<float>(cornerX);
+        py = worldY - static_cast<float>(cornerY + tm->Stagger().tileHeight - tileset->TileHeight());
+    }
+    else if (tm->IsIsometric())
+    {
+        // Collision shapes are drawn on the tile's image, whose bottom sits on
+        // the bottom point of the diamond and is centred on it.
+        float topX = 0.0f, topY = 0.0f;
+        tm->TileToPixels(static_cast<float>(origTileX), static_cast<float>(origTileY), topX, topY);
+        px = worldX - (topX - static_cast<float>(tileset->TileWidth()) * 0.5f);
+        py = worldY - (topY + static_cast<float>(th) - static_cast<float>(tileset->TileHeight()));
+    }
 
     if (col->shape == static_cast<uint32_t>(DekiTiledMap::DTileCollisionShape::Rect))
     {

@@ -77,6 +77,12 @@ public:
     DEKI_VISIBLE_WHEN(loopY, 1)
     int32_t wrapPeriodY = 0;
 
+    // Which of the map's layers (Tilemap::Layers(), bottom first) this draws:
+    // from firstLayer up to, not including, endLayer. Not saved: the object
+    // spawner sets it when tile layers sit above an object layer.
+    uint16_t firstLayer = 0;
+    uint16_t endLayer = 0xFFFF;
+
     TilemapComponent();
 
     /// Returns false: TilemapRenderSystem draws the chunks itself, not as one quad.
