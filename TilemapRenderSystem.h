@@ -340,9 +340,13 @@ private:
     // again, and only what comes into view is drawn, a band at a time.
     //
     // Only where the copy gives the very pixels drawing does: frames of
-    // RGB565, not on a GPU; at 1:1, on whole pixels, no parallax; no tint,
-    // opacity or blend mode; tilesets whose pixels are each fully see-through
-    // or fully opaque; no animated tile. Anything else is drawn as before.
+    // RGB565 or ARGB8888, not on a GPU; the map's own pixels at a whole
+    // number of screen pixels each (1:1, or 2x, 3x... under the camera's
+    // Pixel Perfect), on whole pixels, no parallax; no tint, opacity or blend
+    // mode; tilesets whose pixels are each fully see-through or fully opaque;
+    // no animated tile. On ARGB8888, only where the map is the first thing
+    // drawn: there is no see-through copy in that format. Anything else is
+    // drawn as before.
     //
     // The copy wraps around in both directions (a pixel's place is its
     // position modulo the copy's size), so the camera moving shifts nothing.
@@ -357,14 +361,17 @@ private:
         // whatever the camera now. `valid` is in those coordinates.
         DekiRendering::FrameCamera anchor;
         int32_t width = 0, height = 0;
-        // Drawn over the frame's clear colour (`clear`, RGB565): where the
-        // map comes first in a frame or a part of one, which then copies its
-        // rows whole and needs no clear. Otherwise on its own, see-through
-        // where the map draws nothing (RGB565A8), drawn over whatever is there.
+        // Drawn over the frame's clear colour (`clear`, as the frame stores
+        // it): where the map comes first in a frame or a part of one, which
+        // then copies its rows whole and needs no clear; in the frame's own
+        // format (`format`, RGB565 or ARGB8888). Otherwise on its own,
+        // see-through where the map draws nothing (RGB565A8), drawn over
+        // whatever is there.
         bool opaque = false;
+        Deki::ColorFormat format{};  // set when the copy is made
         uint8_t clear[4] = {};
         Deki::Buffer<uint8_t> pixels;
-        int32_t BytesPerPixel() const { return opaque ? 2 : 3; }
+        int32_t BytesPerPixel() const;
         Deki::Rect valid{};
         // The band being drawn next to `valid`, a piece a frame (where the
         // copy wraps), and how many of its pieces are drawn: `valid` takes it
@@ -379,6 +386,7 @@ private:
     };
     std::vector<ViewCopy> m_ViewCopies;
     uint32_t m_CopyClock = 0;
+    bool m_SaidCopying = false;      // the log says once that a map is drawn from a copy
     QuadBlit::ClipState m_ClipSwap;  // the frame's clips, while a copy is drawn
     // While a copy is drawn: the world point at its centre, which DrawLayers
     // picks chunks around instead of the camera's.

@@ -2194,6 +2194,11 @@ bool AtlasAlphaIsBinary(const QuadBlit::Source& src)
 }
 }  // namespace
 
+int32_t TilemapRenderPass::ViewCopy::BytesPerPixel() const
+{
+    return format == Deki::ColorFormat::ARGB8888 ? 4 : (format == Deki::ColorFormat::RGB565A8 ? 3 : 2);
+}
+
 TilemapRenderPass::FramePlan* TilemapRenderPass::FindFramePlan(const Deki::Object* obj)
 {
     for (FramePlan& p : m_FramePlans)
@@ -2342,6 +2347,20 @@ bool TilemapRenderPass::CopyPart(ViewCopy& copy, DekiRendering::RenderContext& c
         const Deki::Rect& piece = pieces[i];
         const int32_t x = piece.left - kx[i] * copy.width;
         const int32_t y = piece.top - ky[i] * copy.height;
+        if (copy.format == Deki::ColorFormat::ARGB8888)
+        {
+            // In the frame's format and opaque: its rows as they are.
+            const size_t frameRowBytes = static_cast<size_t>(ctx.width) * 4;
+            const size_t bytes = static_cast<size_t>(piece.Width()) * 4;
+            for (int32_t row = 0; row < piece.Height(); ++row)
+            {
+                std::memcpy(ctx.buffer + static_cast<size_t>(piece.top - toCopyY + row) * frameRowBytes +
+                                static_cast<size_t>(piece.left - toCopyX) * 4,
+                            copy.pixels.Data() + static_cast<size_t>(y + row) * rowBytes + static_cast<size_t>(x) * 4,
+                            bytes);
+            }
+            continue;
+        }
         QuadBlit::Source source = QuadBlit::MakeSource(
             copy.pixels.Data() + static_cast<size_t>(y) * rowBytes + static_cast<size_t>(x) * bpp, piece.Width(),
             piece.Height(), copy.opaque ? QuadBlit::PixelLayout::RGB565() : QuadBlit::PixelLayout::RGB565A8());
@@ -2369,14 +2388,24 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
     const bool strip = (ctx.viewWidth > 0 && ctx.viewWidth != ctx.width) ||
                        (ctx.viewHeight > 0 && ctx.viewHeight != ctx.height) || ctx.viewLeft != 0 || ctx.viewTop != 0;
     if (!tm || !tm->Streamer() || !ctx.buffer || !ctx.camera || !ctx.cam.valid || blendMode != 0 || strip ||
-        ctx.format != Deki::ColorFormat::RGB565 || ctx.buffer == QuadBlit::SinkTarget())
+        (ctx.format != Deki::ColorFormat::RGB565 && ctx.format != Deki::ColorFormat::ARGB8888) ||
+        ctx.buffer == QuadBlit::SinkTarget())
     {
         return false;
     }
     uint8_t tintR = 255, tintG = 255, tintB = 255, tintA = 255;
     CombineTint(tc->tintColor, layerTint, layerOpacity, tintR, tintG, tintB, tintA);
     const float tilePPM = (tc->pixelsPerMeter > 0.0f) ? tc->pixelsPerMeter : 1.0f;
-    if (tintR != 255 || tintG != 255 || tintB != 255 || tintA != 255 || ctx.cam.ppm != tilePPM || ctx.cam.snapStep > 1)
+    if (tintR != 255 || tintG != 255 || tintB != 255 || tintA != 255)
+    {
+        return false;
+    }
+    // Each map pixel a whole number of screen pixels: 1:1, or 2x, 3x... under
+    // Pixel Perfect, whose grid is then that step (FrameCamera::snapStep), so
+    // every tile lands on it in the copy as it would on screen.
+    const int32_t mapScale = static_cast<int32_t>(std::lround(ctx.cam.ppm / tilePPM));
+    if (mapScale < 1 || ctx.cam.ppm != tilePPM * static_cast<float>(mapScale) ||
+        (mapScale > 1 && ctx.cam.snapStep != mapScale) || (mapScale == 1 && ctx.cam.snapStep > 1))
     {
         return false;
     }
@@ -2544,6 +2573,7 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
     f.Add(static_cast<uint32_t>(epoch >> 32));
     f.Add(view.ppm);
     f.Add(static_cast<uint32_t>(view.snapStep));
+    f.Add(static_cast<uint32_t>(ctx.format));
     f.Add(static_cast<uint32_t>(viewW));
     f.Add(static_cast<uint32_t>(viewH));
     const uint64_t signature = f.Value();
@@ -2568,6 +2598,10 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
     {
         return false;  // something is under the map here: drawn as before
     }
+    if (!onClear && ctx.format == Deki::ColorFormat::ARGB8888)
+    {
+        return false;  // a see-through copy is RGB565A8, which an ARGB8888 frame would lose colours to
+    }
     if (!copy)
     {
         if (m_ViewCopies.size() >= kMaxViewCopies)
@@ -2591,8 +2625,12 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
         copy->lastUse = ++m_CopyClock;
         const int32_t width = viewW + 2 * kCopyMargin;
         const int32_t height = viewH + 2 * kCopyMargin;
+        if (width % mapScale != 0 || height % mapScale != 0)
+        {
+            return false;  // a copy that wraps off the art-pixel grid
+        }
         int32_t offsetX = 0, offsetY = 0;
-        const bool sameClear = !copy->opaque || std::memcmp(copy->clear, clearPixel, 2) == 0;
+        const bool sameClear = !copy->opaque || std::memcmp(copy->clear, clearPixel, copy->BytesPerPixel()) == 0;
         const bool placed = copy->signature == signature && copy->width == width && copy->height == height &&
                             sameClear && WholeInt(OffsetAcross(view) - OffsetAcross(copy->anchor), offsetX) &&
                             WholeInt(OffsetDown(copy->anchor) - OffsetDown(view), offsetY);
@@ -2609,6 +2647,7 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
             {
                 copy->off = false;
                 copy->opaque = onClear;  // a new copy: over the clear wherever it can be
+                copy->format = !onClear ? Deki::ColorFormat::RGB565A8 : ctx.format;
             }
             if (copy->opaque)
             {
@@ -2745,6 +2784,14 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
     {
         return false;
     }
+    if (!m_SaidCopying)
+    {
+        // Once: the log then says the map is not redrawn every frame.
+        m_SaidCopying = true;
+        DEKI_LOG_INFO("Tilemap: drawn from a view copy, %dx%d pixels of %d bytes each, the map at %dx",
+                      static_cast<int>(copy->width), static_cast<int>(copy->height),
+                      static_cast<int>(copy->BytesPerPixel()), static_cast<int>(mapScale));
+    }
     if (group)
     {
         group->copied = true;
@@ -2778,8 +2825,7 @@ bool TilemapRenderPass::DrawIntoCopy(ViewCopy& copy, Deki::Object* obj, const De
             {
                 for (int32_t x = 0; x < at.Width(); ++x)
                 {
-                    row[x * 2] = copy.clear[0];
-                    row[x * 2 + 1] = copy.clear[1];
+                    std::memcpy(row + static_cast<size_t>(x) * bpp, copy.clear, static_cast<size_t>(bpp));
                 }
             }
             else
@@ -2791,7 +2837,7 @@ bool TilemapRenderPass::DrawIntoCopy(ViewCopy& copy, Deki::Object* obj, const De
         into.buffer = copy.pixels.Data();
         into.width = copy.width;
         into.height = copy.height;
-        into.format = copy.opaque ? Deki::ColorFormat::RGB565 : Deki::ColorFormat::RGB565A8;
+        into.format = copy.format;
         into.viewLeft = into.viewTop = 0;
         into.viewWidth = copy.width;
         into.viewHeight = copy.height;

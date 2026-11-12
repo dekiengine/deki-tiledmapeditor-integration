@@ -11,6 +11,16 @@ alongside one that has them.
 ## Unreleased
 
 ### Added
+- **The view copy works on ARGB8888 screens and at 2x, 3x...** The copy a
+  map is drawn into once, and copied from while the camera scrolls, was only
+  made for RGB565 screens at 1:1, so a map on an ARGB8888 screen, or drawn
+  larger under Pixel Perfect, was drawn tile by tile every frame. On ARGB8888
+  it is kept in the screen's format and copied row by row, where the map is
+  the first thing drawn; under Pixel Perfect at a whole scale its tiles land
+  on the same art-pixel grid as on screen. Nothing to set, and the same
+  pixels: frames rendered both ways match. On the Anbernic RG40XX H (640x480,
+  a four-layer isometric farm at 2x) the map went from 13 ms a frame to 2.6.
+  The log says once when a map is drawn from a copy.
 - The map's render pass names itself "Tilemap" in the profiler's breakdown
   by object (`RenderPass::Name`).
 - Isometric maps. Set the map's orientation to Isometric in Tiled and it draws
