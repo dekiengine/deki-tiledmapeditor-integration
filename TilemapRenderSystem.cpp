@@ -2088,11 +2088,12 @@ void TilemapRenderPass::DrawLayers(Deki::Object* obj, DekiRendering::RenderConte
 
 namespace
 {
-// Pixels the copy keeps past each edge of the view, and how close the view
-// may come to an edge of what is drawn before a band is drawn out past it, to
-// the margin beyond the view. A band is drawn a piece a frame (it is cut where
-// the copy wraps), so no frame draws more than one, and a camera moving a
-// pixel a frame starts a band about every 16 frames.
+// Map pixels the copy keeps past each edge of the view (on screen, times the
+// map's scale), and how close the view may come to an edge of what is drawn
+// before a band is drawn out past it, to the margin beyond the view. A band
+// is drawn a piece a frame (it is cut where the copy wraps), so no frame
+// draws more than one, and a camera moving a map pixel a frame starts a band
+// about every 16 frames.
 constexpr int32_t kCopyMargin = 16;
 constexpr int32_t kCopyLookAhead = 8;
 // Kept no further than this from where it was first drawn: float positions
@@ -2623,8 +2624,12 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
         copy->preparedFrame = ctx.contentFrame;
         copy->usable = false;
         copy->lastUse = ++m_CopyClock;
-        const int32_t width = viewW + 2 * kCopyMargin;
-        const int32_t height = viewH + 2 * kCopyMargin;
+        // In map pixels: a map drawn larger scrolls as many more screen
+        // pixels for the same walk.
+        const int32_t margin = kCopyMargin * mapScale;
+        const int32_t lookAhead = kCopyLookAhead * mapScale;
+        const int32_t width = viewW + 2 * margin;
+        const int32_t height = viewH + 2 * margin;
         if (width % mapScale != 0 || height % mapScale != 0)
         {
             return false;  // a copy that wraps off the art-pixel grid
@@ -2704,7 +2709,7 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
                 int side = -1;
                 for (int k = 0; k < 4; ++k)
                 {
-                    if (gaps[k] < kCopyLookAhead && (side < 0 || gaps[k] < gaps[side]))
+                    if (gaps[k] < lookAhead && (side < 0 || gaps[k] < gaps[side]))
                     {
                         side = k;
                     }
@@ -2720,7 +2725,7 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
                                          : side == 2 ? need.top - valid.top
                                                      : valid.bottom - need.bottom;
                     const int32_t grow =
-                        std::min<int32_t>(kCopyMargin - gaps[side], size - span + std::max<int32_t>(0, room));
+                        std::min<int32_t>(margin - gaps[side], size - span + std::max<int32_t>(0, room));
                     const int32_t trim = std::max<int32_t>(0, span + grow - size);
                     if (grow > 0)
                     {
