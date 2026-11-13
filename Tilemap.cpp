@@ -353,7 +353,7 @@ void Tilemap::QueryVisibleChunks(int32_t layerIdx, int32_t chunkMinX, int32_t ch
                                  int32_t chunkMaxY, std::vector<ChunkIndexEntry>& out) const
 {
     out.clear();
-    if (m_MIndex.empty())
+    if (m_MIndex.empty() || chunkMinX > chunkMaxX || chunkMinY > chunkMaxY)
     {
         return;
     }

@@ -1042,6 +1042,15 @@ void TilemapRenderPass::DrawLayers(Deki::Object* obj, DekiRendering::RenderConte
     float tiledMinY = (originOffsetY - ((camY - originY) + visH * 0.5f)) * tilePPM;
     float tiledMaxY = (originOffsetY - ((camY - originY) - visH * 0.5f)) * tilePPM;
 
+    // A camera or map that is not a number, or too far out for whole map
+    // pixels, draws nothing. Its chunk range would wrap past the int range.
+    const float kFarthest = 1.0e9f;
+    if (!(std::fabs(tiledMinX) < kFarthest && std::fabs(tiledMaxX) < kFarthest && std::fabs(tiledMinY) < kFarthest &&
+          std::fabs(tiledMaxY) < kFarthest))
+    {
+        return;
+    }
+
     // A frame redrawn in parts (Redraw Changes), or a part of one, reaches
     // only the chunks its clip does: the chunks are walked, asked for and set
     // up only there. For a whole frame the clip is the view.

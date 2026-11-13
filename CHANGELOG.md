@@ -10,6 +10,12 @@ alongside one that has them.
 
 ## Unreleased
 
+### Fixed
+- A map under a camera that is not a number, or very far out, draws nothing.
+  Its chunk range wrapped round and `Tilemap::QueryVisibleChunks` read past
+  the end of its index, which crashed. A range with its ends the wrong way
+  round now returns no chunks.
+
 ### Changed
 - **The view copy works with a Pixel Perfect camera on screen pixels.** A
   map drawn at 2x or more is still drawn from its copy when the camera's

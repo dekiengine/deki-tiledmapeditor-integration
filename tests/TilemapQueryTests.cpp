@@ -395,6 +395,24 @@ TEST_F(MapFixture, NegativeChunkCoordinatesWork)
     EXPECT_EQ(out.size(), 2u);
 }
 
+TEST_F(MapFixture, AnInsideOutRectReturnsNothing)
+{
+    // A camera at NaN gave a range with its top below its bottom, and the
+    // walk between the two searches ran past the end of the index.
+    MapBuilder b;
+    b.AddChunk(0, 0, 0);
+    b.AddChunk(0, 1, 1);
+    b.AddChunk(1, 0, 0);
+    Tilemap* map = LoadFrom(b);
+    ASSERT_NE(map, nullptr);
+
+    std::vector<ChunkIndexEntry> out;
+    map->QueryVisibleChunks(0, 0, 5, 1, -5, out);
+    EXPECT_TRUE(out.empty());
+    map->QueryVisibleChunks(0, 5, 0, -5, 1, out);
+    EXPECT_TRUE(out.empty());
+}
+
 TEST_F(MapFixture, TheQueryClearsWhatTheCallerPassedIn)
 {
     MapBuilder b;
