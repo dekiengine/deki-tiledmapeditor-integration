@@ -10,6 +10,11 @@ alongside one that has them.
 
 ## Unreleased
 
+### Changed
+- **The view copy works with a Pixel Perfect camera on screen pixels.** A
+  map drawn at 2x or more is still drawn from its copy when the camera's
+  Pixel Grid is `Screen`, and scrolls a screen pixel at a time.
+
 ### Added
 - **The view copy works on ARGB8888 screens and at 2x, 3x...** The copy a
   map is drawn into once, and copied from while the camera scrolls, was only

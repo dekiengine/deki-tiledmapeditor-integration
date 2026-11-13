@@ -1992,7 +1992,7 @@ void TilemapRenderPass::DrawLayers(Deki::Object* obj, DekiRendering::RenderConte
                 const float wx = originX + tiledTileX - originOffsetX;
                 float fDestSX, unusedY;
                 cam.WorldToScreen(wx, originY, fDestSX, unusedY);
-                if (cam.snapStep > 0)  // project Pixel Perfect: the art-pixel grid
+                if (cam.snapStep > 0)  // Pixel Perfect: the camera's pixel grid
                 {
                     fDestSX = cam.SnapX(fDestSX);
                 }
@@ -2402,11 +2402,13 @@ bool TilemapRenderPass::DrawFromCopy(Deki::Object* obj, DekiRendering::RenderCon
         return false;
     }
     // Each map pixel a whole number of screen pixels: 1:1, or 2x, 3x... under
-    // Pixel Perfect, whose grid is then that step (FrameCamera::snapStep), so
-    // every tile lands on it in the copy as it would on screen.
+    // Pixel Perfect, whose grid is then that step or the screen's pixels
+    // (FrameCamera::snapStep), so every tile lands in the copy as it would on
+    // screen.
     const int32_t mapScale = static_cast<int32_t>(std::lround(ctx.cam.ppm / tilePPM));
     if (mapScale < 1 || ctx.cam.ppm != tilePPM * static_cast<float>(mapScale) ||
-        (mapScale > 1 && ctx.cam.snapStep != mapScale) || (mapScale == 1 && ctx.cam.snapStep > 1))
+        (mapScale > 1 && ctx.cam.snapStep != mapScale && ctx.cam.snapStep != 1) ||
+        (mapScale == 1 && ctx.cam.snapStep > 1))
     {
         return false;
     }
