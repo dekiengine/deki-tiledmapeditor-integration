@@ -43,5 +43,9 @@
     "Image": "图像",
     "infinite": "无限",
     "Made in Tiled. Edit it there; the editor bakes it again when the file changes.": "由 Tiled 制作。在 Tiled 中编辑，文件改变时编辑器会重新烘焙。",
-    "Open in Tiled": "在 Tiled 中打开"
+    "Open in Tiled": "在 Tiled 中打开",
+    "How much a tile object's Sorting Order rises for each meter lower its point stands. Above 0, what is lower on the screen draws on top, so characters can walk behind things. Set it to the Pixels Per Meter for one order per pixel row, which stacks objects as the Tiled editor does. 0 gives every tile object the Sort Base.": "图块对象的点每低一米，其排序顺序增加多少。大于 0 时，屏幕上位置越低的绘制在越上层，角色就能走到物体后面。设为每米像素数时，每个像素行对应一个顺序，与 Tiled 编辑器的对象叠放方式相同。为 0 时，所有图块对象都使用排序基准。",
+    "Sort Base": "排序基准",
+    "Sort Per Meter": "每米排序增量",
+    "The Sorting Order of a tile object standing at the world's horizon line (Y 0).": "站在世界地平线（Y 0）上的图块对象的排序顺序。"
 }

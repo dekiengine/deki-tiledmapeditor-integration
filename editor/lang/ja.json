@@ -43,5 +43,9 @@
     "Image": "画像",
     "infinite": "無限",
     "Made in Tiled. Edit it there; the editor bakes it again when the file changes.": "Tiled で作成されています。Tiled で編集すると、ファイルが変わったときにエディターが再ベイクします。",
-    "Open in Tiled": "Tiled で開く"
+    "Open in Tiled": "Tiled で開く",
+    "How much a tile object's Sorting Order rises for each meter lower its point stands. Above 0, what is lower on the screen draws on top, so characters can walk behind things. Set it to the Pixels Per Meter for one order per pixel row, which stacks objects as the Tiled editor does. 0 gives every tile object the Sort Base.": "タイルオブジェクトの位置が 1 メートル下がるごとに、描画順をどれだけ上げるかです。0 より大きいと画面の下にあるものほど手前に描かれ、キャラクターが物の後ろを歩けます。1 メートルあたりのピクセル数と同じ値にするとピクセル行ごとに 1 つ描画順が上がり、Tiled エディターと同じようにオブジェクトが重なります。0 ではすべてのタイルオブジェクトが基準の描画順になります。",
+    "Sort Base": "基準の描画順",
+    "Sort Per Meter": "1 メートルあたりの描画順",
+    "The Sorting Order of a tile object standing at the world's horizon line (Y 0).": "ワールドの水平線 (Y 0) に立つタイルオブジェクトの描画順です。"
 }

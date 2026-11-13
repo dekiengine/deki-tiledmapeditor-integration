@@ -43,5 +43,9 @@
     "Image": "이미지",
     "infinite": "무한",
     "Made in Tiled. Edit it there; the editor bakes it again when the file changes.": "Tiled에서 만들었습니다. Tiled에서 편집하면 파일이 바뀔 때 에디터가 다시 베이크합니다.",
-    "Open in Tiled": "Tiled에서 열기"
+    "Open in Tiled": "Tiled에서 열기",
+    "How much a tile object's Sorting Order rises for each meter lower its point stands. Above 0, what is lower on the screen draws on top, so characters can walk behind things. Set it to the Pixels Per Meter for one order per pixel row, which stacks objects as the Tiled editor does. 0 gives every tile object the Sort Base.": "타일 오브젝트의 기준점이 1미터 낮아질 때마다 정렬 순서가 얼마나 올라가는지 지정합니다. 0보다 크면 화면에서 아래쪽에 있는 것이 위에 그려지므로, 캐릭터가 물건 뒤로 걸어갈 수 있습니다. 미터당 픽셀 수로 설정하면 픽셀 행마다 순서가 하나씩 올라가, Tiled 에디터와 같은 방식으로 오브젝트가 겹칩니다. 0이면 모든 타일 오브젝트가 정렬 기준값을 씁니다.",
+    "Sort Base": "정렬 기준값",
+    "Sort Per Meter": "미터당 정렬",
+    "The Sorting Order of a tile object standing at the world's horizon line (Y 0).": "월드의 수평선(Y 0)에 서 있는 타일 오브젝트의 정렬 순서입니다."
 }
