@@ -8,7 +8,7 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
-## Unreleased
+## 0.40.0
 
 ### Fixed
 - A map under a camera that is not a number, or very far out, draws nothing.
@@ -17,6 +17,8 @@ alongside one that has them.
   round now returns no chunks.
 
 ### Changed
+- `minEngine` 0.40.0: built against engine 0.40.0. A build of this package
+  from before does not load and is rebuilt.
 - **The view copy works with a Pixel Perfect camera on screen pixels.** A
   map drawn at 2x or more is still drawn from its copy when the camera's
   Pixel Grid is `Screen`, and scrolls a screen pixel at a time.
