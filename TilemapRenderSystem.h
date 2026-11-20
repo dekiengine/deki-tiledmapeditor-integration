@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -49,7 +50,12 @@ public:
         }
         if (count > m_Size)
         {
-            std::memset(m_Buffer.Data() + m_Size, 0, (count - m_Size) * sizeof(T));
+            // Zero bytes are T's own defaults for the plain records kept here
+            // (QuadBlit::UniformRun's members default to 0); said through
+            // void*, since a type with default member values is not trivial
+            // to GCC and ESP-IDF builds treat its warning as an error.
+            static_assert(std::is_trivially_copyable_v<T>, "ExternalArray holds plain records");
+            std::memset(static_cast<void*>(m_Buffer.Data() + m_Size), 0, (count - m_Size) * sizeof(T));
         }
         m_Size = count;
         return true;

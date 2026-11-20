@@ -8,6 +8,14 @@ breaking change bumps the minor across the editor, the engine and every
 package together, so a package with no changes of its own is still released
 alongside one that has them.
 
+## 0.40.1
+
+### Fixed
+- ESP-IDF firmware builds compile again. Growing the map cache's run list
+  zeroed `QuadBlit::UniformRun` with `memset`, which GCC refuses for a type
+  with default member values (`-Werror=class-memaccess`, on in ESP-IDF
+  builds). Found building for the ESP32-P4.
+
 ## 0.40.0
 
 ### Fixed
